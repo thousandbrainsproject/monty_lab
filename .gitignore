@@ -1,0 +1,33 @@
+.rsyncignore.local
+
+# Project-specific
+benchmark_vit/data/
+benchmark_vit/logs
+monty_capabilities_analysis/results/
+monty_capabilities_analysis/notebooks/html_exports/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+
+# vscode
+launch.json
+.vscode/*
+!.vscode/markdown.code-snippets
+
+# Pickled files
+*.pkl
+
+# JetBrains/PyCharm
+.idea/

@@ -1,0 +1,7 @@
+_target_: src.data.ycb_datamodule.YCBDataModule
+data_dir: ${paths.data_dir}/view_finder_224/eval/view_finder_rgbd
+test_dir: ${paths.data_dir}/view_finder_224_randrot/eval/view_finder_rgbd
+batch_size: 128 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+train_val_split: [0.8, 0.2]
+num_workers: 0
+pin_memory: False

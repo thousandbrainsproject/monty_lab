@@ -1,0 +1,3 @@
+# Code to Integrate into Monty
+
+We used to have this code integrated into the Monty codebase. However, it had several drawback which is why we abandoned the approach for now and the files became out of date. This is why we removed them from the main codebase for now. We copied them here so we have a good starting point if we ever decide to integrate them again. At the top of each file is a note on where it used to be in the Monty codebase.

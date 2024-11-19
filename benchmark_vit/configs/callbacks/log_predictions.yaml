@@ -1,0 +1,2 @@
+log_predictions:
+  _target_: src.callbacks.log_predictions.LogPredictionsCallback

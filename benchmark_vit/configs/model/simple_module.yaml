@@ -1,0 +1,19 @@
+_target_: src.models.vit_module.ViTLitModule
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _partial_: truWrite a two layer neural network that is like the patch_embedding Linear layer of custom_vit.pye
+  mode: min
+
+net:
+  _target_: src.models.components.simple_net.SimpleNet
+  num_classes: 77
+
+# compile model for faster training with pytorch 2.0
+compile: false

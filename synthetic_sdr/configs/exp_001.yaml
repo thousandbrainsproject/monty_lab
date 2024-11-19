@@ -1,0 +1,10 @@
+num_objects: [10,10,10,10,10,10,10,10,10,10]
+sdr_length: 2048
+sdr_on_bits: 41
+batch_size: 0
+num_epochs: 5000
+log_every: 10
+lr: 0.001
+evidence_range: [0, 0]
+overlap_range: [0, 41]
+log_pth: True

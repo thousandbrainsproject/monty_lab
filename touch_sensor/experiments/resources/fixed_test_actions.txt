@@ -1,0 +1,7 @@
+agent_id_0.look_up, 5.0
+agent_id_0.look_up, 5.0
+agent_id_0.turn_left, 5.0
+agent_id_0.look_down, 5.0
+agent_id_0.turn_right, 5.0
+agent_id_0.turn_right, 5.0
+agent_id_0.look_up, 5.0
