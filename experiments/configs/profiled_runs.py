@@ -22,14 +22,11 @@ from .graph_experiments import (
     feature_pred_tests,
     five_lm_feature_matching,
 )
+from .more_pretraining_experiments import supervised_pre_training_storeall
 
 randrot_noise_10distinctobj_5lms_dist_agent = import_config_from_monty(
     "ycb_experiments.py",
     "randrot_noise_10distinctobj_5lms_dist_agent",
-)
-
-supervised_pre_training_storeall = import_config_from_monty(
-    "pretraining_experiments.py", "supervised_pre_training_storeall"
 )
 
 
