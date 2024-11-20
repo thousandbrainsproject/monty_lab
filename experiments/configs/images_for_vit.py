@@ -1,3 +1,15 @@
+"""
+This module contains configs, a logger, and a motor policy for generating RGBD images
+of objects taken from the viewfinder. The motor policy ensures that the whole
+object fits within the view-finder's frame. It does this by moving forward until the
+object enters a small buffer region around the viewfinder's frame. The logger saves the
+images as .npy files and writes a jsonl file containing metadata about the object
+and pose for each image.
+
+The primary use case for this module is to generate object images used for training
+and testing traditional models (e.g., vision transformers).
+
+"""
 import copy
 import json
 import logging
