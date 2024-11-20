@@ -15,6 +15,7 @@ from .evidence_sdr_evaluation import CONFIGS as EVIDENCESDREVAL
 from .feature_matching_evaluation import CONFIGS as FEATUREEVAL
 from .follow_ups import CONFIGS as FOLLOW_UPS
 from .graph_experiments import CONFIGS as GRAPHS
+from .images_for_vit import CONFIGS as IMAGES_FOR_VIT
 from .policy_experiments import CONFIGS as POLICYEVAL
 from .profiled_runs import CONFIGS as PROFILED_RUNS
 from .robustness_experiments import CONFIGS as ROBUSTNESSEVAL
@@ -30,3 +31,4 @@ CONFIGS.update(EVIDENCESDREVAL)
 CONFIGS.update(POLICYEVAL)
 CONFIGS.update(ROBUSTNESSEVAL)
 CONFIGS.update(FOLLOW_UPS)
+CONFIGS.update(IMAGES_FOR_VIT)
