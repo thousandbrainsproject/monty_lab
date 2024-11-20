@@ -6,10 +6,13 @@ object enters a small buffer region around the viewfinder's frame. The logger sa
 images as .npy files and writes a jsonl file containing metadata about the object
 and pose for each image.
 
+This module currently requires a pretrained model.
+
 The primary use case for this module is to generate object images used for training
 and testing traditional models (e.g., vision transformers).
 
 """
+
 import copy
 import json
 import logging
@@ -343,9 +346,9 @@ view_finder_base_randrot["experiment_args"].n_eval_epochs = 14
 view_finder_base_randrot["logging_config"].output_dir = os.path.join(
     project_dir, "view_finder_base_randrot"
 )
-view_finder_base_randrot["eval_dataloader_args"].object_init_sampler = (
-    RandomRotationObjectInitializer()
-)
+view_finder_base_randrot[
+    "eval_dataloader_args"
+].object_init_sampler = RandomRotationObjectInitializer()
 
 # ----------------------------------------------------------------------------
 # 224 x 224
