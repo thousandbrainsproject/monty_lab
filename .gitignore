@@ -5,6 +5,7 @@ benchmark_vit/data/
 benchmark_vit/logs
 monty_capabilities_analysis/results/
 monty_capabilities_analysis/notebooks/html_exports/
+monty_capabilities_analysis/out/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
