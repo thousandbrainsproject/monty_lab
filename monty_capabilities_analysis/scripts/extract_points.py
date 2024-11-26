@@ -24,20 +24,27 @@ e.g. `pip install -e ~/tbp/tbp.monty`
 """
 
 from pathlib import Path
-
+from typing import List, Optional
 import argparse
-
+import numpy as np
+import tqdm
 import torch
+import matplotlib
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from calculate_surface_area import estimate_surface_area_convex_hull
 
 
-def main(pretrained_model_path: Path, object_id: str = "all") -> None:
+def extract_points(
+    pretrained_model_path: Path, object_id: List[str] or str = "all"
+) -> None:
     """Extract points from a pretrained model.
 
     Args:
-        pretrained_model_path: Path to pretrained model.
-        object_id: ID of object to extract, or "all" to extract all objects.
+        pretrained_model_path (Path): Path to pretrained model.
+        object_id (List[str] or str): ID of object to extract, or "all" to extract
+            all objects.
 
     Returns:
         dict: Dictionary containing points for each object.
@@ -54,7 +61,7 @@ def main(pretrained_model_path: Path, object_id: str = "all") -> None:
     pt_dict = {}
 
     if object_id == "all":
-        for obj_id, obj_data in graph_memory.items():
+        for obj_id, obj_data in tqdm.tqdm(graph_memory.items()):
             # Data(
             #   x=[2264, 30],
             #   pos=[2264, 3],
@@ -80,11 +87,79 @@ def main(pretrained_model_path: Path, object_id: str = "all") -> None:
             #   edge_attr=[13584, 3]
             # )
 
-            pt_dict[obj_id] = obj_data.pos.numpy()
+            pt_dict[obj_id] = obj_data["patch"].pos.numpy()
     else:
-        pt_dict[object_id] = graph_memory[object_id].pos.numpy()
+        for obj_id in tqdm.tqdm(object_id):
+            pt_dict[obj_id] = graph_memory[obj_id]["patch"].pos.numpy()
 
     return pt_dict
+
+def plot_pointcloud(
+    points: np.ndarray,
+    show_axticks: bool = True,
+    rotation: float = -80,
+    ax: Optional[Axes3D] = None,
+) -> matplotlib.figure.Figure:
+    """Plot a 3D graph of an object model.
+
+    TODO: add color_by option
+
+    Args:
+        points (np.ndarray): Points to plot.
+        show_axticks: Whether to show axis ticks.
+        rotation: Rotation of the 3D plot (moving camera up or down).
+        ax: Axes3D instance to plot on. If not supplied, a figure and Axes3D
+            instance will be created.
+
+    Returns:
+        Figure: the figure on which the graph was plotted.
+
+    """
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1, projection="3d")
+    else:
+        fig = ax.figure
+
+    ax.scatter(points[:, 1], points[:, 0], points[:, 2], c=points[:, 2])
+
+    if not show_axticks:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.set_xlabel("x", labelpad=-10)
+        ax.set_zlabel("z", labelpad=-15)
+        ax.set_ylabel("y", labelpad=-15)
+    else:
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+
+    ax.set_aspect("equal")
+    ax.view_init(rotation, 180)
+    fig.tight_layout()
+    plt.close(fig)
+    return fig
+
+
+def main(args):
+    """Extract points from a pretrained model, save, and plot and save plots."""
+    pt_dict = extract_points(args.pretrained_model, args.object_id)
+
+    # Save each object's points as npy files.
+    if args.save_dir:
+        args.save_dir.mkdir(parents=True, exist_ok=True)
+        for obj_id, points in tqdm.tqdm(pt_dict.items()):
+            np.save(args.save_dir / f"{obj_id}.npy", points)
+
+    # Plot points, save in same directory but with _plots suffix.
+    if args.save_dir:
+        plots_dir = args.save_dir.with_name(args.save_dir.name + "_plots")
+        plots_dir.mkdir(parents=True, exist_ok=True)
+        for obj_id, points in tqdm.tqdm(pt_dict.items()):
+            fig = plot_pointcloud(points)
+            fig.savefig(plots_dir / f"{obj_id}.png")
+            plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -92,10 +167,9 @@ if __name__ == "__main__":
     # Path to pretrained model.
     parser.add_argument("--pretrained_model", type=Path, required=True)
     parser.add_argument("--object_id", type=str, default="all")
+    parser.add_argument(
+        "--save_dir", type=Path, default=None, help="Directory to save points."
+    )
     args = parser.parse_args()
 
-    pretrained_model_path = args.pretrained_model.expanduser()
-    pt_dict = main(pretrained_model_path, args.object_id)
-
-    print(pt_dict)
-    print()
+    main(args)
