@@ -18,46 +18,9 @@ For Phase II, I will:
 1. Need to modify `tbp.monty` to save point clouds at evaluation steps.
 
 -------------------------------------------------------------------------------
-# Calculating Surface Area from Point Clouds
 
-There are several ways to calculate the surface area of a point cloud, each with
-their own sub-variations. I will roughly sketch out the methods I am considering
-below.
-
-1. Using a convex hull to approximate the surface area.
-- This is the simplest and fastest method, but will not be accurate for
-non-convex shapes. Still, it may be a good sanity checker for convex shapes.
-
-2. Using local density estimates to approximate the surface area.
-- This works directly with points without any surface reconstruction. It is
-related to mesh methods in that it approximates local surface patches. A key
-parameter is the radius of the local neighborhood used to estimate the density.
-- If we incorporate surface normals, it could be more accurate.
-
-3. Using a alpha shape to approximate the surface area.
-- This is a generalization of the convex hull that works well for both convex
-and non-convex shapes.
-- It makes use of the Delaunay triangulation whose circumsphere radius is below
-specific threshold (alpha). Surface area is calculated as sum of all triangular
-faces.
-
-4. Mesh-based Reconstruction
-- This is the most accurate method, but also the most computationally expensive.
-- It involves reconstructing a mesh from the point cloud using a variety of
-methods including Ball Pivoting, Alpha Shape, and others.
-- Surface area is calculated as sum of all triangular faces of the mesh.
-
-5. Voxel-based Reconstruction
-- This is a middle-ground between point cloud and mesh methods.
-- Surfaces are discretized into a voxel grid.
-- Surface area is approximated by the sum of all surface voxels.
-
-Workflows:
-- Points -> Local Density (quick estimate)
-- Points -> Alpha Shape -> Mesh (accurate surface)
-- Points -> Voxels -> Marching Cubes -> Mesh (alternative path)
-
--------------------------------------------------------------------------------
+Note: Please install `tbp.monty` in editable mode to run this script.
+e.g. `pip install -e ~/tbp/tbp.monty`
 """
 
 from pathlib import Path
@@ -65,6 +28,8 @@ from pathlib import Path
 import argparse
 
 import torch
+
+from calculate_surface_area import estimate_surface_area_convex_hull
 
 
 def main(pretrained_model_path: Path, object_id: str = "all") -> None:
@@ -84,16 +49,53 @@ def main(pretrained_model_path: Path, object_id: str = "all") -> None:
     state_dict = torch.load(pretrained_model_path)
 
     # Extract the graph memory which contains the object models.
-    graph_memory = state_dict["lm_dict"]["0"]["graph_memory"]
+    graph_memory = state_dict["lm_dict"][0]["graph_memory"]
 
-    pass
+    pt_dict = {}
+
+    if object_id == "all":
+        for obj_id, obj_data in graph_memory.items():
+            # Data(
+            #   x=[2264, 30],
+            #   pos=[2264, 3],
+            #   norm=[2264, 3],
+            #   feature_mapping={
+            #     node_ids=[2],
+            #     pose_vectors=[2],
+            #     pose_fully_defined=[2],
+            #     on_object=[2],
+            #     object_coverage=[2],
+            #     rgba=[2],
+            #     min_depth=[2],
+            #     mean_depth=[2],
+            #     hsv=[2],
+            #     principal_curvatures=[2],
+            #     principal_curvatures_log=[2],
+            #     gaussian_curvature=[2],
+            #     mean_curvature=[2],
+            #     gaussian_curvature_sc=[2],
+            #     mean_curvature_sc=[2]
+            #   },
+            #   edge_index=[2, 13584],
+            #   edge_attr=[13584, 3]
+            # )
+
+            pt_dict[obj_id] = obj_data.pos.numpy()
+    else:
+        pt_dict[object_id] = graph_memory[object_id].pos.numpy()
+
+    return pt_dict
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # Path to pretrained model.
     parser.add_argument("--pretrained_model", type=Path, required=True)
+    parser.add_argument("--object_id", type=str, default="all")
     args = parser.parse_args()
 
     pretrained_model_path = args.pretrained_model.expanduser()
-    main(pretrained_model_path)
+    pt_dict = main(pretrained_model_path, args.object_id)
+
+    print(pt_dict)
+    print()
