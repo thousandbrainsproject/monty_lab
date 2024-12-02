@@ -3,12 +3,22 @@ from typing import Dict, List, Union
 
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvInitArgs,
-    AgentConfig,
-    MultiSensorAgent,
     MultiLMMountHabitatDatasetArgs,
-    MultiLMMountConfig,
-    EnvInitArgsFiveLMMount,
+    EnvInitArgsTwoLMDistantStackedMount,
 )
+from tbp.monty.frameworks.environments.habitat import (
+    AgentConfig,
+)
+from tbp.monty.simulators.habitat import MultiSensorAgent
+# ------------------------------------------------------------------------------------ #
+# Multiple LMs, for voting
+#
+# Classes are grouped by number of LMs. They are ordered by their nesting (outside-in).
+# Each should have
+#  - [...]MountHabitatDatasetArgs
+#  - EnvInitArgs[...]
+#  - [...]MountConfig
+# ------------------------------------------------------------------------------------ #
 
 
 @dataclass
@@ -19,7 +29,7 @@ class EnvInitArgsMultiLMMount(EnvInitArgs):
         ]
     )
 
-
+@dataclass
 class MultiLMMountConfig:
     # Modified from `PatchAndViewFinderMountConfig`
     agent_id: Union[str, None] = "agent_id_0"
@@ -80,8 +90,6 @@ class TwoLMMountConfig(MultiLMMountConfig):
 
 
 # - Two LMs (hierarchical, distant agent)
-
-
 @dataclass
 class TwoLMStackedDistantMountHabitatDatasetArgs(MultiLMMountHabitatDatasetArgs):
     env_init_args: Dict = field(
@@ -90,18 +98,10 @@ class TwoLMStackedDistantMountHabitatDatasetArgs(MultiLMMountHabitatDatasetArgs)
 
 
 @dataclass
-class EnvInitArgsTwoLMDistantStackedMount(EnvInitArgs):
-    agents: List[AgentConfig] = field(
-        default_factory=lambda: [
-            AgentConfig(MultiSensorAgent, TwoLMStackedDistantMountConfig().__dict__)
-        ]
-    )
-
-
-@dataclass
 class TwoLMStackedDistantMountConfig:
     # two sensor patches at the same location with different receptive field sizes
     # Used for basic test with heterarchy.
+
     agent_id: Union[str, None] = "agent_id_0"
     sensor_ids: Union[List[str], None] = field(
         default_factory=lambda: ["patch_0", "patch_1", "view_finder"]
@@ -132,8 +132,6 @@ class TwoLMStackedDistantMountConfig:
 
 
 # - Two LMs (hierarchical, surface agent)
-
-
 @dataclass
 class TwoLMStackedSurfaceMountHabitatDatasetArgs(MultiLMMountHabitatDatasetArgs):
     env_init_args: Dict = field(
@@ -156,8 +154,6 @@ class TwoLMStackedSurfaceMountConfig(TwoLMStackedDistantMountConfig):
 
 
 # - Five LMs
-
-
 @dataclass
 class FiveLMMountHabitatDatasetArgs(MultiLMMountHabitatDatasetArgs):
     env_init_args: Dict = field(
@@ -165,6 +161,16 @@ class FiveLMMountHabitatDatasetArgs(MultiLMMountHabitatDatasetArgs):
     )
 
 
+@dataclass
+class EnvInitArgsFiveLMMount(EnvInitArgs):
+    agents: List[AgentConfig] = field(
+        default_factory=lambda: [
+            AgentConfig(MultiSensorAgent, FiveLMMountConfig().__dict__)
+        ]
+    )
+
+
+@dataclass
 class FiveLMMountConfig:
     # Modified from `PatchAndViewFinderMountConfig`
     agent_id: Union[str, None] = "agent_id_0"

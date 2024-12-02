@@ -107,26 +107,32 @@ from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
     MotorSystemConfigCurInformedSurfaceGoalStateDriven,
     MotorSystemConfigInformedGoalStateDriven,
-    NineLMMontyConfig,
     ParallelEvidenceLMLoggingConfig,
     PatchAndViewMontyConfig,
     SurfaceAndViewMontyConfig,
-    TenLMMontyConfig,
     TwoLMMontyConfig,
     get_cube_face_and_corner_views_rotations,
 )
+from .config_args import (
+    NineLMMontyConfig,
+    TenLMMontyConfig,
+)
+
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
     FiveLMMountHabitatDatasetArgs,
-    NineLMMountHabitatDatasetArgs,
     PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
     SurfaceViewFinderMountHabitatDatasetArgs,
+)
+from .make_dataset_configs import (
+    NineLMMountHabitatDatasetArgs,
     TenLMMountHabitatDatasetArgs,
     TwoLMMountHabitatDatasetArgs,
 )
+
 from tbp.monty.frameworks.environments import embodied_data as ED
 from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS, SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment

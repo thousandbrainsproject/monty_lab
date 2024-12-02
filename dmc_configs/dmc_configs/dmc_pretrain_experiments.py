@@ -81,28 +81,35 @@ from pathlib import Path
 
 import numpy as np
 
+
 from tbp.monty.frameworks.config_utils.config_args import (
     FiveLMMontyConfig,
     MontyArgs,
     MontyFeatureGraphArgs,
     MotorSystemConfigCurvatureInformedSurface,
     MotorSystemConfigNaiveScanSpiral,
-    NineLMMontyConfig,
     PatchAndViewMontyConfig,
     PretrainLoggingConfig,
     SurfaceAndViewMontyConfig,
-    TenLMMontyConfig,
     TwoLMMontyConfig,
     get_cube_face_and_corner_views_rotations,
 )
+from .config_args import (
+    NineLMMontyConfig,
+    TenLMMontyConfig,
+)
+
+
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
     FiveLMMountHabitatDatasetArgs,
-    NineLMMountHabitatDatasetArgs,
     PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     SurfaceViewFinderMountHabitatDatasetArgs,
+)
+from .make_dataset_configs import (
+    NineLMMountHabitatDatasetArgs,
     TenLMMountHabitatDatasetArgs,
     TwoLMMountHabitatDatasetArgs,
 )

@@ -12,7 +12,7 @@
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Union
 
-from tbp.monty.frameworks.config_utils import (
+from tbp.monty.frameworks.config_utils.config_args import (
     MontyConfig,
     MontyArgs,
     features,
