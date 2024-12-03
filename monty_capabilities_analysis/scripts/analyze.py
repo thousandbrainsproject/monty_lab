@@ -7,13 +7,29 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""This script takes in an eval folder and performs various analyses."""
+"""This script takes in an eval folder and performs various analyses.
+
+Inputs:
+    experiment_name: The name of the experiment, e.g. dist_agent_1lm.
+    - This will search for the eval_stats.csv file in the results directory (tbp/monty_lab/monty_capabilities_analysis/results/dmc/<experiment_name>)
+
+Outputs:
+    - Creates a save_dir in the results directory (tbp/monty_lab/monty_capabilities_analysis/results/dmc/<experiment_name>/analysis)
+    - Saves the following files to save_dir:
+        - frequent_mistakes.csv: A table of the most common mistakes.
+        - mistakes_by_primary_target_object.csv: A table of mistakes grouped by primary target object.
+        - stats_summary.csv: A table of the stats summary (accuracy, precision, recall, f1, etc.)
+        - confusion_matrix_<num_objects>objs.csv: A table of the confusion matrix.
+        - rotation_error_distribution.png: A plot of the rotation error distribution.
+
+Example usage:
+python analyze.py --experiment_name=dist_agent_1lm
+"""
 
 import argparse
 import os
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -570,6 +586,22 @@ def main(results_dir: str):
     stats_summary["f1"] = precision_recall_f1["f1"]
     stats_summary["accuracy"] = precision_recall_f1["accuracy"]
     rotation_error_degrees = get_mean_std_rotation_error_degrees(eval_stats)
+    # Save rotation_error degrees with eval_stats
+    rotation_error_degrees_df = pd.DataFrame(
+        rotation_error_degrees["errors"], columns=["calculated_rotation_error"]
+    )
+    # Add "primary_performance" column, num_steps, rotation_error, result, most_likely_object, primary_target_object
+    rotation_error_degrees_df["primary_performance"] = eval_stats["primary_performance"]
+    rotation_error_degrees_df["num_steps"] = eval_stats["num_steps"]
+    rotation_error_degrees_df["rotation_error"] = eval_stats["rotation_error"]
+    rotation_error_degrees_df["result"] = eval_stats["result"]
+    rotation_error_degrees_df["most_likely_object"] = eval_stats["most_likely_object"]
+    rotation_error_degrees_df["primary_target_object"] = eval_stats[
+        "primary_target_object"
+    ]
+    rotation_error_degrees_df.to_csv(
+        os.path.join(save_dir, "rotation_error_degrees.csv"), index=False
+    )
     stats_summary["rotation_error_degrees_mean"] = rotation_error_degrees["mean"]
     stats_summary["rotation_error_degrees_std"] = rotation_error_degrees["std"]
 
