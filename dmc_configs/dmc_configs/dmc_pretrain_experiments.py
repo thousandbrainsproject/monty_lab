@@ -1,11 +1,12 @@
-# ------------------------------------------------------------------------------
-# Copyright (C) 2023 Numenta Inc. All rights reserved.
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
 #
-# The information and source code contained herein is the
-# exclusive property of Numenta Inc. No part of this software
-# may be used, reproduced, stored or distributed in any form,
-# without explicit written authorization from Numenta Inc.
-# ------------------------------------------------------------------------------
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
 """Supervised pretraining experiments.
 
 This module defines a suite of supervised pretraining experiments. The core models
