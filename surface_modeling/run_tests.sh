@@ -1,5 +1,6 @@
 #!/bin/zsh
 
+# Copyright 2025 Thousand Brains Project
 # Copyright 2023-2024 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications

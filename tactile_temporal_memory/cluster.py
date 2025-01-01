@@ -1,3 +1,4 @@
+# Copyright 2025 Thousand Brains Project
 # Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
