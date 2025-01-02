@@ -1,7 +1,6 @@
 # flop_counting/wrappers/base.py
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
-import warnings
+from typing import Any
 
 
 class OperationWrapper(ABC):
