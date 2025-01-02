@@ -1,6 +1,7 @@
 # flop_counting/wrappers/function.py
 import numpy as np
-from typing import Any
+import warnings
+from typing import Any, Optional
 from .base import OperationWrapper
 
 
