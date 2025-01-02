@@ -2,7 +2,7 @@ from playground.flop_counter import FlopCounter
 from tbp.monty.frameworks.models.abstract_monty_classes import Monty
 
 
-class MontyFlopTracker:
+class MontyFlopTracer:
     """Tracks FLOPs for Monty class methods."""
 
     def __init__(self, monty_instance, experiment_instance):
