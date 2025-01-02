@@ -7,7 +7,8 @@ from typing import Set, Dict, Any, Optional
 import ast
 from pathlib import Path
 from inspect import getmodule
-
+import pandas as pd
+from datetime import datetime
 
 class FlopAnalyzer:
     """Integrated FLOP analysis combining runtime tracking, AST parsing, and inspect-based analysis."""
@@ -63,6 +64,11 @@ class FlopAnalyzer:
         "svd",
         "eig",
         "qr",
+    }
+    SKLEARN_FLOP_OPERATIONS = {
+        "mean",
+        "std",
+        "var",
     }
 
     def __init__(self):
@@ -140,6 +146,123 @@ class FlopAnalyzer:
             "call_inspection": self.call_analysis,
         }
 
+    def save_results_to_csv(self, output_dir: str):
+        """Save analysis results to CSV files."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # 1. Save runtime statistics
+        runtime_df = pd.DataFrame(
+            [(op, count) for op, count in self.runtime_stats.items()],
+            columns=["operation", "count"],
+        )
+        runtime_df.to_csv(output_path / f"runtime_stats_{timestamp}.csv", index=False)
+
+        # 2. Save static analysis results
+        static_rows = []
+        for filename, analysis in self.static_analysis.items():
+            # Add operators
+            for op in analysis["operators"]:
+                static_rows.append(
+                    {
+                        "filename": filename,
+                        "analysis_type": "operator",
+                        "operation": op["type"],
+                        "line": op["line"],
+                        "column": op["col"],
+                    }
+                )
+            # Add numpy calls
+            for call in analysis["numpy_calls"]:
+                static_rows.append(
+                    {
+                        "filename": filename,
+                        "analysis_type": "numpy_call",
+                        "operation": call["func"],
+                        "line": call["line"],
+                        "column": call["col"],
+                    }
+                )
+            # Add implicit operations
+            for imp in analysis["implicit_ops"]:
+                static_rows.append(
+                    {
+                        "filename": filename,
+                        "analysis_type": "implicit",
+                        "operation": imp["type"],
+                        "line": imp["line"],
+                        "column": imp["col"],
+                    }
+                )
+
+        if static_rows:
+            static_df = pd.DataFrame(static_rows)
+            static_df.to_csv(
+                output_path / f"static_analysis_{timestamp}.csv", index=False
+            )
+
+        # 3. Save call inspection results
+        call_df = pd.DataFrame(
+            [(op, count) for op, count in self.call_analysis.items()],
+            columns=["operation", "count"],
+        )
+        call_df.to_csv(output_path / f"call_inspection_{timestamp}.csv", index=False)
+
+        return {
+            "runtime_stats": str(output_path / f"runtime_stats_{timestamp}.csv"),
+            "static_analysis": str(output_path / f"static_analysis_{timestamp}.csv"),
+            "call_inspection": str(output_path / f"call_inspection_{timestamp}.csv"),
+        }
+
+    def analyze_codebase(
+        directory: str, output_dir: str = "flop_analysis_results"
+    ) -> Dict[str, Any]:
+        """Analyze an entire codebase for FLOP operations and save results to CSV."""
+        analyzer = FlopAnalyzer()
+        results = {
+            "files": {},
+            "total_stats": {
+                "explicit_ops": 0,
+                "numpy_calls": 0,
+                "implicit_ops": 0,
+                "runtime_ops": 0,
+            },
+        }
+
+        # Walk through all Python files
+        for py_file in Path(directory).rglob("*.py"):
+            with analyzer:  # This will track runtime operations if the file is imported
+                try:
+                    # Perform static analysis
+                    file_results = analyzer.analyze_file(str(py_file))
+                    results["files"][str(py_file)] = file_results
+
+                    # Update totals
+                    results["total_stats"]["explicit_ops"] += len(
+                        file_results["operators"]
+                    )
+                    results["total_stats"]["numpy_calls"] += len(
+                        file_results["numpy_calls"]
+                    )
+                    results["total_stats"]["implicit_ops"] += len(
+                        file_results["implicit_ops"]
+                    )
+
+                except Exception as e:
+                    print(f"Error analyzing {py_file}: {e}")
+
+        # Add runtime statistics
+        comprehensive_stats = analyzer.get_comprehensive_stats()
+        results["runtime_analysis"] = comprehensive_stats["runtime_tracking"]
+        results["call_inspection"] = comprehensive_stats["call_inspection"]
+
+        # Save results to CSV
+        csv_files = analyzer.save_results_to_csv(output_dir)
+        results["csv_files"] = csv_files
+
+        return results
+
 
 class FlopOperatorFinder(ast.NodeVisitor):
     """AST visitor to find FLOP operations in code."""
@@ -187,8 +310,10 @@ class FlopOperatorFinder(ast.NodeVisitor):
         self.generic_visit(node)
 
 
-def analyze_codebase(directory: str) -> Dict[str, Any]:
-    """Analyze an entire codebase for FLOP operations."""
+def analyze_codebase(
+    directory: str, output_dir: str = "flop_analysis_results"
+) -> Dict[str, Any]:
+    """Analyze an entire codebase for FLOP operations and save results to CSV."""
     analyzer = FlopAnalyzer()
     results = {
         "files": {},
@@ -225,6 +350,10 @@ def analyze_codebase(directory: str) -> Dict[str, Any]:
     results["runtime_analysis"] = comprehensive_stats["runtime_tracking"]
     results["call_inspection"] = comprehensive_stats["call_inspection"]
 
+    # Save results to CSV
+    csv_files = analyzer.save_results_to_csv(output_dir)
+    results["csv_files"] = csv_files
+
     return results
 
 
@@ -238,7 +367,12 @@ if __name__ == "__main__":
         y = np.dot(x, x)
 
     print("Single file analysis:", analyzer.get_comprehensive_stats())
+    csv_files = analyzer.save_results_to_csv("single_file_results")
+    print("CSV files saved to:", csv_files)
 
     # 2. Analyze entire codebase
-    results = analyze_codebase("/Users/hlee/tbp/tbp.monty/src/tbp/monty/frameworks")
-    print("\nCodebase analysis:", results)
+    results = analyze_codebase(
+        "/Users/hlee/tbp/tbp.monty/src/tbp/monty/frameworks",
+        "codebase_analysis_results",
+    )
+    print("\nCodebase analysis results saved to:", results["csv_files"])
