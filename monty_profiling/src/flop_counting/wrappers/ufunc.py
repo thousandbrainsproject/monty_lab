@@ -1,6 +1,6 @@
 # flop_counting/wrappers/ufunc.py
-import numpy as np
 from typing import Any, Set
+import warnings
 from .base import OperationWrapper
 
 
@@ -18,9 +18,11 @@ class UfuncWrapper(OperationWrapper):
             if result is None:
                 return result
 
-            if self.operation_name in {"add", "subtract", "multiply", "divide"}:
-                size = np.size(result) if isinstance(result, np.ndarray) else 1
-                self.flop_counter.add_flops(size)
+            if self.operation_name in self.flop_counter._operations:
+                operation = self.flop_counter._operations[self.operation_name]
+                flops = operation.count_flops(*args, result=result)
+                if flops is not None:
+                    self.flop_counter.add_flops(flops)
             elif self.operation_name not in self.not_supported_list:
                 warnings.warn(
                     f"Operation {self.operation_name} not supported for FLOP counting"

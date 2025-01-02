@@ -2,7 +2,7 @@ from contextlib import ContextDecorator
 from typing import Dict, Any
 import numpy as np
 from .wrappers import FunctionWrapper, UfuncWrapper
-from .operations import MatmulOperation
+from .operations import MatmulOperation, Addition, Subtraction, Multiplication, Division
 
 
 class FlopCounter(ContextDecorator):
@@ -13,7 +13,10 @@ class FlopCounter(ContextDecorator):
         self._original_funcs: Dict[str, Any] = {}
         self._operations = {
             "matmul": MatmulOperation(),
-            # Add more operations here as needed
+            "add": Addition(),
+            "subtract": Subtraction(),
+            "multiply": Multiplication(),
+            "divide": Division(),
         }
 
     def __enter__(self):
