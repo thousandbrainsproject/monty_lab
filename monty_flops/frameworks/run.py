@@ -18,7 +18,6 @@ from tbp.monty.frameworks.run import (
     config_to_dict,
 )
 from playground.monty_flop_tracker import add_flop_tracking
-from tbp.monty.frameworks.models.abstract_monty_classes import Monty
 from typing import Dict, Any
 
 
