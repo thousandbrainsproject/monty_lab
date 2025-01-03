@@ -17,16 +17,21 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
     Notes on _update_evidence:
     - No "special" function directly called to compute FLOPs.
     - Calls the following subroutines (which may need to be computed for FLOPs):
-    -   _get_input_channels_in_graph
-    -   _get_initial_hypothesis_space
+    - [x]  _get_input_channels_in_graph = not relevant for FLOPs
+    -  _get_initial_hypothesis_space = critical
     -   _add_hypotheses_to_hpspace
     -   _get_evidence_update_threshold
     -   _calculate_evidence_for_new_locations
+    """
 
-    "Normal" np methods to catch in FlopCounter:
-    -   np.clip
-    - np.max and np.min
-    - np.where
-    - np.round
-    - np.dot
+    """
+    Note on _get_initial_hypothesis_space:
+    - Doesn't have special numpy methods to catch in FlopCounter
+    - Calls the following subroutines (which may need to be computed for FLOPs):
+    - self._get_all_informed_possible_poses(graph_id, features, input_channel)
+    - self._calculate_feature_evidence_for_all_nodes
+
+    Notes on _get_all_informed_possible_poses:
+    - [x] get_more_directions_in_plane
+    - align_multiple_orthonormal_vectors
     """

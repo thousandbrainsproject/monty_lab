@@ -14,6 +14,9 @@ from .operations import (
     MaxOperation,
     RoundOperation,
     IsnanOperation,
+    SineOperation,
+    CosineOperation,
+    CrossOperation,
 )
 
 
@@ -35,6 +38,9 @@ class FlopCounter(ContextDecorator):
             "max": MaxOperation(),
             "round": RoundOperation(),
             "isnan": IsnanOperation(),
+            "sin": SineOperation(),
+            "cos": CosineOperation(),
+            "cross": CrossOperation(),
         }
 
     def __enter__(self):
@@ -52,6 +58,9 @@ class FlopCounter(ContextDecorator):
             ("max", np.max),
             ("round", np.round),
             ("isnan", np.isnan),
+            ("sin", np.sin),
+            ("cos", np.cos),
+            ("cross", np.cross),
         ]
 
         # Store original functions and wrap them
