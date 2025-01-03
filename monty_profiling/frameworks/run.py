@@ -17,7 +17,7 @@ from tbp.monty.frameworks.run import (
     create_cmd_parser,
     config_to_dict,
 )
-from monty_flops.src.monty_flop_tracer import add_flop_tracking
+from floppy.monty_flop_tracer import add_flop_tracking
 from typing import Dict, Any
 
 
