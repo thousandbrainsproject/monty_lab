@@ -17,6 +17,7 @@ from .operations import (
     SineOperation,
     CosineOperation,
     CrossOperation,
+    ArccosOperation,
 )
 
 
@@ -41,6 +42,7 @@ class FlopCounter(ContextDecorator):
             "sin": SineOperation(),
             "cos": CosineOperation(),
             "cross": CrossOperation(),
+            "arccos": ArccosOperation(),
         }
 
     def __enter__(self):
@@ -61,6 +63,7 @@ class FlopCounter(ContextDecorator):
             ("sin", np.sin),
             ("cos", np.cos),
             ("cross", np.cross),
+            ("arccos", np.arccos),
         ]
 
         # Store original functions and wrap them

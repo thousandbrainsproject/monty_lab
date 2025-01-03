@@ -8,4 +8,9 @@ from .numpy_functions import (
     RoundOperation,
     IsnanOperation,
 )
-from .trigonometry import SineOperation, CosineOperation, CrossOperation
+from .trigonometry import (
+    SineOperation,
+    CosineOperation,
+    CrossOperation,
+    ArccosOperation,
+)
