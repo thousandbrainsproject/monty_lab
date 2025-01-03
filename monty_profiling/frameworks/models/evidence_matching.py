@@ -33,5 +33,12 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
 
     Notes on _get_all_informed_possible_poses:
     - [x] get_more_directions_in_plane
-    - align_multiple_orthonormal_vectors
+    - [x] align_multiple_orthonormal_vectors
+        - Ignoring Rotation.from_matrix, because it likely deals with small 3x3 matrices
+
+    Notes on spatial_arithmetics.py:
+    - rotations_to_quats
+    - rot_mats_to_quats
+    - euler_to_quats
+    The above three are ignored despite `.inv()` because they are operating on small 3x3 matrices
     """

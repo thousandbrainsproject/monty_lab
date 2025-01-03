@@ -71,25 +71,23 @@ class CrossOperation(BaseOperation):
         - 3 subtractions
         Total: 9 FLOPs per cross product
         """
-        if not self.validate_inputs(*args):
-            return None
-
         # Get number of cross products being computed
         num_operations = max(
             1, result.shape[0] if isinstance(result, np.ndarray) else 1
         )
         return 9 * num_operations
 
-    def validate_inputs(self, *args: Any) -> bool:
-        if len(args) != 2:
-            return False
-        try:
-            a, b = np.asarray(args[0]), np.asarray(args[1])
-            # Verify vectors are same size and 3D
-            if a.shape[-1] != 3 or b.shape[-1] != 3:
-                return False
-            if a.shape != b.shape:
-                return False
-            return True
-        except Exception:
-            return False
+class ArccosOperation(BaseOperation):
+    """FLOP counter for inverse cosine operations."""
+
+    def __init__(self):
+        super().__init__("arccos")
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for inverse cosine operation.
+
+        Arccos is typically implemented using a combination of
+        logarithms and square roots. We estimate 10 FLOPs per value
+        based on common implementations.
+        """
+        return 10 * np.size(result)
