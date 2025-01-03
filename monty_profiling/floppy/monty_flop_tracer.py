@@ -1,5 +1,4 @@
-from playground.flop_counter import FlopCounter
-from tbp.monty.frameworks.models.abstract_monty_classes import Monty
+from .flop_counting.counter import FlopCounter
 
 
 class MontyFlopTracer:
@@ -39,6 +38,13 @@ class MontyFlopTracer:
 
                 with self.flop_counter:
                     result = original(*args, **kwargs)
+                    # print("Inside context")
+                    # import sklearn.neighbors
+
+                    # tree = sklearn.neighbors.KDTree([[1, 2], [3, 4]])
+                    # print("Tree created:", type(tree))
+                    # result = tree.query([[1, 1]])
+                    # print("Query completed")
 
                 # Print FLOPs for this specific operation
                 step_flops = self.flop_counter.flops
@@ -92,4 +98,4 @@ class MontyFlopTracer:
 # Helper function to easily add FLOP tracking to any Monty instance
 def add_flop_tracking(monty_instance, experiment_instance):
     """Adds FLOP tracking to both Monty and MontyExperiment instances."""
-    return MontyFlopTracker(monty_instance, experiment_instance)
+    return MontyFlopTracer(monty_instance, experiment_instance)
