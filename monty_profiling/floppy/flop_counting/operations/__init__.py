@@ -15,6 +15,11 @@ from .numpy_functions import (
     VarOperation,
     AverageOperation,
     LogOperation,
+    PowerOperation,
+    BitwiseAndOperation,
+    BitwiseOrOperation,
+    FloorDivideOperation,
+    ModuloOperation,
 )
 from .trigonometry import (
     SineOperation,
