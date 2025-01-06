@@ -1,4 +1,4 @@
-from floppy.utils.core.analyzer import FlopAnalyzer
+from floppy.flop_analysis.core.analyzer import FlopAnalyzer
 
 
 def main():
@@ -6,7 +6,7 @@ def main():
 
     try:
         # Analyze a directory of Python files
-        results = analyzer.analyze_directory("./src")
+        results = analyzer.analyze_directory("/Users/hlee/tbp/tbp.monty/src")
 
         # Save results to CSV
         output_file = analyzer.save_results(results, "./analysis_results")

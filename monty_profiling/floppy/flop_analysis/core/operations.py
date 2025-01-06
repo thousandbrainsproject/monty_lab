@@ -1,6 +1,6 @@
 # flop_analysis/core/operations.py
 
-from typing import Set
+from typing import Dict, Set
 
 
 class OperationRegistry:
