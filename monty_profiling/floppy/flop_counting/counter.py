@@ -2,23 +2,7 @@ from contextlib import ContextDecorator
 from typing import Dict, Any
 import numpy as np
 from .wrappers import FunctionWrapper, UfuncWrapper
-from .operations import (
-    MatmulOperation,
-    Addition,
-    Subtraction,
-    Multiplication,
-    Division,
-    ClipOperation,
-    WhereOperation,
-    MinOperation,
-    MaxOperation,
-    RoundOperation,
-    IsnanOperation,
-    SineOperation,
-    CosineOperation,
-    CrossOperation,
-    ArccosOperation,
-)
+from .operations import *
 
 
 class FlopCounter(ContextDecorator):
@@ -43,6 +27,21 @@ class FlopCounter(ContextDecorator):
             "cos": CosineOperation(),
             "cross": CrossOperation(),
             "arccos": ArccosOperation(),
+            "tan": TangentOperation(),
+            "arctan": ArcTangentOperation(),
+            "arcsin": ArcSineOperation(),
+            "linalg.norm": NormOperation(),
+            "linalg.cond": CondOperation(),
+            "linalg.inv": InvOperation(),
+            "linalg.eig": EigOperation(),
+            "log": LogOperation(),
+            "mean": MeanOperation(),
+            "std": StdOperation(),
+            "var": VarOperation(),
+            "average": AverageOperation(),
+            "trace": TraceOperation(),
+            "argmin": ArgminOperation(),
+            "argmax": ArgmaxOperation(),
         }
 
     def __enter__(self):
@@ -64,7 +63,21 @@ class FlopCounter(ContextDecorator):
             ("cos", np.cos),
             ("cross", np.cross),
             ("arccos", np.arccos),
-            # mean, std, var, average, linalg.norm, linalg.cond, trace,
+            ("tan", np.tan),
+            ("arctan", np.arctan),
+            ("arcsin", np.arcsin),
+            ("linalg.norm", np.linalg.norm),
+            ("linalg.cond", np.linalg.cond),
+            ("linalg.inv", np.linalg.inv),
+            ("linalg.eig", np.linalg.eig),
+            ("log", np.log),
+            ("mean", np.mean),
+            ("std", np.std),
+            ("var", np.var),
+            ("average", np.average),
+            ("trace", np.trace),
+            ("argmin", np.argmin),
+            ("argmax", np.argmax),
         ]
 
         # Store original functions and wrap them
