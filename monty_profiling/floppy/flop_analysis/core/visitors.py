@@ -1,7 +1,8 @@
-import ast
-from typing import Dict, List, Optional
-from collections import defaultdict
+# flop_analysis/core/visitors.py
 
+import ast
+from typing import Dict, List, Set, Any, Optional
+from collections import defaultdict
 from floppy.flop_analysis.core.operations import OperationRegistry
 
 
@@ -20,6 +21,8 @@ class ASTVisitor(ast.NodeVisitor):
         self.current_method: Optional[str] = None
         self.method_contexts: Dict[str, List] = defaultdict(list)
         self.imports: List[Dict] = []
+        self.object_types: Dict[str, str] = {}  # Track variable names and their types
+
         # Track imported names and their sources
         self.import_map: Dict[str, Dict[str, str]] = {
             "numpy": {},
@@ -84,34 +87,50 @@ class ASTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
-        """Track function/method calls with their context."""
+        """Enhanced tracking of function/method calls with better object method handling."""
         if isinstance(node.func, ast.Attribute):
-            # Handle method calls on imported objects (e.g., kdtree.query())
+            # Handle method calls on objects (e.g., kdtree.query())
             if isinstance(node.func.value, ast.Name):
                 obj_name = node.func.value.id
                 method_name = node.func.attr
 
-                # Check if this is a method call on a tracked object
-                call_info = self._process_method_call(obj_name, method_name, node)
-                if call_info:
+                # Check if this is a tracked object method call
+                if obj_name in self.object_types:
+                    obj_info = self.object_types[obj_name]
+                    if method_name in obj_info["registry"]["methods"]:
+                        call_info = {
+                            "module": obj_info["module"],
+                            "function": f"{obj_info['class_name']}.{method_name}",
+                            "line": node.lineno,
+                            "col": node.col_offset,
+                            "method_context": self.current_method,
+                        }
+                        self._add_call_info(call_info)
+
+            # Handle regular attribute calls (e.g., np.array())
+            else:
+                attr_parts = []
+                current = node.func
+                while isinstance(current, ast.Attribute):
+                    attr_parts.append(current.attr)
+                    current = current.value
+
+                if isinstance(current, ast.Name):
+                    base_module = current.id
+                    attr_parts.reverse()
+                    function_path = ".".join(attr_parts)
+
+                    call_info = {
+                        "module": base_module,
+                        "function": function_path,
+                        "line": node.lineno,
+                        "col": node.col_offset,
+                        "method_context": self.current_method,
+                    }
                     self._add_call_info(call_info)
 
-            # Handle direct module attribute calls (e.g., numpy.add)
-            module = (
-                node.func.value.id if isinstance(node.func.value, ast.Name) else None
-            )
-            if module:
-                call_info = {
-                    "module": module,
-                    "function": node.func.attr,
-                    "line": node.lineno,
-                    "col": node.col_offset,
-                    "method_context": self.current_method,
-                }
-                self._add_call_info(call_info)
-
         elif isinstance(node.func, ast.Name):
-            # Handle calls to imported functions (e.g., KDTree())
+            # Handle direct function calls
             func_name = node.func.id
             for base_module, imports in self.import_map.items():
                 if func_name in imports:
@@ -126,31 +145,10 @@ class ASTVisitor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-    def _process_method_call(
-        self, obj_name: str, method_name: str, node: ast.Call
-    ) -> Optional[Dict]:
-        """Process a method call and return call info if it's a tracked operation."""
-        for base_module, registry in {
-            "scipy": OperationRegistry.SCIPY_OPERATIONS,
-            "sklearn": OperationRegistry.SKLEARN_OPERATIONS,
-        }.items():
-            for class_name, class_info in registry.items():
-                if (
-                    class_name in self.import_map[base_module]
-                    and method_name in class_info["methods"]
-                ):
-                    return {
-                        "module": base_module,
-                        "function": f"{class_name}.{method_name}",
-                        "line": node.lineno,
-                        "col": node.col_offset,
-                        "method_context": self.current_method,
-                    }
-        return None
-
     def _add_call_info(self, call_info: Dict) -> None:
-        """Add call info to the appropriate list based on the module."""
+        """Add call info to the appropriate tracking lists."""
         module = call_info["module"]
+
         if module in {"np", "numpy"}:
             self.numpy_calls.append(call_info)
         elif module in {"sklearn", "sk"}:
@@ -161,17 +159,58 @@ class ASTVisitor(ast.NodeVisitor):
             self.method_contexts["scipy"].append(call_info)
 
     def visit_BinOp(self, node: ast.BinOp) -> None:
-        """Track binary operations."""
-        op_map = {
-            ast.Add: "+",
-            ast.Sub: "-",
-            ast.Mult: "*",
-            ast.Div: "/",
-            ast.Pow: "**",
-        }
+        """Track binary operations and add them to operator calls."""
         op_type = type(node.op)
-        if op_type in op_map:
-            self.operators.append(
-                {"type": op_map[op_type], "line": node.lineno, "col": node.col_offset}
-            )
+        if op_type in OperationRegistry.ARITHMETIC_OPERATIONS:
+            op_info = OperationRegistry.ARITHMETIC_OPERATIONS[op_type]
+
+            call_info = {
+                "module": "arithmetic",
+                "function": op_info["name"],
+                "symbol": op_info["symbol"],
+                "line": node.lineno,
+                "col": node.col_offset,
+                "method_context": self.current_method,
+            }
+
+            # Add to operators list for detailed tracking
+            self.operators.append(call_info)
+
+            # Add to numpy calls to ensure they appear in main results
+            self.numpy_calls.append(call_info)
+
+        self.generic_visit(node)
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        """Track object instantiations and their types with enhanced metadata."""
+        if isinstance(node.value, ast.Call):
+            if isinstance(node.value.func, ast.Name):
+                class_name = node.value.func.id
+
+                # Determine the source module and registry for the class
+                source_module = None
+                registry = None
+
+                for module, imports in self.import_map.items():
+                    if class_name in imports:
+                        source_module = module
+                        if module == "scipy":
+                            registry = OperationRegistry.SCIPY_OPERATIONS
+                        elif module == "sklearn":
+                            registry = OperationRegistry.SKLEARN_OPERATIONS
+                        break
+
+                # If this is a tracked class (like KDTree)
+                if registry and class_name in registry:
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            # Store enhanced metadata about the object
+                            self.object_types[target.id] = {
+                                "class_name": class_name,
+                                "module": source_module,
+                                "registry": registry[class_name],
+                                "lineno": node.lineno,
+                                "col_offset": node.col_offset,
+                            }
+
         self.generic_visit(node)
