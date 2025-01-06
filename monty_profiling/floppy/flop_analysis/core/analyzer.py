@@ -78,7 +78,6 @@ class FlopAnalyzer:
                 "scipy_calls": 0,
                 "sklearn_calls": 0,
                 "total_files": 0,
-                "total_flops": 0,
             },
             "summary": {},
         }
@@ -104,7 +103,6 @@ class FlopAnalyzer:
                 print(f"Warning: {str(e)}")
                 continue
 
-        self._generate_summary(results)
         return results
 
     def save_results(self, results: Dict[str, Any], output_dir: str) -> str:
@@ -136,70 +134,30 @@ class FlopAnalyzer:
 
         return ""
 
-    def _generate_summary(self, results: Dict[str, Any]) -> None:
-        """Generate a high-level summary of the analysis results."""
-        total_stats = results["total_stats"]
-        results["summary"] = {
-            "total_files_analyzed": total_stats["total_files"],
-            "total_flop_operations": total_stats["total_flops"],
-            "most_common_operations": self._get_most_common_operations(
-                results["files"]
-            ),
-            "files_with_most_flops": self._get_files_with_most_flops(results["files"]),
-        }
-
-    def _get_most_common_operations(
-        self, files: Dict[str, Dict]
-    ) -> List[Dict[str, Any]]:
-        """Get the most frequently used FLOP operations across all files."""
-        operation_counts: Dict[str, int] = {}
-        for file_results in files.values():
-            for op in file_results["numpy_calls"]:
-                operation_counts[op["function"]] = (
-                    operation_counts.get(op["function"], 0) + 1
-                )
-
-        return sorted(
-            [
-                {"operation": op, "count": count}
-                for op, count in operation_counts.items()
-            ],
-            key=lambda x: x["count"],
-            reverse=True,
-        )[:10]
-
-    def _get_files_with_most_flops(
-        self, files: Dict[str, Dict]
-    ) -> List[Dict[str, Any]]:
-        """Get the files with the highest number of FLOP operations."""
-        file_counts = [
-            {
-                "file": filename,
-                "flop_count": len(results["numpy_calls"])
-                + len(results["scipy_calls"])
-                + len(results["sklearn_calls"]),
-            }
-            for filename, results in files.items()
-        ]
-        return sorted(file_counts, key=lambda x: x["flop_count"], reverse=True)[:10]
-
     def _add_operation_rows(
         self, rows: List[Dict], filename: str, analysis: Dict
     ) -> None:
         """Add rows for operations to the results DataFrame."""
+        # Add all operations including both library calls and arithmetic operations
         for op_type in ["numpy_calls", "sklearn_calls", "scipy_calls"]:
             for op in analysis[op_type]:
-                rows.append(
-                    {
-                        "filename": filename,
-                        "operation_type": op_type.replace("_calls", "_ops"),
-                        "module": op["module"],
-                        "function": op["function"],
-                        "method_context": op["method_context"],
-                        "line": op["line"],
-                        "column": op["col"],
-                    }
-                )
+                row = {
+                    "filename": filename,
+                    "operation_type": "arithmetic_ops"
+                    if op["module"] == "arithmetic"
+                    else op_type.replace("_calls", "_ops"),
+                    "module": op["module"],
+                    "function": op["function"],
+                    "method_context": op["method_context"],
+                    "line": op["line"],
+                    "column": op["col"],
+                }
+
+                # Add symbol and flops for arithmetic operations
+                if op["module"] == "arithmetic":
+                    row["symbol"] = op.get("symbol", "")
+
+                rows.append(row)
 
     def _add_import_rows(self, rows: List[Dict], filename: str, analysis: Dict) -> None:
         """Add rows for imports to the results DataFrame."""
