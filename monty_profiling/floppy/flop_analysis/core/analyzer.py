@@ -1,10 +1,9 @@
 import ast
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any
 import pandas as pd
 from .visitors import ASTVisitor
-from .operations import OPERATION_REGISTRY
 from .exceptions import FileAnalysisError
 
 
