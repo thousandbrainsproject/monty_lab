@@ -222,3 +222,72 @@ class LogOperation(BaseOperation):
         Each element requires 1 logarithm operation.
         """
         return np.size(args[0])
+
+class PowerOperation(BaseOperation):
+    """FLOP count for power operation."""
+
+    def __init__(self):
+        super().__init__("power")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for power operation.
+
+        Each element requires 1 power operation.
+        """
+        return np.size(args[0])
+
+
+class FloorDivideOperation(BaseOperation):
+    """FLOP count for floor divide operation."""
+
+    def __init__(self):
+        super().__init__("floor_divide")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for floor divide operation.
+
+        Each element requires 1 division operation.
+        """
+        return np.size(args[0])
+
+
+class ModuloOperation(BaseOperation):
+    """FLOP count for modulo operation."""
+
+    def __init__(self):
+        super().__init__("modulo")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for modulo operation.
+
+        Each element requires 1 modulo operation.
+        """
+        return np.size(args[0])
+
+
+class BitwiseAndOperation(BaseOperation):
+    """FLOP count for bitwise and operation."""
+
+    def __init__(self):
+        super().__init__("bitwise_and")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for bitwise and operation.
+
+        Each element requires 1 bitwise and operation.
+        """
+        return np.size(args[0])
+
+
+class BitwiseOrOperation(BaseOperation):
+    """FLOP count for bitwise or operation."""
+
+    def __init__(self):
+        super().__init__("bitwise_or")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for bitwise or operation.
+
+        Each element requires 1 bitwise or operation.
+        """
+        return np.size(args[0])
