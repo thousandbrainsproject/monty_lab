@@ -91,3 +91,54 @@ class ArccosOperation(BaseOperation):
         based on common implementations.
         """
         return 10 * np.size(result)
+
+
+class TangentOperation(BaseOperation):
+    """FLOP counter for tangent operations."""
+
+    def __init__(self):
+        super().__init__("tan")
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for tangent operation.
+
+        Tangent is typically implemented as sin/cos, requiring:
+        - 8 FLOPs for sine
+        - 8 FLOPs for cosine
+        - 1 division
+        Total: 17 FLOPs per value
+        """
+
+        return 17 * np.size(result)
+
+
+class ArcTangentOperation(BaseOperation):
+    """FLOP counter for inverse tangent operations."""
+
+    def __init__(self):
+        super().__init__("arctan")
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for inverse tangent operation.
+
+        Arctangent is typically implemented using Taylor series or rational approximations.
+        We estimate 10 FLOPs per value based on common implementations.
+        """
+
+        return 10 * np.size(result)
+
+
+class ArcSineOperation(BaseOperation):
+    """FLOP counter for inverse sine operations."""
+
+    def __init__(self):
+        super().__init__("arcsin")
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for inverse sine operation.
+
+        Arcsine is typically implemented using a combination of
+        logarithms and square roots. We estimate 10 FLOPs per value
+        based on common implementations.
+        """
+        return 10 * np.size(result)
