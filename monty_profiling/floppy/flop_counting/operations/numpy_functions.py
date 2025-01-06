@@ -208,3 +208,17 @@ class AverageOperation(BaseOperation):
         Total: 2n FLOPs
         """
         return 2 * np.size(args[0])
+
+
+class LogOperation(BaseOperation):
+    """FLOP count for logarithm operation."""
+
+    def __init__(self):
+        super().__init__("log")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for logarithm operation.
+
+        Each element requires 1 logarithm operation.
+        """
+        return np.size(args[0])

@@ -7,10 +7,22 @@ from .numpy_functions import (
     MaxOperation,
     RoundOperation,
     IsnanOperation,
+    ArgminOperation,
+    ArgmaxOperation,
+    TraceOperation,
+    MeanOperation,
+    StdOperation,
+    VarOperation,
+    AverageOperation,
+    LogOperation,
 )
 from .trigonometry import (
     SineOperation,
     CosineOperation,
     CrossOperation,
     ArccosOperation,
+    TangentOperation,
+    ArcTangentOperation,
+    ArcSineOperation,
 )
+from .linalg import NormOperation, CondOperation, InvOperation, EigOperation
