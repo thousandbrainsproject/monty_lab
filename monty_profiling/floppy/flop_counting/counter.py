@@ -171,6 +171,11 @@ class FlopCounter(ContextDecorator):
             "trace": TraceOperation(),
             "argmin": ArgminOperation(),
             "argmax": ArgmaxOperation(),
+            "floor_divide": FloorDivideOperation(),
+            "mod": ModuloOperation(),
+            "bitwise_and": BitwiseAndOperation(),
+            "bitwise_or": BitwiseOrOperation(),
+            "power": PowerOperation(),
         }
         self._patch_targets = {
             "matmul": (np, "matmul"),
