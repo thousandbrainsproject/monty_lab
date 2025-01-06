@@ -28,7 +28,7 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
     Note on _get_initial_hypothesis_space:
     - Doesn't have special numpy methods to catch in FlopCounter
     - Calls the following subroutines (which may need to be computed for FLOPs):
-    - self._get_all_informed_possible_poses(graph_id, features, input_channel)
+    - [x] self._get_all_informed_possible_poses(graph_id, features, input_channel)
     - self._calculate_feature_evidence_for_all_nodes
 
     Notes on _get_all_informed_possible_poses:
