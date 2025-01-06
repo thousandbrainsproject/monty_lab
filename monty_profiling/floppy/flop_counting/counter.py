@@ -64,6 +64,7 @@ class FlopCounter(ContextDecorator):
             ("cos", np.cos),
             ("cross", np.cross),
             ("arccos", np.arccos),
+            # mean, std, var, average, linalg.norm, linalg.cond, trace,
         ]
 
         # Store original functions and wrap them
