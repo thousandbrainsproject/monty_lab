@@ -23,7 +23,11 @@ class ArithmeticOperation(BaseOperation):
     ) -> Optional[Tuple[int, ...]]:
         """Compute the broadcast shape for the inputs."""
         try:
-            return np.broadcast(*shapes).shape
+            # Create dummy arrays of ones with the given shapes
+            arrays = [np.ones(shape) for shape in shapes]
+            # Use broadcast_arrays instead of broadcast
+            result = np.broadcast_arrays(*arrays)
+            return result[0].shape
         except ValueError as e:
             warnings.warn(f"Invalid broadcast shape: {str(e)}")
             return None
@@ -36,15 +40,13 @@ class ArithmeticOperation(BaseOperation):
         arrays = [np.asarray(arg) for arg in args[:2]]
         shapes = [arr.shape for arr in arrays]
 
-        # If shapes are identical, then no broadcasting is needed
-        if shapes[0] == shapes[1]:
-            return np.prod(shapes[0]) if shapes[0] else 1
-
-        broadcast_shape = self._compute_broadcast_shape(*shapes)
-        if broadcast_shape is None:
+        # Get the output shape (either broadcast or identical)
+        output_shape = self._compute_broadcast_shape(*shapes)
+        if output_shape is None:
             return None
 
-        return np.prod(broadcast_shape)
+        # One FLOP per element in the output
+        return np.prod(output_shape)
 
 
 class Addition(ArithmeticOperation):
