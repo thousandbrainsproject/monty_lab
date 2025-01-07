@@ -48,9 +48,23 @@ class FlopCounter(ContextDecorator):
             "bitwise_or": BitwiseOrOperation(),
             "power": PowerOperation(),
         }
+        self._is_active = False  # Add flag to control when to count FLOPs
 
     def __enter__(self):
-        # Define ufuncs to wrap
+        print("Debug - Entering FlopCounter context")
+        # Wrap all functions first
+        self._wrap_functions()
+        # Only start counting after all wrapping is done
+        self._is_active = True
+        return self
+
+    def add_flops(self, count: int):
+        """Add to the FLOP count only if counter is active."""
+        if self._is_active:
+            self.flops += count
+
+    def _wrap_functions(self):
+        """Separate function to handle all the wrapping."""
         ufuncs_to_wrap = [
             ("add", np.add),
             ("subtract", np.subtract),
@@ -59,8 +73,8 @@ class FlopCounter(ContextDecorator):
             ("matmul", np.matmul),
             ("clip", np.clip),
             ("where", np.where),
-            ("min", np.min),
-            ("max", np.max),
+            ("min", np.amin),
+            ("max", np.amax),
             ("round", np.round),
             ("isnan", np.isnan),
             ("sin", np.sin),
@@ -80,44 +94,40 @@ class FlopCounter(ContextDecorator):
             ("argmax", np.argmax),
         ]
 
-        # Define regular functions to wrap
-        funcs_to_wrap = [
-            ("dot", np.dot),  # dot is a special case, handled by FunctionWrapper
-            ("linalg.norm", np.linalg.norm),
-            ("linalg.cond", np.linalg.cond),
-            ("linalg.inv", np.linalg.inv),
-            ("linalg.eig", np.linalg.eig),
-        ]
-
-        # Store original functions and wrap them
         for func_name, func in ufuncs_to_wrap:
             self._original_funcs[func_name] = func
             wrapper = UfuncWrapper(func, self, func_name)
-            if "." not in func_name:  # Only set direct numpy attributes
+            if "." not in func_name:
                 setattr(np, func_name, wrapper)
+                if func.__name__ != func_name:
+                    actual_name = func.__name__
+                    self._original_funcs[actual_name] = func
+                    setattr(np, actual_name, wrapper)
 
-        # Wrap regular functions
-        for func_name, func in funcs_to_wrap:
-            self._original_funcs[func_name] = func
-            wrapper = FunctionWrapper(func, self, func_name)
+    def __exit__(self, *exc):
+        self._is_active = False
+        print("Debug - Exiting FlopCounter context")  # Debug line
+        # Restore original functions
+        for func_name, orig_func in self._original_funcs.items():
             if "." in func_name:
-                # Handle nested attributes like np.linalg.norm
                 module_path = func_name.split(".")
                 obj = np
                 for part in module_path[:-1]:
                     obj = getattr(obj, part)
-                setattr(obj, module_path[-1], wrapper)
+                setattr(obj, module_path[-1], orig_func)
             else:
-                setattr(np, func_name, wrapper)
-
-        return self
-
-    def __exit__(self, *exc):
-        # Restore original functions only
-        for func_name, orig_func in self._original_funcs.items():
-            setattr(np, func_name, orig_func)
+                setattr(np, func_name, orig_func)
         return False
 
-    def add_flops(self, count: int):
-        """Add to the FLOP count."""
-        self.flops += count
+    def __call__(self, func, *args, **kwargs):
+        """Count FLOPs for the given function."""
+
+        operation = self._operations.get(func)
+        if operation is None:
+            return None
+
+        flops = operation.count_flops(*args, result=None)
+
+        if flops is not None:
+            self.flops += flops
+        return flops
