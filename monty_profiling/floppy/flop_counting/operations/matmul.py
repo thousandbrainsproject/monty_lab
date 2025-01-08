@@ -11,53 +11,6 @@ class MatmulOperation(BaseOperation):
     def __init__(self):
         super().__init__("matmul")
 
-    def validate_inputs(self, *args: Any) -> bool:
-        """
-        Validate inputs for matrix multiplication, including broadcasting cases.
-
-        Args:
-            *args: Input arrays for matrix multiplication
-
-        Returns:
-            bool: True if inputs are valid for matmul operation
-        """
-        if len(args) < 2:
-            return False
-
-        try:
-            a, b = np.asarray(args[0]), np.asarray(args[1])
-
-            # Handle scalar multiplication (not a true matmul)
-            if a.ndim == 0 or b.ndim == 0:
-                return False
-
-            # For 1D arrays, shapes only need to match
-            if a.ndim == 1 and b.ndim == 1:
-                return a.shape[0] == b.shape[0]
-
-            # For 1D x 2D or 2D x 1D, check compatibility
-            if a.ndim == 1:
-                return b.ndim == 2 and a.shape[0] == b.shape[0]
-            if b.ndim == 1:
-                return a.ndim == 2 and a.shape[1] == b.shape[0]
-
-            # For ND arrays, check last 2 dimensions compatibility
-            if a.shape[-1] != b.shape[-2]:
-                return False
-
-            # Verify broadcast compatibility of batch dimensions
-            batch_a = a.shape[:-2]
-            batch_b = b.shape[:-2]
-
-            try:
-                np.broadcast_shapes(batch_a, batch_b)
-                return True
-            except ValueError:
-                return False
-
-        except Exception:
-            return False
-
     def _compute_broadcast_batch_shape(
         self, shape1: Tuple[int, ...], shape2: Tuple[int, ...]
     ) -> Tuple[int, ...]:
@@ -100,9 +53,6 @@ class MatmulOperation(BaseOperation):
         Returns:
             Optional[int]: Number of FLOPs or None if invalid
         """
-        if not self.validate_inputs(*args):
-            return None
-
         try:
             a, b = np.asarray(args[0]), np.asarray(args[1])
 
