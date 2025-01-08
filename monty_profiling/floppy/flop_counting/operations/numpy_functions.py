@@ -209,16 +209,42 @@ class AverageOperation(BaseOperation):
     def __init__(self):
         super().__init__("average")
 
-    def count_flops(self, *args: Any, result: Any) -> int:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for average operation.
 
-        Weighted average requires:
+        Unweighted average:
+        - n additions for sum
+        - 1 division
+        Total: n + 1 FLOPs
+
+        Weighted average:
         - n multiplications for weights
-        - (n-1) additions for sum
+        - n additions for weighted sum
         - 1 division by sum of weights
-        Total: 2n FLOPs
+        Total: 2n + 1 FLOPs
+
+        Args:
+            *args: Input arrays
+            result: Result of the operation
+            **kwargs: Additional keyword arguments (e.g., weights)
+
+        Returns:
+            int: Total FLOPs
         """
-        return 2 * np.size(args[0])
+        if not args:
+            return 0
+
+        array = args[0]  # Input array
+        weights = kwargs.get("weights", None)
+
+        n = np.size(array)  # Total number of elements in the input array
+
+        if weights is not None:
+            # Weighted average: weighted sum + sum of weights + division
+            return 2 * n + 1  # 2n operations for weighted sum and 1 division
+        else:
+            # Unweighted average: sum + division
+            return n + 1  # n operations for sum and 1 division
 
 
 class LogOperation(BaseOperation):

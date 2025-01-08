@@ -7,20 +7,6 @@ from .base import BaseOperation
 class ArithmeticOperation(BaseOperation):
     """Base class for arithmetic operations."""
 
-    def validate_inputs(self, *args: Any) -> bool:
-        """Validate that inputs can be processed."""
-        if len(args) < 2:
-            return False
-        try:
-            # Allow scalar inputs
-            if np.isscalar(args[0]) or np.isscalar(args[1]):
-                return True
-            # Convert inputs to arrays for shape analysis
-            arrays = [np.asarray(arg) for arg in args[:2]]
-            return True
-        except Exception:
-            return False
-
     def _compute_broadcast_shape(
         self, *shapes: Tuple[int, ...]
     ) -> Optional[Tuple[int, ...]]:
@@ -40,9 +26,6 @@ class ArithmeticOperation(BaseOperation):
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count the FLOPs for the operation."""
-        if not self.validate_inputs(*args):
-            return None
-
         # Handle scalar operations
         if np.isscalar(args[0]) or np.isscalar(args[1]):
             array_arg = args[1] if np.isscalar(args[0]) else args[0]
