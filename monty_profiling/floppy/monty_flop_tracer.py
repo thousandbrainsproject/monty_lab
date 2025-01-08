@@ -1,15 +1,39 @@
 from .flop_counting.counter import FlopCounter
-
+from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
+from tbp.monty.frameworks.models.object_model import ObjectModel
+from frameworks.models.evidence_matching import FlopCountingEvidenceGraphLM
+from frameworks.models.object_model import FlopCountingObjectModel
+import csv
+from pathlib import Path
+import time
 
 class MontyFlopTracer:
     """Tracks FLOPs for Monty class methods."""
 
-    def __init__(self, monty_instance, experiment_instance):
+    def __init__(self, monty_instance, experiment_instance, log_path=None):
         self.monty = monty_instance
-        self.experiment = experiment_instance
+        self.experiment = experiment_instance  # has graphs in memory in self.experiment.learning_modules[0].graph_memory.models_in_memory
         self.flop_counter = FlopCounter()
         self.total_flops = 0
+
+        # Setup logging
+        self.log_path = log_path or Path("flop_traces.csv")
+        self.episode_start_time = None
+        self._setup_csv()
         self._wrap_methods()
+
+    def _setup_csv(self):
+        """Initialize CSV file with headers."""
+        with open(self.log_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["timestamp", "episode", "method", "flops"])
+        self.current_episode = 0
+
+    def _log_flops(self, method_name, flops):
+        """Log FLOP counts to CSV file."""
+        with open(self.log_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([time.time(), self.current_episode, method_name, flops])
 
     def _wrap_methods(self):
         """Wrap key Monty methods to count FLOPs."""
@@ -33,24 +57,13 @@ class MontyFlopTracer:
             original = self._original_methods[method_name]
 
             def wrapped(*args, **kwargs):
-                # Reset counter before each operation
                 self.flop_counter.flops = 0
 
                 with self.flop_counter:
                     result = original(*args, **kwargs)
-                    # print("Inside context")
-                    # import sklearn.neighbors
 
-                    # tree = sklearn.neighbors.KDTree([[1, 2], [3, 4]])
-                    # print("Tree created:", type(tree))
-                    # result = tree.query([[1, 1]])
-                    # print("Query completed")
-
-                # Print FLOPs for this specific operation
                 step_flops = self.flop_counter.flops
-                print(f"{method_name} FLOPs: {step_flops:,}")
-
-                # Add to total
+                self._log_flops(method_name, step_flops)
                 self.total_flops += step_flops
                 return result
 
@@ -58,12 +71,11 @@ class MontyFlopTracer:
 
         # Special wrapper for run_episode to track total FLOPs independently
         def wrapped_run_episode(*args, **kwargs):
+            self.current_episode += 1
             episode_start_flops = self.total_flops
             result = self._original_methods["run_episode"](*args, **kwargs)
             episode_total = self.total_flops - episode_start_flops
-            print(
-                f"\nRun episode total FLOPs (sum of all operations): {episode_total:,}"
-            )
+            self._log_flops("run_episode_total", episode_total)
             return result
 
         # Wrap Monty methods

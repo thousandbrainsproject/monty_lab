@@ -1,9 +1,33 @@
 import numpy as np
-
+from contextlib import contextmanager
 from tbp.monty.frameworks.models.object_model import ObjectModel
 
-
 class FlopCountingObjectModel(ObjectModel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._flop_counter = None
+
+    @contextmanager
+    def _get_flop_counter(self):
+        """Get the active FlopCounter from the context if available."""
+        import inspect
+
+        # Walk up the stack to find the FlopCounter context
+        frame = inspect.currentframe()
+        while frame:
+            # Look for FlopCounter instance in locals
+            if "self" in frame.f_locals:
+                obj = frame.f_locals["self"]
+                if hasattr(obj, "flops"):
+                    self._flop_counter = obj
+                    break
+            frame = frame.f_back
+
+        try:
+            yield self._flop_counter
+        finally:
+            pass
+
     def find_nearest_neighbors(
         self,
         search_locations,
@@ -29,46 +53,30 @@ class FlopCountingObjectModel(ObjectModel):
             - Heap insertion: log(k) comparisons
             - Each comparison involves 1 FLOP
             - Total per insertion = log(k) FLOPs
-
-        The previous version was a significant underestimate as it:
-        - Ignored tree traversal costs
-        - Ignored k-nearest neighbor maintenance
-        - Assumed all distances were computed (while KD-tree actually prunes many)
-
-        Returns:
-            If return_distance is True, return (distances, flop_count).
-            Otherwise, return (indices of nearest neighbors, flop_count).
         """
         num_search_points = len(search_locations)
         num_tree_points = len(self._location_tree.data)
 
-        # 1. Distance calculation FLOPs
+        # Calculate FLOPs
         flops_per_dist = 9
-
-        # 2. Tree traversal FLOPs
-        # Each search point traverses approximately log(N) levels
         traversal_flops = num_search_points * np.log2(num_tree_points)
-
-        # 3. K-nearest neighbor maintenance FLOPs
-        # For each distance calculation that makes it to the heap
-        # We need log(k) operations to maintain the heap
-        # Assuming we check about log(N) points per search point
         heap_ops_per_point = np.log2(num_tree_points) * np.log2(num_neighbors)
         total_heap_flops = num_search_points * heap_ops_per_point
-
-        # Average case: we don't compute all distances due to tree pruning
-        # Typically examine O(log N) points instead of N points
         examined_points = np.log2(num_tree_points)
         distance_flops = num_search_points * examined_points * flops_per_dist
+        total_flops = int(distance_flops + traversal_flops + total_heap_flops)
 
-        total_flops = distance_flops + traversal_flops + total_heap_flops
+        # Add FLOPs to counter if available
+        with self._get_flop_counter() as counter:
+            if counter is not None:
+                counter.add_flops(total_flops)
 
         # Perform KDTree query
         (distances, nearest_node_ids) = self._location_tree.query(
             search_locations,
             k=num_neighbors,
-            p=2,  # euclidean distance
-            workers=1,  # using more than 1 worker slows down run on lambda
+            p=2,
+            workers=1,
         )
 
         if return_distance:
