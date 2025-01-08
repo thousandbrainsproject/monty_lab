@@ -18,8 +18,16 @@ from tbp.monty.frameworks.run import (
     config_to_dict,
 )
 from floppy.monty_flop_tracer import add_flop_tracking
-from typing import Dict, Any
-
+from typing import Dict, Any, Type
+from tbp.monty.frameworks.models.object_model import ObjectModel
+from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
+from frameworks.models.evidence_matching import FlopCountingEvidenceGraphLM
+from frameworks.models.goal_state_generation import (
+    FlopCountingEvidenceGoalStateGenerator,
+)
+from frameworks.models.object_model import FlopCountingObjectModel
+from floppy.flop_counting.counter import FlopCounter
+from floppy.monty_flop_tracer import MontyFlopTracer
 
 def wrap_monty_with_flops(monty_cls, experiment_cls):
     """Wraps both Monty and Experiment classes to add FLOP tracking."""
@@ -29,13 +37,31 @@ def wrap_monty_with_flops(monty_cls, experiment_cls):
         """Wrap the setup_experiment to initialize counters first."""
         # Initialize counters before doing anything else
         self.init_counters()
+
+        modified_config = config.copy()
+        # Update config to replace EvidenceGraphLM with FlopCountingEvidenceGraphLM
+        for lm_key in modified_config["monty_config"]["learning_module_configs"]:
+            lm_config = modified_config["monty_config"]["learning_module_configs"][
+                lm_key
+            ]
+            lm_config["learning_module_class"] = FlopCountingEvidenceGraphLM
+            lm_config["learning_module_args"]["gsg_class"] = (
+                FlopCountingEvidenceGoalStateGenerator
+            )
+
         # Call original setup
-        original_setup(self, config)
+        original_setup(self, modified_config)
 
-        flop_tracker = add_flop_tracking(self.model, self)
-        self.model.flop_tracker = flop_tracker
+        flop_tracker = MontyFlopTracer(self.model, self)
+        one_true_flop_counter = flop_tracker.flop_counter
+        for lm in self.model.learning_modules:
+            if isinstance(lm, FlopCountingEvidenceGraphLM):
+                lm.flop_counter = one_true_flop_counter
+                if hasattr(lm, "gsg") and isinstance(
+                    lm.gsg, FlopCountingEvidenceGoalStateGenerator
+                ):
+                    lm.gsg.flop_counter = one_true_flop_counter
         self.flop_tracker = flop_tracker
-
     # Wrap the experiment's setup and Monty's init
     experiment_cls.setup_experiment = wrapped_setup
 

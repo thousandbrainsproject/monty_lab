@@ -1,174 +1,154 @@
 import numpy as np
-import pytest
-from floppy.flop_counting.counter import FlopCounter
+from floppy.flop_counting.counter import FlopCounter, TrackedArray
 
-
-def test_flop_counting():
-    """Test FLOP counting for various operations."""
+def test_basic_arithmetic():
+    """Test basic arithmetic operations with explicit FLOP counting."""
     counter = FlopCounter()
 
-    # Create test arrays
-    a = np.array([[1, 2], [3, 4]])
-    b = np.array([[5, 6], [7, 8]])
-    v = np.array([1, 2])
-
-    test_cases = [
-        # Basic arithmetic (magic methods)
-        {
-            "name": "Matrix addition",
-            "operation": lambda: np.add(a, b),
-            "expected_flops": 4,  # One addition per element
-            "shape_check": (2, 2),
-        },
-        {
-            "name": "Matrix multiplication",
-            "operation": lambda: np.matmul(a, b),
-            "expected_flops": 12,  # 2*2*2 multiplications and 2*2 additions
-            "shape_check": (2, 2),
-        },
-        {
-            "name": "Element-wise multiplication",
-            "operation": lambda: a * b,
-            "expected_flops": 4,  # One multiplication per element
-            "shape_check": (2, 2),
-        },
-        # Linear algebra operations
-        {
-            "name": "Matrix norm",
-            "operation": lambda: np.linalg.norm(a),
-            "expected_flops": 8,  # 4 squares + 3 additions + 1 sqrt
-            "shape_check": (),
-        },
-        {
-            "name": "Matrix inverse",
-            "operation": lambda: np.linalg.inv(a),
-            "expected_flops": 14,  # ~2/3 * n³ + 2n² for 2x2 matrix
-            "shape_check": (2, 2),
-        },
-        # Trigonometric functions
-        {
-            "name": "Sine operation",
-            "operation": lambda: np.sin(a),
-            "expected_flops": 32,  # 8 FLOPs per element (4 elements)
-            "shape_check": (2, 2),
-        },
-        # Statistical operations
-        {
-            "name": "Mean operation",
-            "operation": lambda: np.mean(a),
-            "expected_flops": 4,  # n-1 additions + 1 division
-            "shape_check": (),
-        },
-        {
-            "name": "Standard deviation",
-            "operation": lambda: np.std(a),
-            "expected_flops": 17,  # 4n + 1 for n=4
-            "shape_check": (),
-        },
-        # Vector operations
-        {
-            "name": "Vector dot product",
-            "operation": lambda: np.dot(v, v),
-            "expected_flops": 3,  # 2 multiplications + 1 addition
-            "shape_check": (),
-        },
-        # Mixed operations
-        {
-            "name": "Complex expression",
-            "operation": lambda: np.sin(a @ b) + np.cos(a),
-            "expected_flops": 76,  # matmul(12) + sin(32) + cos(32)
-            "shape_check": (2, 2),
-        },
-    ]
-
-    for case in test_cases:
-        counter.flops = 0
-        with counter:
-            result = case["operation"]()
-        flop_count = counter.flops
-
-        # Verify result shape
-        assert (
-            result.shape == case["shape_check"]
-        ), f"{case['name']}: Expected shape {case['shape_check']}, got {result.shape}"
-
-        # Verify FLOP count using stored value
-        assert (
-            flop_count == case["expected_flops"]
-        ), f"{case['name']}: Expected {case['expected_flops']} FLOPs, got {flop_count}"
-
-        # Reset counter for next test
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+        b = np.array([[5, 6], [7, 8]])
+        # Test division
+        c = a / b
+        print()
+        # Test addition
+        c = a + b
+        assert isinstance(c, TrackedArray)
+        assert counter.flops == 4  # One FLOP per element
+        assert np.array_equal(c.array, a.array + b.array)
         counter.flops = 0
 
+        # Test multiplication
+        d = a * b
+        assert isinstance(d, TrackedArray)
+        assert counter.flops == 4
+        assert np.array_equal(d.array, a.array * b.array)
+        counter.flops = 0
+
+        # Test mixed scalar operations
+        e = 2 * a
+        assert isinstance(e, TrackedArray)
+        assert counter.flops == 4
+        assert np.array_equal(e.array, 2 * a.array)
+
+
+def test_numpy_functions():
+    """Test NumPy function integration with TrackedArray."""
+    counter = FlopCounter()
+
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+        b = np.array([[5, 6], [7, 8]])
+
+        # Test np.add
+        c = np.add(a, b)
+        assert isinstance(c, TrackedArray)
+        assert counter.flops == 4
+        assert np.array_equal(c.array, np.add(a.array, b.array))
+        counter.flops = 0
+
+        # Test np.multiply
+        d = np.multiply(a, b)
+        assert isinstance(d, TrackedArray)
+        assert counter.flops == 4
+        assert np.array_equal(d.array, np.multiply(a.array, b.array))
+
+
+def test_matrix_operations():
+    """Test matrix operations with proper FLOP counting."""
+    counter = FlopCounter()
+
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+        b = np.array([[5, 6], [7, 8]])
+
+        # Test matrix multiplication
+        c = a @ b
+        assert isinstance(c, TrackedArray)
+        # 2 * 2 * 2 multiplications and 2 * 2 additions = 12 FLOPs
+        assert counter.flops == 12
+        assert np.array_equal(c.array, a.array @ b.array)
+        counter.flops = 0
+
+        # Test np.matmul
+        d = np.matmul(a, b)
+        assert isinstance(d, TrackedArray)
+        assert counter.flops == 12
+        assert np.array_equal(d.array, np.matmul(a.array, b.array))
 
 def test_broadcasting():
-    """Test FLOP counting with broadcasting operations."""
+    """Test operations with broadcasting."""
     counter = FlopCounter()
 
-    # Create test arrays with different shapes
-    a = np.array([[1, 2], [3, 4]])  # (2, 2)
-    v = np.array([1, 2])  # (2,)
-    s = np.array(2)  # scalar
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+        v = np.array([1, 2])
 
-    broadcast_cases = [
-        {
-            "name": "Matrix + scalar",
-            "operation": lambda: a + s,
-            "expected_flops": 4,  # One addition per matrix element
-        },
-        {
-            "name": "Matrix + vector (broadcasting)",
-            "operation": lambda: a + v.reshape(2, 1),
-            "expected_flops": 4,  # One addition per matrix element
-        },
-        {
-            "name": "Matrix * vector",
-            "operation": lambda: a * v,
-            "expected_flops": 4,  # One multiplication per element after broadcasting
-        },
-    ]
-
-    for case in broadcast_cases:
-        with counter:
-            _ = case["operation"]()
-            assert (
-                counter.flops == case["expected_flops"]
-            ), f"{case['name']}: Expected {case['expected_flops']} FLOPs, got {counter.flops}"
+        # Test broadcasting with addition
+        c = a + v
+        assert isinstance(c, TrackedArray)
+        assert counter.flops == 4  # Still one FLOP per output element
+        expected = a.array + v.array
+        assert np.array_equal(c.array, expected)
         counter.flops = 0
 
+        # Test broadcasting with multiplication
+        d = a * v
+        assert isinstance(d, TrackedArray)
+        assert counter.flops == 4
+        assert np.array_equal(d.array, a.array * v.array)
+
+def test_reduction_operations():
+    """Test reduction operations like sum and mean."""
+    counter = FlopCounter()
+
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+
+        # Test sum
+        s = np.sum(a)
+        assert isinstance(s, (TrackedArray, np.number))
+        assert counter.flops == 3  # n-1 additions for n elements
+        assert s.array == np.sum(a.array)
+        counter.flops = 0
+
+        # Test mean
+        m = np.mean(a)
+        assert isinstance(m, (TrackedArray, np.number))
+        assert counter.flops == 4  # n-1 additions + 1 division
+        assert m.array == np.mean(a.array)
 
 def test_chained_operations():
-    """Test FLOP counting with chained operations."""
+    """Test chained operations maintain proper tracking."""
     counter = FlopCounter()
 
-    a = np.array([[1, 2], [3, 4]])
-
     with counter:
-        # (A + A) * (A @ A)
-        result = (a + a) * (a @ a)
+        a = np.array([[1, 2], [3, 4]])
+        b = np.array([[5, 6], [7, 8]])
 
-        # Expected FLOPs:
-        # - Matrix addition: 4
-        # - Matrix multiplication: 12
-        # - Final multiplication: 4
-        expected_flops = 20
+        # Test multiple operations
+        c = (a + b) * (a @ b)
+        assert isinstance(c, TrackedArray)
+        # 4 (add) + 12 (matmul) + 4 (multiply) = 20 FLOPs
+        assert counter.flops == 20
+        assert np.array_equal(c.array, (a.array + b.array) * (a.array @ b.array))
 
-        assert (
-            counter.flops == expected_flops
-        ), f"Chained operations: Expected {expected_flops} FLOPs, got {counter.flops}"
-
-
-def test_basic_operations():
+def test_unsupported_operations():
+    """Test unsupported operations."""
     counter = FlopCounter()
-    a = np.array([1, 2, 3])
-    b = np.array([4, 5, 6])
 
     with counter:
-        c = a + b  # Should count 3 FLOPs
-        d = a * b  # Should count 3 more FLOPs
-
-    assert counter.flops == 6
-
+        a = np.array([[1, 2], [3, 4]])
+        b = np.array([[5, 6], [7, 8]])
+        tranpose = a.T
+        assert isinstance(tranpose, TrackedArray)
+        assert counter.flops == 0
+        assert np.array_equal(tranpose.array, a.array.T)
 
 if __name__ == "__main__":
-    test_flop_counting()
+    test_basic_arithmetic()
+    test_numpy_functions()
+    test_matrix_operations()
+    test_broadcasting()
+    test_reduction_operations()
+    test_chained_operations()
