@@ -113,135 +113,139 @@ class TrackedArray(np.ndarray):
     def __repr__(self):
         return f"TrackedArray(array={super().__repr__()}, counter={id(self.counter)})"
 
-class TrackedArray:
+class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
 
-    def __init__(self, array: np.ndarray, counter: "FlopCounter"):
-        """Initialize TrackedArray with NumPy array and FlopCounter.
+    def __new__(cls, input_array, counter):
+        obj = np.asarray(input_array).view(cls)
+        obj.counter = counter
+        obj._wrapped_array = np.asarray(input_array)
+        return obj
 
-        Args:
-            array (np.ndarray): NumPy array to wrap.
-            counter (FlopCounter): FlopCounter instance for tracking operations.
-        """
-        self.array = array
-        self.counter = counter
-
-    def __getattr__(self, name):
-        """Handle any NumPy array methods not explicitly defined.
-
-        This allows TrackedArray to support all numpy.ndarray methods by forwarding
-        them to the underlying array and wrapping the result if needed.
-        """
-        # Get the attribute from the underlying numpy array
-        array_attr = getattr(self.array, name)
-
-        # If it's a method, wrap it to handle the return value
-        if callable(array_attr):
-
-            def wrapped(*args, **kwargs):
-                result = array_attr(*args, **kwargs)
-                # If result is a numpy array, wrap it in TrackedArray
-                if isinstance(result, np.ndarray):
-                    return TrackedArray(result, self.counter)
-                return result
-
-            return wrapped
-
-        # If it's not a method, return it directly
-        return array_attr
-
-    def __array__(self) -> np.ndarray:
-        """REturn the underlying NumPy array."""
-        return self.array
+    def __array_finalize__(self, obj):
+        # Ensure counter and _wrapped_array are properly maintained when creating new arrays
+        if obj is None:
+            return
+        self.counter = getattr(obj, "counter", None)
+        # Copy the _wrapped_array attribute, or use the array itself if not present
+        self._wrapped_array = getattr(obj, "_wrapped_array", np.asarray(self))
 
     def __array_function__(self, func, types, args, kwargs):
-        """Handle NumPy function calls by delegating to the operation registry.
-
-        This method handles both registered operations (with FLOP counting) and
-        unregistered operations while maintaining proper array wrapping.
         """
-        # First handle registered operations with FLOP counting
-        if func.__name__ in self.counter._operations:
-            clean_args = [
-                arg.array if isinstance(arg, TrackedArray) else arg for arg in args
-            ]
-            # Execute the operation
-            result = func(*clean_args, **kwargs)
-            # Count FLOPs using the registered operation
-            operation = self.counter._operations[func.__name__]
-            flops = operation.count_flops(*clean_args, result=result)
-            if flops is not None:
-                self.counter.add_flops(flops)
-            # Return result wrapped in TrackedArray if needed
-            if isinstance(result, np.ndarray):
-                return TrackedArray(result, self.counter)
-            return result
+        Intercept high-level NumPy functions called on TrackedArray (via __array_function__).
+        """
+        # If the call involves non-TrackedArray types, just defer to NumPy
+        if not all(issubclass(t, TrackedArray) for t in types):
+            return NotImplemented
 
-        # For unregistered operations, execute them with unwrapped arrays
-        clean_args = [
-            arg.array if isinstance(arg, TrackedArray) else arg for arg in args
-        ]
-        clean_kwargs = {
-            k: v.array if isinstance(v, TrackedArray) else v for k, v in kwargs.items()
+        # Known stack functions that re-call themselves
+        STACK_FUNCTIONS = {
+            "vstack",
+            "hstack",
+            "dstack",
+            "stack",
+            "column_stack",
+            "row_stack",
+            "concatenate",
         }
+        if func.__name__ in STACK_FUNCTIONS:
+            # Just unwrap everything and call the "original" np function directly
+            def unwrap_sequence(arg):
+                if isinstance(arg, (list, tuple)):
+                    return type(arg)(unwrap_sequence(x) for x in arg)
+                if isinstance(arg, TrackedArray):
+                    return arg._wrapped_array
+                return arg
 
-        result = func(*clean_args, **clean_kwargs)
+            unwrapped_args = tuple(unwrap_sequence(a) for a in args)
+            unwrapped_kwargs = {k: unwrap_sequence(v) for k, v in kwargs.items()}
 
-        # Wrap numpy array results in TrackedArray
-        if isinstance(result, np.ndarray):
-            return TrackedArray(result, self.counter)
-        elif isinstance(result, tuple):
-            # Handle functions that return multiple arrays (like histogram)
-            return tuple(
-                TrackedArray(x, self.counter) if isinstance(x, np.ndarray) else x
-                for x in result
-            )
-        return result
+            raw_result = getattr(np, func.__name__)(*unwrapped_args, **unwrapped_kwargs)
+            # Wrap it in a TrackedArray only once
+            return type(self)(raw_result, self.counter)
+
+        # Get the original NumPy function
+        numpy_func = func.__get__(None, np.ndarray)
+
+        def safe_unwrap(arg):
+            if isinstance(arg, TrackedArray):
+                return arg._wrapped_array
+            elif isinstance(arg, (list, tuple)):
+                return type(arg)(safe_unwrap(x) for x in arg)
+            return arg
+
+        # Carefully unwrap arguments while preserving shapes
+        unwrapped_args = tuple(safe_unwrap(arg) for arg in args)
+        unwrapped_kwargs = {k: safe_unwrap(v) for k, v in kwargs.items()}
+
+        try:
+            # Execute operation with unwrapped arguments
+            result = numpy_func(*unwrapped_args, **unwrapped_kwargs)
+
+            # Count FLOPs if this is a tracked operation
+            if self.counter._is_active and func.__name__ in self.counter._operations:
+                try:
+                    operation = self.counter._operations[func.__name__]
+                    flops = operation.count_flops(*unwrapped_args, result=result)
+                    if flops is not None:
+                        self.counter.add_flops(flops)
+                except Exception:
+                    pass  # Ignore errors in FLOP counting
+
+            # Wrap the result if needed
+            if isinstance(result, np.ndarray):
+                return type(self)(result, self.counter)
+            elif isinstance(result, tuple):
+                return tuple(
+                    type(self)(x, self.counter) if isinstance(x, np.ndarray) else x
+                    for x in result
+                )
+            return result
+        except Exception as e:
+            # If operation fails, try with original arrays as fallback
+            return func(*args, **kwargs)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        """Handle NumPy ufunc calls (low-level universal functions).
-
-        This provides support for operations like np.add.reduce, np.multiply.outer, etc.
-        For registered operations, it counts FLOPs. For unregistered operations, it
-        executes them while maintaining the TrackedArray wrapper.
         """
-        # Handle registered operations with FLOP counting
-        if ufunc.__name__ in self.counter._operations:
-            clean_inputs = [
-                inp.array if isinstance(inp, TrackedArray) else inp for inp in inputs
-            ]
-            # Execute the ufunc
-            result = getattr(ufunc, method)(*clean_inputs, **kwargs)
-            # Count FLOPs using registered operation
-            operation = self.counter._operations[ufunc.__name__]
-            flops = operation.count_flops(*clean_inputs, result=result)
-            if flops is not None:
-                self.counter.add_flops(flops)
-            return (
-                TrackedArray(result, self.counter)
-                if isinstance(result, np.ndarray)
-                else result
-            )
+        Intercept lower-level NumPy ufuncs (like add, multiply, sin, etc.).
+        """
+        # Get the underlying NumPy ufunc
+        numpy_ufunc = getattr(np, ufunc.__name__)
 
-        # Handle unregistered operations by executing them with unwrapped arrays
-        clean_inputs = [
-            inp.array if isinstance(inp, TrackedArray) else inp for inp in inputs
-        ]
-        clean_kwargs = {
-            k: v.array if isinstance(v, TrackedArray) else v for k, v in kwargs.items()
-        }
+        # Unwrap inputs
+        clean_inputs = []
+        for inp in inputs:
+            if isinstance(inp, TrackedArray):
+                clean_inputs.append(inp._wrapped_array)
+            else:
+                clean_inputs.append(inp)
 
-        result = getattr(ufunc, method)(*clean_inputs, **clean_kwargs)
+        # Unwrap kwargs
+        clean_kwargs = {}
+        for k, v in kwargs.items():
+            if isinstance(v, TrackedArray):
+                clean_kwargs[k] = v._wrapped_array
+            else:
+                clean_kwargs[k] = v
 
-        # Wrap the result appropriately
-        if isinstance(result, np.ndarray):
-            return TrackedArray(result, self.counter)
-        elif isinstance(result, tuple):
-            return tuple(
-                TrackedArray(x, self.counter) if isinstance(x, np.ndarray) else x
-                for x in result
-            )
-        return result
+        # Perform the operation
+        result = getattr(numpy_ufunc, method)(*clean_inputs, **clean_kwargs)
+
+        # Count FLOPs if needed
+        if self.counter._is_active and ufunc.__name__ in self.counter._operations:
+            try:
+                operation = self.counter._operations[ufunc.__name__]
+                flops = operation.count_flops(*clean_inputs, result=result)
+                if flops is not None:
+                    self.counter.add_flops(flops)
+            except Exception:
+                pass
+
+        return (
+            type(self)(result, self.counter)
+            if isinstance(result, np.ndarray)
+            else result
+        )
 
     def _handle_basic_op(self, other: Any, op_name: str, reverse: bool = False):
         """Handle arithmetic operations (+, -, *, /, @) between arrays."""
@@ -249,8 +253,12 @@ class TrackedArray:
             return NotImplemented
 
         # Handle scalar operations properly
-        other_value = other.array if isinstance(other, TrackedArray) else other
-        args = (other_value, self.array) if reverse else (self.array, other_value)
+        other_value = other._wrapped_array if isinstance(other, TrackedArray) else other
+        args = (
+            (other_value, self._wrapped_array)
+            if reverse
+            else (self._wrapped_array, other_value)
+        )
 
         # Execute operation and count FLOPs
         operation = self.counter._operations[op_name]
@@ -299,32 +307,16 @@ class TrackedArray:
     def __rmatmul__(self, other):
         return self._handle_basic_op(other, "matmul", reverse=True)
 
-    # Array attributes and methods
-    @property
-    def shape(self):
-        return self.array.shape
-
-    @property
-    def size(self):
-        return self.array.size
-
-    @property
-    def dtype(self):
-        return self.array.dtype
-
-    def __len__(self):
-        return len(self.array)
-
     def __getitem__(self, key):
-        result = self.array[key]
+        result = super().__getitem__(key)
         return (
-            TrackedArray(result, self.counter)
+            type(self)(result, self.counter)
             if isinstance(result, np.ndarray)
             else result
         )
 
     def __repr__(self):
-        return f"TrackedArray(array={self.array}, counter={id(self.counter)})"
+        return f"TrackedArray(array={super().__repr__()}, counter={id(self.counter)})"
 
 
 class FlopCounter(ContextDecorator):
