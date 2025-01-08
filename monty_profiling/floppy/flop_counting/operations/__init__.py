@@ -1,6 +1,7 @@
 from .arithmetic import Addition, Subtraction, Multiplication, Division
 from .matmul import MatmulOperation
 from .numpy_functions import (
+    SumOperation,
     ClipOperation,
     WhereOperation,
     MinOperation,
