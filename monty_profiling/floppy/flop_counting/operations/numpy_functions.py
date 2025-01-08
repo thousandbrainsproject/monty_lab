@@ -3,6 +3,17 @@ from typing import Any, Optional
 from .base import BaseOperation
 
 
+class SumOperation(BaseOperation):
+    """FLOP count for sum operation."""
+
+    def __init__(self):
+        super().__init__("sum")
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for sum operation."""
+        return np.size(args[0]) - 1
+
+
 class ClipOperation(BaseOperation):
     """FLOP count for clip operation."""
 

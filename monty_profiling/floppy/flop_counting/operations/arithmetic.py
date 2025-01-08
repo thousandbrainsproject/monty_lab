@@ -12,6 +12,9 @@ class ArithmeticOperation(BaseOperation):
         if len(args) < 2:
             return False
         try:
+            # Allow scalar inputs
+            if np.isscalar(args[0]) or np.isscalar(args[1]):
+                return True
             # Convert inputs to arrays for shape analysis
             arrays = [np.asarray(arg) for arg in args[:2]]
             return True
@@ -23,9 +26,12 @@ class ArithmeticOperation(BaseOperation):
     ) -> Optional[Tuple[int, ...]]:
         """Compute the broadcast shape for the inputs."""
         try:
+            # Handle case where one input is scalar
+            if not all(shapes):
+                return shapes[1] if not shapes[0] else shapes[0]
+
             # Create dummy arrays of ones with the given shapes
             arrays = [np.ones(shape) for shape in shapes]
-            # Use broadcast_arrays instead of broadcast
             result = np.broadcast_arrays(*arrays)
             return result[0].shape
         except ValueError as e:
@@ -37,16 +43,18 @@ class ArithmeticOperation(BaseOperation):
         if not self.validate_inputs(*args):
             return None
 
+        # Handle scalar operations
+        if np.isscalar(args[0]) or np.isscalar(args[1]):
+            array_arg = args[1] if np.isscalar(args[0]) else args[0]
+            return np.size(array_arg)
+
+        # Handle array operations
         arrays = [np.asarray(arg) for arg in args[:2]]
-        shapes = [arr.shape for arr in arrays]
+        # Get the result shape directly from the actual result
+        # This ensures we correctly account for broadcasting
+        result_shape = np.asarray(result).shape
 
-        # Get the output shape (either broadcast or identical)
-        output_shape = self._compute_broadcast_shape(*shapes)
-        if output_shape is None:
-            return None
-
-        # One FLOP per element in the output
-        return np.prod(output_shape)
+        return np.prod(result_shape)
 
 
 class Addition(ArithmeticOperation):
