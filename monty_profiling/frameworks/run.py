@@ -17,16 +17,11 @@ from tbp.monty.frameworks.run import (
     create_cmd_parser,
     config_to_dict,
 )
-from floppy.monty_flop_tracer import add_flop_tracking
-from typing import Dict, Any, Type
-from tbp.monty.frameworks.models.object_model import ObjectModel
-from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
+from typing import Dict, Any
 from frameworks.models.evidence_matching import FlopCountingEvidenceGraphLM
 from frameworks.models.goal_state_generation import (
     FlopCountingEvidenceGoalStateGenerator,
 )
-from frameworks.models.object_model import FlopCountingObjectModel
-from floppy.flop_counting.counter import FlopCounter
 from floppy.monty_flop_tracer import MontyFlopTracer
 
 def wrap_monty_with_flops(monty_cls, experiment_cls):

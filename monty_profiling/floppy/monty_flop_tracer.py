@@ -12,18 +12,26 @@ class MontyFlopTracer:
 
     def __init__(self, monty_instance, experiment_instance, log_path=None):
         self.monty = monty_instance
-        self.experiment = experiment_instance  # has graphs in memory in self.experiment.learning_modules[0].graph_memory.models_in_memory
+        self.experiment = experiment_instance
         self.flop_counter = FlopCounter()
         self.total_flops = 0
 
-        # Setup logging
-        self.log_path = log_path or Path("flop_traces.csv")
+        # Setup logging with proper path resolution
+        self.log_path = (
+            Path(log_path or "~/tbp/monty_lab/monty_profiling/results/flop_traces.csv")
+            .expanduser()
+            .resolve()
+        )
         self.episode_start_time = None
         self._setup_csv()
         self._wrap_methods()
 
     def _setup_csv(self):
         """Initialize CSV file with headers."""
+        # Create parent directories if they don't exist
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write headers
         with open(self.log_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["timestamp", "episode", "method", "flops"])

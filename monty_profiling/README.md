@@ -81,3 +81,7 @@ Execute Monty the same way in this repository. Floppy adjusted the run.py script
 cd ~/tbp/monty_labs/monty_profiling
 python run.py -e <experiment_name>
 ```
+
+## Results
+
+Results are saved in `~/tbp/monty_lab/monty_profiling/results/flop_traces.csv`.
