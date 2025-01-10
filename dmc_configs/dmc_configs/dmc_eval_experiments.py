@@ -32,7 +32,7 @@ to pretrain the loaded models. Each of these models may have counterparts with
 combinations of noise and random object rotations. For example, for `dist_agent_1lm`,
 we also have `dist_agent_1lm_noise` and `dist_agent_1lm_randrot`, and
 `dist_agent_1lm_randrot_noise`. Furthermore, each of these has a variant that
-evaluates loads the corresponding `_10distinctobj` pretrained model and tests
+evaluates the corresponding `_10distinctobj` pretrained model and tests
 on the DISTINCT_OBJECTS dataset. These `_10distinctobj` variants are generated
 automatically as a convenience. Other variants-creating functions have default
 arguments they won't work for every experiment, so noise/randrot variants need to be
@@ -46,7 +46,7 @@ Some differences between these configs and benchmarks:
 On style: Unlike `ycb_experiments.py`, this often prefers functions to return configs
 over copying and modifying them (for the most part). For example, we have the functions
 `get_fc_dist_patch_config()` and `get_fc_surf_patch_config()` which return
-default feature-chang esensor module configs.
+default feature-change sensor module configs.
 
 This approach has two main benefits:
 
@@ -54,9 +54,9 @@ This approach has two main benefits:
     back to find which sensor or learning module an experiment uses, we can just look
     at the function that returns the config. In this way, the functions are an easy
     way to look up defaults.
- - 2. Parameterize configs. This is especially useful when creating multi-LM
+ 2. Parameterize configs. This is especially useful when creating multi-LM
     experiments or deleting color information from sensor or learning modules in the
-    case of touch-only (no color)experiments.
+    case of touch-only (no color) experiments.
 
 The config 'getter'functions defined here are
  - `get_dist_evidence_lm_config`
@@ -68,7 +68,10 @@ The config 'getter'functions defined here are
  - `get_surf_motor_config`
 
 At present, all experiments use `EvidenceGraphLM` learning modules, `FeatureChangeSM`
-sensor modules, and goal-state-driven motor systems.
+sensor modules.
+
+The goal-state-driven motor system ("hypothesis-testing policy") is used unless a
+config explicitly modifies this (e.g. `dist_agent_1lm_nohyp`).
 
 We also have functions to generate experiment variants with sensor noise, random
 rotations, or operate on the DISTINCT_OBJECTS dataset.
@@ -82,7 +85,7 @@ pretrained model that has the same name but with the "_10distinctobj" suffix. It
 will not load the model trained on all 77 objects.
 
 The variant-producing functions add suffixes to the logging config `run_name`.
-For consistency, prefer the following order of suffixes: `_randrot`, `_noise`,
+For consistency, the following order of suffixes is preferred: `_randrot`, `_noise`,
 `_10distinctobj`. Other conventions/expectations here:
  - The logging config's `run_name` should be set and match the experiment key.
  - The logging config's `output_dir` should be set to `OUTPUT_DIR`.
@@ -95,6 +98,182 @@ This module also has a few conveniences that add to or modify configs.
    `run_name` pair to ensure there is no conflict in output paths.
  - Logging can be modified or disabled depending on global variables (see below).
 
+ Below is a summary of how these configs correspond to the key figures in the
+ Demonstrating Monty Capabilities paper. A brief description is also provided to
+ motivate the choice of config parameters.
+
+ ===== FIGURE 1 & 2: Diagramatic Figures With No Experiments =====
+
+
+ ===== FIGURE 3: Robust Sensorimotor Inference =====
+
+ Consists of 4 experiments:
+ - `dist_agent_1lm` (i.e. no noise)
+ - `dist_agent_1lm_noise`
+ - `dist_agent_1lm_randrot`
+ - `dist_agent_1lm_randrot_noise`
+
+ Here we are showing the perfomance of the "standard" version of Monty, so we use
+    - 77 objects
+    - The goal-state-driven/hypothesis-testing policy
+    - A single LM (no voting)
+
+The main output measure for these experiments is accuracy and rotation error as a
+function of the noise conditions.
+
+
+**** 77 Objects and Random Rotations/Noise ****
+**** Unless specified otherwise, all the following figures/experiments use: ****
+    - 77 objects
+    - Random rotations
+    - Sensor noise
+    So as to capture the core performance of the model in a realistic setting.
+
+
+===== FIGURE 4: Rapid Inference with Voting =====
+
+Consists of 5 experiments:
+- `dist_agent_1lm_randrot_noise`
+- `dist_agent_2lm_randrot_noise`
+- `dist_agent_4lm_randrot_noise`
+- `dist_agent_8lm_randrot_noise`
+- `dist_agent_16lm_randrot_noise`
+
+This means performance is evaluated with:
+    - 77 objects
+    - The goal-state-driven/hypothesis-testing policy
+    - Noise and random rotations
+    - Voting over 1, 2, 4, 8, or 16 LMs
+
+The main output measure for these experiments is accuracy and rotation error as a
+function of the number of LMs.
+
+NOTE: currently the config builders for arbitrary numbers of LMs are not included here.
+
+
+===== FIGURE 5: Rapid Inference with Model-Based Policies =====
+
+Consists of 3 experiments:
+- `dist_agent_1lm_randrot_noise_nohyp`
+- `dist_agent_1lm_randrot_noise_moderatehyp`  # Occasional hypothesis-testing
+TODO come up with the parameter change here
+- `dist_agent_1lm_randrot_noise`  # Standard "aggressive" hypothesis-testing
+
+This means performance is evaluated with:
+    - 77 objects
+    - Noise and random rotations
+    - No voting
+    - Varying levels of hypothesis-testing
+
+The main output measure for these experiments is accuracy and rotation error as a
+function of the hypothesis-testing policy.
+
+NOTE these configs do not currently exist.
+
+
+===== FIGURE 6: Rapid Learning =====
+
+Consists of 6 experiments:
+- `dist_agent_1lm_randrot_nohyp_1rot_trained`
+- `dist_agent_1lm_randrot_nohyp_2rot_trained`
+- `dist_agent_1lm_randrot_nohyp_4rot_trained`
+- `dist_agent_1lm_randrot_nohyp_8rot_trained`
+- `dist_agent_1lm_randrot_nohyp_16rot_trained`
+- `dist_agent_1lm_randrot_nohyp_32rot_trained`
+
+This means performance is evaluated with:
+    - 77 objects
+    - Random rotations
+    - *NO noise
+    - *NO hypothesis-testing
+    - No voting
+    - Varying numbers of rotations trained on, i.e. evaluation uses different baseline
+    models.
+
+*The choice for no noise and no hypothesis-testing is based on the fact that we
+compare these results to the performance of the ViT model. The ViT model only receives
+one "view" of the object (cannot move around it), so it would not be appropriate to
+perform hypothesis testing. Similarly, it is not straightforward to map the kind of
+noise experienced by Monty onto the ViT.
+
+The main output measure for these experiments is accuracy and rotation error as a
+function of the number of rotations trained on.
+
+NOTE these configs need to be specified. In the training configs, note that the
+training rotations should not be totally random, but instead:
+- The first 6 rotations should correspond to the 6 faces of a cube.
+- The next 8 rotations should correspond to the 8 corners of a cube.
+- The remaining rotations should samples from the other available rotations of a cubes
+faces (with redundancy, i.e. rotated in the plane of the face etc.).
+
+
+===== FIGURE 7: Computationally Efficient Learning and Inference =====
+
+Consists of 8 experiments, 7 corresponding to inference, and 1 corresponding to
+training.
+Inference:
+- `dist_agent_1lm_randrot_nohyp_xpercent_5p`
+- `dist_agent_1lm_randrot_nohyp_xpercent_10p`
+- `dist_agent_1lm_randrot_nohyp_xpercent_20p`
+- `dist_agent_1lm_randrot_nohyp_xpercent_40p`
+- `dist_agent_1lm_randrot_nohyp_xpercent_80p`
+- `dist_agent_1lm_randrot_nohyp_xpercent_100p`
+
+Training:
+- `dist_agent_77obj_1_rotation`  # NOTE should be defined in the other config file.
+TODO check this name
+
+This means performance is evaluated with:
+    - 77 objects
+    - Random rotations
+    - *No noise
+    - *No hypothesis-testing
+    - No voting
+
+*Once again, this is due to the fact that we are comparing the results to a ViT model.
+
+The main output measure for these experiments is accuracy and FLOPs as a
+function of the x-percent threshold parameter.
+
+NOTE these configs need to be specified.
+
+
+===== FIGURE 8: Multi-Modal Transfer =====
+
+Consists of 4 experiments:
+- `dist_agent_1lm_randrot_noise`  # I.e. the "standard" version of Monty,
+here "dist_on_dist"
+- `dist_on_touch_1lm_randrot_noise`  # "dist_on_touch"
+- `touch_agent_1lm_randrot_noise`  # "touch_on_touch" baseline
+- `touch_on_dist_1lm_randrot_noise`  # "touch_on_dist"
+
+This means performance is evaluated with:
+    - 77 objects
+    - Random rotations
+    - Sensor noise
+    - Use of hypothesis-testing policy
+    - No voting
+
+The main output measure for these experiments is accuracy and rotation error as a
+function of whether inference is within or across modalities.
+
+
+===== Figure 9: Structured Object Representations =====
+
+Consists of 1 experiment:
+- `dist_agent_1lm_randrot_noise_10simobj`
+
+This means performance is evaluated with:
+    - 10 morphologically similar objects
+        - This config should also therefore use the model trained on the 10
+        morphologically similar objects.
+    - Random rotations
+    - Sensor noise
+    - Use of hypothesis-testing policy
+    - No voting
+
+The main output measure for these experiments is a dendrogram looking at clustering
+of evidence scores for the 10 different objects.
 """
 
 import copy
