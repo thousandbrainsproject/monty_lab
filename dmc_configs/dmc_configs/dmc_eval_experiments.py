@@ -98,9 +98,13 @@ This module also has a few conveniences that add to or modify configs.
    `run_name` pair to ensure there is no conflict in output paths.
  - Logging can be modified or disabled depending on global variables (see below).
 
- Below is a summary of how these configs correspond to the key figures in the
+ Below is a summary of the configs that correspond to the key figures in the
  Demonstrating Monty Capabilities paper. A brief description is also provided to
  motivate the choice of config parameters.
+
+ NOTE in all experiments, `use_semantic_sensor=False` should be specified; this should
+ be the case once PR #116 is merged, updating the values for
+ PatchViewFinderMountHabitatDatasetArgs etc to be False by default.
 
  ===== FIGURE 1 & 2: Diagramatic Figures With No Experiments =====
 
@@ -109,13 +113,13 @@ This module also has a few conveniences that add to or modify configs.
 
  Consists of 4 experiments:
  - `dist_agent_1lm` (i.e. no noise)
- - `dist_agent_1lm_noise`
- - `dist_agent_1lm_randrot`
+ - `dist_agent_1lm_noise`  # Sensor noise
+ - `dist_agent_1lm_randrot`  # 14 random rotations
  - `dist_agent_1lm_randrot_noise`
 
  Here we are showing the perfomance of the "standard" version of Monty, so we use
     - 77 objects
-    - The goal-state-driven/hypothesis-testing policy
+    - Use of the goal-state-driven/hypothesis-testing policy
     - A single LM (no voting)
 
 The main output measure for these experiments is accuracy and rotation error as a
@@ -123,9 +127,9 @@ function of the noise conditions.
 
 
 **** 77 Objects and Random Rotations/Noise ****
-**** Unless specified otherwise, all the following figures/experiments use: ****
+**** Unless specified otherwise, the following figures/experiments use: ****
     - 77 objects
-    - Random rotations
+    - 14 random rotations
     - Sensor noise
     So as to capture the core performance of the model in a realistic setting.
 
@@ -141,8 +145,8 @@ Consists of 5 experiments:
 
 This means performance is evaluated with:
     - 77 objects
-    - The goal-state-driven/hypothesis-testing policy
-    - Noise and random rotations
+    - Use of the goal-state-driven/hypothesis-testing policy
+    - Sensor noise and 14 random rotations
     - Voting over 1, 2, 4, 8, or 16 LMs
 
 The main output measure for these experiments is accuracy and rotation error as a
@@ -150,25 +154,33 @@ function of the number of LMs.
 
 NOTE: currently the config builders for arbitrary numbers of LMs are not included here.
 
+NOTE: comparable configs should also be used to generate views corresponding to the
+evaluated rotations, which can then be passed to the ViT model for comparison.
+
 
 ===== FIGURE 5: Rapid Inference with Model-Based Policies =====
 
 Consists of 3 experiments:
-- `dist_agent_1lm_randrot_noise_nohyp`
+- `dist_agent_1lm_randrot_noise_nohyp`  # No hypothesis-testing
 - `dist_agent_1lm_randrot_noise_moderatehyp`  # Occasional hypothesis-testing
-TODO come up with the parameter change here
-- `dist_agent_1lm_randrot_noise`  # Standard "aggressive" hypothesis-testing
+    Should specify:
+    elapsed_steps_factor=20
+    min_post_goal_success_steps=10
+- `dist_agent_1lm_randrot_noise`  # Standard, "aggressive" hypothesis-testing
+    Should specify:
+    elapsed_steps_factor=10
+    min_post_goal_success_steps=5
 
 This means performance is evaluated with:
     - 77 objects
-    - Noise and random rotations
+    - Noise and 14 random rotations
     - No voting
     - Varying levels of hypothesis-testing
 
 The main output measure for these experiments is accuracy and rotation error as a
 function of the hypothesis-testing policy.
 
-NOTE these configs do not currently exist.
+NOTE these configs need to be specified.
 
 
 ===== FIGURE 6: Rapid Learning =====
@@ -183,18 +195,18 @@ Consists of 6 experiments:
 
 This means performance is evaluated with:
     - 77 objects
-    - Random rotations
-    - *NO noise
+    - 14 random rotations
+    - *NO sensor noise
     - *NO hypothesis-testing
     - No voting
-    - Varying numbers of rotations trained on, i.e. evaluation uses different baseline
+    - Varying numbers of rotations trained on, i.e. evaluations use different baseline
     models.
 
 *The choice for no noise and no hypothesis-testing is based on the fact that we
 compare these results to the performance of the ViT model. The ViT model only receives
-one "view" of the object (cannot move around it), so it would not be appropriate to
+one "view" of the object (it cannot move around it), so it would not be appropriate to
 perform hypothesis testing. Similarly, it is not straightforward to map the kind of
-noise experienced by Monty onto the ViT.
+noise experienced by Monty's sensor modules onto the ViT.
 
 The main output measure for these experiments is accuracy and rotation error as a
 function of the number of rotations trained on.
@@ -203,8 +215,11 @@ NOTE these configs need to be specified. In the training configs, note that the
 training rotations should not be totally random, but instead:
 - The first 6 rotations should correspond to the 6 faces of a cube.
 - The next 8 rotations should correspond to the 8 corners of a cube.
-- The remaining rotations should samples from the other available rotations of a cubes
-faces (with redundancy, i.e. rotated in the plane of the face etc.).
+- The remaining rotations should sample from random rotations (as otherwise there is
+  redundancy).
+
+NOTE: comparable configs should also be used to generate views corresponding to the
+evaluated rotations, which can then be passed to the ViT model for comparison.
 
 
 ===== FIGURE 7: Computationally Efficient Learning and Inference =====
@@ -212,30 +227,39 @@ faces (with redundancy, i.e. rotated in the plane of the face etc.).
 Consists of 8 experiments, 7 corresponding to inference, and 1 corresponding to
 training.
 Inference:
-- `dist_agent_1lm_randrot_nohyp_xpercent_5p`
-- `dist_agent_1lm_randrot_nohyp_xpercent_10p`
-- `dist_agent_1lm_randrot_nohyp_xpercent_20p`
-- `dist_agent_1lm_randrot_nohyp_xpercent_40p`
-- `dist_agent_1lm_randrot_nohyp_xpercent_80p`
-- `dist_agent_1lm_randrot_nohyp_xpercent_100p`
+- `dist_agent_1lm_randrot_nohyp_x_percent_5p`  # x-percent threshold of 5%
+- `dist_agent_1lm_randrot_nohyp_x_percent_10p`
+- `dist_agent_1lm_randrot_nohyp_x_percent_20p`  # 20% - the default for other
+experiments
+- `dist_agent_1lm_randrot_nohyp_x_percent_40p`
+- `dist_agent_1lm_randrot_nohyp_x_percent_80p`
+- `dist_agent_1lm_randrot_nohyp_x_percent_100p`
 
 Training:
-- `dist_agent_77obj_1_rotation`  # NOTE should be defined in the other config file.
-TODO check this name
+- **`dist_agent_77obj_1rot_trained`
 
 This means performance is evaluated with:
     - 77 objects
-    - Random rotations
+    - 14 random rotations
     - *No noise
     - *No hypothesis-testing
     - No voting
 
 *Once again, this is due to the fact that we are comparing the results to a ViT model.
 
+**The choice to evaluate FLOPs at training given only 1 rotation is due to the overhead
+of counting FLOPs, and so we will extrapolate total FLOPs to 14 rotations based on this/
+or can compare to a ViT trained on 1 rotation.
+
 The main output measure for these experiments is accuracy and FLOPs as a
 function of the x-percent threshold parameter.
 
-NOTE these configs need to be specified.
+NOTE these configs need to be specified (including specifying the
+dist_agent_77obj_1rot_trained config in `dmc_pretrain_experiments.py`).
+
+NOTE: a comparable config should also be used to generate views corresponding to the
+14random, evaluated rotations, which can then be passed to the ViT model(s) for
+comparison.
 
 
 ===== FIGURE 8: Multi-Modal Transfer =====
@@ -249,7 +273,7 @@ here "dist_on_dist"
 
 This means performance is evaluated with:
     - 77 objects
-    - Random rotations
+    - 14 random rotations
     - Sensor noise
     - Use of hypothesis-testing policy
     - No voting
@@ -274,6 +298,9 @@ This means performance is evaluated with:
 
 The main output measure for these experiments is a dendrogram looking at clustering
 of evidence scores for the 10 different objects.
+
+NOTE: this config needs to be specified, including the training config in
+`dmc_pretrain_experiments.py`.
 """
 
 import copy
