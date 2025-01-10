@@ -1,13 +1,8 @@
 import numpy as np
 from typing import Any, Optional
-from .base import BaseOperation
 
-
-class NormOperation(BaseOperation):
+class NormOperation:
     """FLOP count for np.linalg.norm operation."""
-
-    def __init__(self):
-        super().__init__("linalg.norm")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for norm calculation.
@@ -21,11 +16,8 @@ class NormOperation(BaseOperation):
         return 2 * np.size(args[0])
 
 
-class CondOperation(BaseOperation):
+class CondOperation:
     """FLOP count for np.linalg.cond operation."""
-
-    def __init__(self):
-        super().__init__("linalg.cond")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for condition number calculation.
@@ -39,11 +31,10 @@ class CondOperation(BaseOperation):
         return 14 * n**3 + 1
 
 
-class InvOperation(BaseOperation):
+class InvOperation:
     """FLOP count for np.linalg.inv operation."""
 
-    def __init__(self):
-        super().__init__("linalg.inv")
+
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for matrix inversion.
@@ -57,11 +48,8 @@ class InvOperation(BaseOperation):
         return (2 * n**3) // 3 + 2 * n**2
 
 
-class EigOperation(BaseOperation):
+class EigOperation:
     """FLOP count for np.linalg.eig operation."""
-
-    def __init__(self):
-        super().__init__("linalg.eig")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for eigenvalue decomposition.
