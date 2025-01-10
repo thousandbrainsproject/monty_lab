@@ -2,14 +2,9 @@
 import numpy as np
 import warnings
 from typing import Any, Optional, Tuple
-from .base import BaseOperation
 
-
-class MatmulOperation(BaseOperation):
+class MatmulOperation:
     """FLOP counter for matrix multiplication operations."""
-
-    def __init__(self):
-        super().__init__("matmul")
 
     def _compute_broadcast_batch_shape(
         self, shape1: Tuple[int, ...], shape2: Tuple[int, ...]

@@ -1,24 +1,16 @@
 import numpy as np
-from typing import Any, Optional
-from .base import BaseOperation
+from typing import Any
 
 
-class SumOperation(BaseOperation):
+class SumOperation:
     """FLOP count for sum operation."""
-
-    def __init__(self):
-        super().__init__("sum")
-
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for sum operation."""
         return np.size(args[0]) - 1
 
 
-class ClipOperation(BaseOperation):
+class ClipOperation:
     """FLOP count for clip operation."""
-
-    def __init__(self):
-        super().__init__("clip")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for clipping.
@@ -28,11 +20,8 @@ class ClipOperation(BaseOperation):
         return 2 * np.size(args[0])
 
 
-class WhereOperation(BaseOperation):
+class WhereOperation:
     """FLOP count for where operation."""
-
-    def __init__(self):
-        super().__init__("where")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for where operation.
@@ -42,11 +31,8 @@ class WhereOperation(BaseOperation):
         return np.size(args[0])
 
 
-class MinOperation(BaseOperation):
+class MinOperation:
     """FLOP count for min operation."""
-
-    def __init__(self):
-        super().__init__("min")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for min operation.
@@ -56,11 +42,8 @@ class MinOperation(BaseOperation):
         return np.size(args[0]) - 1
 
 
-class MaxOperation(BaseOperation):
+class MaxOperation:
     """FLOP count for max operation."""
-
-    def __init__(self):
-        super().__init__("max")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for max operation.
@@ -70,11 +53,8 @@ class MaxOperation(BaseOperation):
         return np.size(args[0]) - 1
 
 
-class RoundOperation(BaseOperation):
+class RoundOperation:
     """FLOP count for round operation."""
-
-    def __init__(self):
-        super().__init__("round")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for round operation.
@@ -84,11 +64,8 @@ class RoundOperation(BaseOperation):
         return np.size(args[0])
 
 
-class IsnanOperation(BaseOperation):
+class IsnanOperation:
     """FLOP count for isnan operation."""
-
-    def __init__(self):
-        super().__init__("isnan")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for isnan operation.
@@ -98,11 +75,8 @@ class IsnanOperation(BaseOperation):
         return np.size(args[0])
 
 
-class ArgminOperation(BaseOperation):
+class ArgminOperation:
     """FLOP count for argmin operation."""
-
-    def __init__(self):
-        super().__init__("argmin")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for argmin operation.
@@ -113,11 +87,8 @@ class ArgminOperation(BaseOperation):
         return np.size(args[0]) - 1
 
 
-class ArgmaxOperation(BaseOperation):
+class ArgmaxOperation:
     """FLOP count for argmax operation."""
-
-    def __init__(self):
-        super().__init__("argmax")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for argmax operation.
@@ -128,11 +99,8 @@ class ArgmaxOperation(BaseOperation):
         return np.size(args[0]) - 1
 
 
-class TraceOperation(BaseOperation):
+class TraceOperation:
     """FLOP count for trace operation."""
-
-    def __init__(self):
-        super().__init__("trace")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for trace operation.
@@ -144,11 +112,8 @@ class TraceOperation(BaseOperation):
         return n - 1
 
 
-class MeanOperation(BaseOperation):
+class MeanOperation:
     """FLOP count for mean operation."""
-
-    def __init__(self):
-        super().__init__("mean")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for mean operation.
@@ -160,11 +125,8 @@ class MeanOperation(BaseOperation):
         return np.size(args[0])  # (n-1) additions + 1 division
 
 
-class StdOperation(BaseOperation):
+class StdOperation:
     """FLOP count for standard deviation operation."""
-
-    def __init__(self):
-        super().__init__("std")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for standard deviation operation.
@@ -182,11 +144,8 @@ class StdOperation(BaseOperation):
         return 4 * n + 1
 
 
-class VarOperation(BaseOperation):
+class VarOperation:
     """FLOP count for variance operation."""
-
-    def __init__(self):
-        super().__init__("var")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for variance operation.
@@ -203,11 +162,8 @@ class VarOperation(BaseOperation):
         return 4 * n
 
 
-class AverageOperation(BaseOperation):
+class AverageOperation:
     """FLOP count for average operation."""
-
-    def __init__(self):
-        super().__init__("average")
 
     def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for average operation.
@@ -247,11 +203,8 @@ class AverageOperation(BaseOperation):
             return n + 1  # n operations for sum and 1 division
 
 
-class LogOperation(BaseOperation):
+class LogOperation:
     """FLOP count for logarithm operation."""
-
-    def __init__(self):
-        super().__init__("log")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for logarithm operation.
@@ -260,11 +213,8 @@ class LogOperation(BaseOperation):
         """
         return np.size(args[0])
 
-class PowerOperation(BaseOperation):
+class PowerOperation:
     """FLOP count for power operation."""
-
-    def __init__(self):
-        super().__init__("power")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for power operation.
@@ -274,11 +224,8 @@ class PowerOperation(BaseOperation):
         return np.size(args[0])
 
 
-class FloorDivideOperation(BaseOperation):
+class FloorDivideOperation:
     """FLOP count for floor divide operation."""
-
-    def __init__(self):
-        super().__init__("floor_divide")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for floor divide operation.
@@ -288,11 +235,8 @@ class FloorDivideOperation(BaseOperation):
         return np.size(args[0])
 
 
-class ModuloOperation(BaseOperation):
+class ModuloOperation:
     """FLOP count for modulo operation."""
-
-    def __init__(self):
-        super().__init__("modulo")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for modulo operation.
@@ -302,11 +246,8 @@ class ModuloOperation(BaseOperation):
         return np.size(args[0])
 
 
-class BitwiseAndOperation(BaseOperation):
+class BitwiseAndOperation:
     """FLOP count for bitwise and operation."""
-
-    def __init__(self):
-        super().__init__("bitwise_and")
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for bitwise and operation.
@@ -316,11 +257,10 @@ class BitwiseAndOperation(BaseOperation):
         return np.size(args[0])
 
 
-class BitwiseOrOperation(BaseOperation):
+class BitwiseOrOperation:
     """FLOP count for bitwise or operation."""
 
-    def __init__(self):
-        super().__init__("bitwise_or")
+
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for bitwise or operation.

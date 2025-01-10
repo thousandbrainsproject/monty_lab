@@ -1,11 +1,13 @@
 import numpy as np
 import warnings
 from typing import Any, Optional, Tuple
-from .base import BaseOperation
 
 
-class ArithmeticOperation(BaseOperation):
+class ArithmeticOperation:
     """Base class for arithmetic operations."""
+
+    def __init__(self, name: str):
+        self.name = name
 
     def _compute_broadcast_shape(
         self, *shapes: Tuple[int, ...]

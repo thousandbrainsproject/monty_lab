@@ -1,13 +1,9 @@
-from .base import BaseOperation
 import numpy as np
 from typing import Any, Optional
 
 
-class SineOperation(BaseOperation):
+class SineOperation:
     """FLOP counter for sine operations."""
-
-    def __init__(self):
-        super().__init__("sin")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for sine operation.
@@ -30,11 +26,8 @@ class SineOperation(BaseOperation):
             return False
 
 
-class CosineOperation(BaseOperation):
+class CosineOperation:
     """FLOP counter for cosine operations."""
-
-    def __init__(self):
-        super().__init__("cos")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for cosine operation.
@@ -57,11 +50,8 @@ class CosineOperation(BaseOperation):
             return False
 
 
-class CrossOperation(BaseOperation):
+class CrossOperation:
     """FLOP counter for vector cross product operations."""
-
-    def __init__(self):
-        super().__init__("cross")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for cross product operation.
@@ -77,11 +67,8 @@ class CrossOperation(BaseOperation):
         )
         return 9 * num_operations
 
-class ArccosOperation(BaseOperation):
+class ArccosOperation:
     """FLOP counter for inverse cosine operations."""
-
-    def __init__(self):
-        super().__init__("arccos")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for inverse cosine operation.
@@ -93,11 +80,8 @@ class ArccosOperation(BaseOperation):
         return 10 * np.size(result)
 
 
-class TangentOperation(BaseOperation):
+class TangentOperation:
     """FLOP counter for tangent operations."""
-
-    def __init__(self):
-        super().__init__("tan")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for tangent operation.
@@ -112,11 +96,8 @@ class TangentOperation(BaseOperation):
         return 17 * np.size(result)
 
 
-class ArcTangentOperation(BaseOperation):
+class ArcTangentOperation:
     """FLOP counter for inverse tangent operations."""
-
-    def __init__(self):
-        super().__init__("arctan")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for inverse tangent operation.
@@ -128,11 +109,8 @@ class ArcTangentOperation(BaseOperation):
         return 10 * np.size(result)
 
 
-class ArcSineOperation(BaseOperation):
+class ArcSineOperation:
     """FLOP counter for inverse sine operations."""
-
-    def __init__(self):
-        super().__init__("arcsin")
 
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for inverse sine operation.
