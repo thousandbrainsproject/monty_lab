@@ -1,8 +1,7 @@
 from typing import Any, Optional
-from ..base import FlopOperation
 import numpy as np
 
-class BaseOperation(FlopOperation):
+class BaseOperation:
     """Base implementation for simple operations."""
 
     def __init__(self, operation_name: str):
