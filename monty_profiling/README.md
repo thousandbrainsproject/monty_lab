@@ -69,6 +69,10 @@ Manual FLOP counting for the following methods in Monty:
 - `tbp.monty.frameworks.models.evidence_matching.EvidenceGraphLM._calculate_evidence_for_new_locations`
 - `tbp.monty.frameworks.models.goal_state_generation.EvidenceGoalStateGenerator._compute_graph_mismatch`
 
+## Dependencies
+
+Floppy requires the same dependencies as Monty because it is running Monty code. There are no additional dependencies for counting.
+
 ## Usage
 
 Execute Monty the same way in this repository. Floppy adjusted the run.py script to use the FlopCounter.
