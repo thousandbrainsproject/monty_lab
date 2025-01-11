@@ -85,3 +85,13 @@ python run.py -e <experiment_name>
 ## Results
 
 Results are saved in `~/tbp/monty_lab/monty_profiling/results/flop_traces.csv`.
+
+## Running Tests
+
+To run the tests, use:
+
+```bash
+python tests/test_add.py
+```
+
+**Note:** The tests fail when using `pytest`. I think it is because pytest handles imports and module state differently from running the script directly, and can interfere with FlopCounter's monkey-patching.

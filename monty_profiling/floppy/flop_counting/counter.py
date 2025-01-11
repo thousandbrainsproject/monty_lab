@@ -371,8 +371,6 @@ class FlopCounter(ContextDecorator):
         """
         Deactivate the FLOP counter, restore original functionality.
         """
-        import numpy as np
-
         self._is_active = False
 
         # Restore original array function
@@ -387,8 +385,8 @@ class FlopCounter(ContextDecorator):
 
     def add_flops(self, count: int):
         """Add to the FLOP count only if counter is active."""
-        if self._is_active:
-            self.flops += count
+        if not self._is_active:
+            return
 
         if self.skip_library_calls:
             # Check the call stack to see if we're inside library code (site-packages, numpy, etc.)
