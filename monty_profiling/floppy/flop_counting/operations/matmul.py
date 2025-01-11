@@ -3,6 +3,9 @@ import numpy as np
 import warnings
 from typing import Any, Optional, Tuple
 
+__all__ = ["MatmulOperation"]
+
+
 class MatmulOperation:
     """FLOP counter for matrix multiplication operations."""
 

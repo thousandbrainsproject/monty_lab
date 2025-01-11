@@ -1,6 +1,15 @@
 import numpy as np
 from typing import Any, Optional
 
+__all__ = [
+    "SineOperation",
+    "CosineOperation",
+    "CrossOperation",
+    "ArccosOperation",
+    "TangentOperation",
+    "ArcTangentOperation",
+    "ArcSineOperation",
+]
 
 class SineOperation:
     """FLOP counter for sine operations."""
