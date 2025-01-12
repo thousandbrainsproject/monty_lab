@@ -198,36 +198,12 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
         logging.debug(
             f"Calculating evidence for {graph_id} using input from " f"{input_channel}"
         )
-        # Calculate FLOPs for this computation
-        num_search_points = len(search_locations)
-        num_tree_points = len(
-            self.graph_memory.get_locations_in_graph(graph_id, input_channel)
-        )
-
-        # KDTree query FLOPs
-        flops_per_dist = 9  # 3 subtractions, 3 squares, 2 additions, 1 sqrt
-        points_examined = int(
-            np.log2(num_tree_points)
-        )  # Approximate points examined during tree traversal
-        kdtree_flops = (
-            num_search_points
-            * points_examined
-            * flops_per_dist  # Distance calculations
-            + num_search_points * np.log2(num_tree_points)  # Tree traversal
-            + num_search_points
-            * points_examined
-            * np.log2(self.max_nneighbors)  # Heap operations
-        )
 
         pose_transformed_features = rotate_pose_dependent_features(
             features[input_channel],
             self.possible_poses[graph_id][hyp_ids_to_test],
         )
 
-        pose_transformed_features = rotate_pose_dependent_features(
-            features[input_channel],
-            self.possible_poses[graph_id][hyp_ids_to_test],
-        )
         # Get max_nneighbors nearest nodes to search locations.
         nearest_node_ids = self.get_graph(
             graph_id, input_channel
@@ -235,6 +211,35 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             search_locations,
             num_neighbors=self.max_nneighbors,
         )
+
+        # def find_nearest_neighbors():
+        # (distances, nearest_node_ids) = self._location_tree.query(
+        #     search_locations,
+        #     k=num_neighbors,
+        #     p=2,  # eucledian distance
+        #     workers=1,  # using more than 1 worker slows down run on lambda.
+        # )
+
+        num_search_points = len(search_locations)
+        num_reference_points = len(
+            self.graph_memory.get_locations_in_graph(graph_id, input_channel)
+        )
+        dim1 = search_locations.shape[1]
+        traversal_flops = num_search_points * dim1 * np.log2(num_reference_points)
+        num_examined_points = int(np.log2(num_reference_points))
+        distance_flops = (
+            num_search_points * num_examined_points * (3 * dim1 + dim1 + 1)
+        )  # dim1*(3 ops per dim) + dim1 additions + 1 sqrt
+        heap_flops = (
+            num_search_points * num_examined_points * np.log2(self.max_nneighbors)
+        )
+        bounding_box_flops = num_search_points * num_examined_points * dim1
+        total_flops = int(
+            traversal_flops + distance_flops + heap_flops + bounding_box_flops
+        )
+        if self.flop_counter is not None:
+            self.flop_counter.add_flops(total_flops)
+
         if self.max_nneighbors == 1:
             nearest_node_ids = np.expand_dims(nearest_node_ids, axis=1)
 
@@ -248,13 +253,6 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             pose_transformed_features["pose_vectors"][:, 0],
             max_abs_curvature,
         )
-        # Calculate FLOPs for feature operations
-        feature_transform_flops = (
-            num_search_points * self.max_nneighbors * 3
-        )  # Basic vector operations
-        distance_calc_flops = (
-            num_search_points * self.max_nneighbors * 9
-        )  # Distance computations
 
         # shape=(H, K)
         node_distance_weights = self._get_node_distance_weights(
@@ -312,18 +310,6 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
         # Removing the comment weights the evidence by the nodes distance from the
         # search location. However, epirically this did not seem to help.
         # shape=(H,)
-        # Calculate max operation FLOPs
-        max_ops_flops = num_search_points * (self.max_nneighbors - 1)  # For np.max
-
-        # Total FLOPs for all operations
-        total_flops = int(
-            kdtree_flops + feature_transform_flops + distance_calc_flops + max_ops_flops
-        )
-
-        # Add to flop counter if available
-        if self.flop_counter is not None:
-            self.flop_counter.add_flops(total_flops)
-
         location_evidence = np.max(
             radius_evidence,  # * node_distance_weights,
             axis=1,
