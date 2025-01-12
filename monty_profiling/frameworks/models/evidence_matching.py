@@ -123,7 +123,6 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
         # Tree Traversal FLOPs
         # Depth of tree is log2(num_reference_points) for balanced tree
         dim1 = self.possible_locations[graph_id].shape[1]
-        dim2 = graph_location_vote.shape[1]
         traversal_flops = num_search_points * dim1 * np.log2(num_reference_points)
         # FLOPs for distance
         num_examined_points = int(np.log2(num_reference_points))
