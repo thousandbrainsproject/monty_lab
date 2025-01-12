@@ -1,6 +1,5 @@
 from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 import numpy as np
-from scipy.spatial import KDTree
 import logging
 
 
@@ -40,26 +39,6 @@ class FlopCountingEvidenceGoalStateGenerator(EvidenceGoalStateGenerator):
         top_mlh_graph = (
             second_mlh["rotation"].apply(top_mlh_graph) + second_mlh["location"]
         )
-
-        # Calculate FLOPs for KDTree operations
-        num_query_points = len(top_mlh_graph)
-        num_reference_points = len(
-            self.parent_lm.get_graph(second_id, input_channel="first").pos
-        )
-
-        # FLOPs for distance calculations and sorting
-        distance_flops = (
-            num_query_points * num_reference_points * 9
-        )  # 3 subtractions + 3 squares + 2 additions + 1 sqrt
-        sort_flops = num_query_points * np.log2(
-            num_reference_points
-        )  # For tree traversal
-        total_flops = int(distance_flops + sort_flops)
-
-        # Add FLOPs to counter if available
-        if self.flop_counter is not None:
-            self.flop_counter.add_flops(total_flops)
-
         # Perform KDTree search
         radius_node_dists = self.parent_lm.get_graph(
             second_id, input_channel="first"
@@ -68,6 +47,32 @@ class FlopCountingEvidenceGoalStateGenerator(EvidenceGoalStateGenerator):
             num_neighbors=1,
             return_distance=True,
         )
+
+        # Calculate FLOPs for KDTree operations
+        num_search_points = len(top_mlh_graph)
+        num_reference_points = len(
+            self.parent_lm.get_graph(second_id, input_channel="first").pos
+        )
+
+        # Tree Traversal FLOPs
+        dim1 = top_mlh_graph.shape[1]
+        traversal_flops = num_search_points * dim1 * np.log2(num_reference_points)
+        # FLOPs for distance
+        num_examined_points = int(np.log2(num_reference_points))
+        distance_flops = (
+            num_search_points * num_examined_points * (3 * dim1 + dim1 + 1)
+        )  # dim1*(3 ops per dim) + dim1 additions + 1 sqrt
+        # Heap operations
+        heap_flops = 0  # because num_neighbors is 1
+        # FLOPs for bounding box check
+        bounding_box_flops = num_search_points * num_examined_points * dim1
+        total_flops = int(
+            traversal_flops + distance_flops + heap_flops + bounding_box_flops
+        )
+
+        # Add FLOPs to counter if available
+        if self.flop_counter is not None:
+            self.flop_counter.add_flops(total_flops)
 
         target_loc_id = np.argmax(radius_node_dists)
         target_loc_separation = np.max(radius_node_dists)
