@@ -95,28 +95,19 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             graph_location_vote[n] = vote.location
             vote_evidences[n] = vote.confidence
 
-        # Calculate FLOP counts for KDTree operations
-        # num_search_points = len(self.possible_locations[graph_id])
-        num_search_points = 1000
-        num_reference_points = len(graph_location_vote)
-        vote_nn = min(3, graph_location_vote.shape[0])
-
-        # FLOPs for distance calculations and sorting
-        distance_flops = (
-            num_search_points * num_reference_points * 9
-        )  # 3 subtractions + 3 squares + 2 additions + 1 sqrt
-        sort_flops = num_search_points * num_reference_points * np.log2(max(vote_nn, 1))
-        total_flops = int(distance_flops + sort_flops)
-
-        # Since the flop_counter is set by MontyFlopTracer, we can use it directly
-        if self.flop_counter is not None:
-            self.flop_counter.add_flops(total_flops)
-
         # Execute KDTree query
         vote_location_tree = KDTree(
             graph_location_vote,
             leafsize=40,
         )
+        vote_nn = 3  # TODO: Make this a parameter?
+        if graph_location_vote.shape[0] < vote_nn:
+            vote_nn = graph_location_vote.shape[0]
+
+        # Account for FLOPs for KDTree Construction
+        num_reference_points = len(graph_location_vote)
+        dim1 = self.possible_locations[graph_id].shape[1]
+        kdtree_flops = int(num_reference_points * np.log2(num_reference_points) * dim1)
 
         (radius_node_dists, radius_node_ids) = vote_location_tree.query(
             self.possible_locations[graph_id],
@@ -125,7 +116,36 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             workers=1,
         )
 
-        # Process query results
+        # Account for FLOPs for KDTree query
+        num_search_points = len(self.possible_locations[graph_id])
+        num_reference_points = len(graph_location_vote)
+
+        # Tree Traversal FLOPs
+        # Depth of tree is log2(num_reference_points) for balanced tree
+        dim1 = self.possible_locations[graph_id].shape[1]
+        dim2 = graph_location_vote.shape[1]
+        traversal_flops = num_search_points * dim1 * np.log2(num_reference_points)
+        # FLOPs for distance
+        num_examined_points = int(np.log2(num_reference_points))
+        distance_flops = (
+            num_search_points * num_examined_points * (3 * dim1 + dim1 + 1)
+        )  # dim1*(3 ops per dim) + dim1 additions + 1 sqrt
+        # Heap operations
+        heap_flops = num_search_points * num_examined_points * np.log2(max(vote_nn, 1))
+
+        # FLOPs for bounding box check
+        bounding_box_flops = num_search_points * num_examined_points * dim1
+        total_flops = int(
+            kdtree_flops
+            + traversal_flops
+            + distance_flops
+            + heap_flops
+            + bounding_box_flops
+        )
+        if self.flop_counter is not None:
+            self.flop_counter.add_flops(total_flops)
+
+        # Remainder of code
         if vote_nn == 1:
             radius_node_dists = np.expand_dims(radius_node_dists, axis=1)
             radius_node_ids = np.expand_dims(radius_node_ids, axis=1)
