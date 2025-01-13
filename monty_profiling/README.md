@@ -88,6 +88,12 @@ Results are saved in `~/tbp/monty_lab/monty_profiling/results/flop_traces.csv`.
 
 ## Running Tests
 
+Add the directory to the Python path:
+
+```bash
+export PYTHONPATH=$PYTHONPATH:~/tbp/monty_labs/monty_profiling
+```
+
 To run the tests, use:
 
 ```bash
@@ -98,6 +104,6 @@ python tests/test_add.py
 
 ## Operations Not Yet Supported
 
-- Method calls, e.g. `a.sum()`
+- [1/2] Method calls, e.g. `a.sum()` (partially supported for ufuncs like `arr.add(arr2)`, but not for methods)
 - einsum
 - linalg.solve
