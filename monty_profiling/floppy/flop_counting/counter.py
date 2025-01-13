@@ -8,7 +8,12 @@ def should_skip_flop_counting():
     stack_frames = inspect.stack()
     for frame in stack_frames:
         # Skip counting if inside a library call (e.g., NumPy internals)
-        if "site-packages" in frame.filename or "numpy" in frame.filename:
+        if (
+            "site-packages" in frame.filename
+            or "numpy" in frame.filename
+            or "torch" in frame.filename
+            or "habitat_sim" in frame.filename
+        ):
             return True
     return False
 
