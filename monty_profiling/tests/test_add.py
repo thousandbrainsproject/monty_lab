@@ -59,6 +59,6 @@ def test_add_broadcasting():
 if __name__ == "__main__":
     test_add_operator_syntax()
     test_add_ufunc_syntax()
-    # test_add_method_syntax() # Expected to fail
+    test_add_method_syntax()
     test_add_augmented_assignment()
     test_add_broadcasting()
