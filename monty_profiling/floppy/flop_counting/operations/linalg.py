@@ -37,8 +37,6 @@ class CondOperation:
 class InvOperation:
     """FLOP count for np.linalg.inv operation."""
 
-
-
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for matrix inversion.
 
