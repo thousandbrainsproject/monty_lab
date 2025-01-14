@@ -66,6 +66,9 @@ class MatmulOperation:
                 M, N = a.shape
                 P = 1
             else:  # ND × ND
+                # Use negative indexing to handle arbitrary batch dimensions
+                # shape = (*batch_dims, M, N) for first array
+                # shape = (*batch_dims, N, P) for second array
                 M = a.shape[-2]
                 N = a.shape[-1]  # same as b.shape[-2]
                 P = b.shape[-1]
