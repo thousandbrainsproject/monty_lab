@@ -32,7 +32,27 @@ class TrackedArray(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
-        # Ensure counter and _wrapped_array are properly maintained when creating new arrays
+        """Ensure proper initialization of TrackedArray attributes during array creation.
+
+        This method is called by NumPy whenever a new array is created from an existing one,
+        including through views, slices, or other array operations. It ensures that the FLOP
+        counter reference is properly inherited by the new array.
+
+        Args:
+            obj: Optional[ndarray]
+                The array from which this array was created. None if the array is being
+                created from scratch rather than derived from an existing array.
+
+        Note:
+            This method is essential for maintaining the FLOP counting functionality across
+            all array operations, as it ensures derived arrays maintain their connection
+            to the original FlopCounter instance.
+
+            The method handles three main cases:
+            1. Direct array creation (obj is None)
+            2. View creation (obj is TrackedArray)
+            3. Result of array operations (obj is TrackedArray)
+        """
         if obj is None:
             return
         self.counter = getattr(obj, "counter", None)
