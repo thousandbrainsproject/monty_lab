@@ -4,19 +4,6 @@ import numpy as np
 from .operations import *
 import inspect
 
-def should_skip_flop_counting():
-    stack_frames = inspect.stack()
-    for frame in stack_frames:
-        # Skip counting if inside a library call (e.g., NumPy internals)
-        if (
-            "site-packages" in frame.filename
-            or "numpy" in frame.filename
-            or "torch" in frame.filename
-            or "habitat_sim" in frame.filename
-        ):
-            return True
-    return False
-
 
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
@@ -132,6 +119,7 @@ class TrackedArray(np.ndarray):
     def __repr__(self):
         return f"TrackedArray(array={super().__repr__()}, counter={id(self.counter)})"
 
+
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
 
@@ -218,6 +206,7 @@ class TrackedArray(np.ndarray):
     """
     Patch direct calls, e.g. arr.sum(), @, etc.
     """
+
     def __getitem__(self, key):
         result = super().__getitem__(key)
         return (
@@ -405,23 +394,37 @@ class FlopCounter(ContextDecorator):
 
         return False
 
-    def add_flops(self, count: int):
-        """Add to the FLOP count only if counter is active."""
+    def _should_skip_counting(self) -> bool:
+        """
+        Determine if FLOP counting should be skipped based on the call stack.
+
+        We skip counting FLOPs that occur inside library code (like NumPy internals) because:
+        1. These operations are already accounted for separately through our higher-level
+           operation counters (e.g., MatmulOperation, SumOperation, etc.)
+        2. Counting both the high-level operation and its internal implementation would
+           result in double-counting
+        3. The internal implementation details of library functions may vary across
+           versions and platforms, making internal FLOP counts unreliable
+
+        Returns:
+            bool: True if counting should be skipped (inside library code), False otherwise
+        """
         if not self._is_active:
-            return
+            return True
 
-        if self.skip_library_calls:
-            # Check the call stack to see if we're inside library code (site-packages, numpy, etc.)
-            stack_frames = inspect.stack()
-            for frame_info in stack_frames:
-                frame_file = frame_info.filename
-                # Adjust these conditions as needed for your environment:
-                if (
-                    "site-packages" in frame_file
-                    or "numpy" in frame_file
-                    or "scipy" in frame_file
-                ):
-                    # Skip counting if we're inside library code
-                    return
+        if not self.skip_library_calls:
+            return False
 
-        self.flops += count
+        stack_frames = inspect.stack()
+        for frame in stack_frames:
+            if any(
+                lib in frame.filename
+                for lib in ("site-packages", "numpy", "scipy", "habitat_sim")
+            ):
+                return True
+        return False
+
+    def add_flops(self, count: int):
+        """Add to the FLOP count only if counter is active and not in library code."""
+        if not self._should_skip_counting():
+            self.flops += count
