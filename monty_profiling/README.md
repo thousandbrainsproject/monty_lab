@@ -69,6 +69,27 @@ Manual FLOP counting for the following methods in Monty:
 - `tbp.monty.frameworks.models.evidence_matching.EvidenceGraphLM._calculate_evidence_for_new_locations`
 - `tbp.monty.frameworks.models.goal_state_generation.EvidenceGoalStateGenerator._compute_graph_mismatch`
 
+The FLOP counting for these operations is done by inheriting from the above classes (e.g. `EvidenceGraphLM` as `FlopCounterEvidenceGraphLM`) and overriding the above methods to include FLOP counting.
+
+Example:
+
+```python
+class FlopCounterEvidenceGraphLM(EvidenceGraphLM):
+
+    def _update_evidence_with_vote(self, *args, **kwargs):
+        # ... existing code ...
+        ... = tree.query(...)
+
+        # Custom code to count FLOPs for KDTree query
+        num_search_points = ...
+        num_reference_points = ...
+        ...
+        kdtree_query_flops = ...
+        self.flop_counter.add_flops(kdtree_query_flops)
+
+        # ... remainder ofexisting code ...
+```
+
 ## Dependencies
 
 Floppy requires the same dependencies as Monty because it is running Monty code. There are no additional dependencies for counting.
