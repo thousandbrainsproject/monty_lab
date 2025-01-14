@@ -26,6 +26,7 @@ If your project requires several additional dependencies you should document thi
 - [**temporal_memory**](./temporal_memory): A first implementation of the HTM algorithm for recognizing 3D objects. Includes data preprocessing and SDR generation for 3D locations. Note: This code was written when the Monty framework was not well established yet.
 - [**touch_sensor**](./touch_sensor): The first implementation of a sensor moving along the surface of an object. This is now integrated in the Monty framework and called "surface agent".
 - [**very_first_experiments**](./very_first_experiments): A couple of notebooks visualizing first experiments of working with sensorimotor data collected in habitat and building and extending graphs using this data.
+- [**dmc_configs**](./dmc_configs): A collection of configs for experiments found in the "Demonstrating Monty's Capabilities" paper.
 
 ## Contributing
 This repository is not meant for external contributors. It is just a place where the TBP team keeps its project files. If you are on the TBP team and start working on a new project, please remember to always add a README in your project folder and a short description in the "Content" section here.

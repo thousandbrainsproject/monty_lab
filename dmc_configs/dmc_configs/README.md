@@ -11,7 +11,7 @@ Below is a summary of configs that correspond to figures in the Demonstrating Mo
 Consists of 4 experiments:
 - `dist_agent_1lm` (i.e. no noise)
 - `dist_agent_1lm_noise` - Sensor noise
-- `dist_agent_1lm_randrot` - 14 random rotations  
+- `dist_agent_1lm_randrot` - 5 random rotations (5 rather than e.g. 14 or 32 due to the long time to run the experiments)
 - `dist_agent_1lm_randrot_noise`
 
 Here we are showing the performance of the "standard" version of Monty, using:
@@ -24,7 +24,7 @@ The main output measure is accuracy and rotation error as a function of noise co
 ## Default Parameters for Figures 4+
 Unless specified otherwise, the following figures/experiments use:
 - 77 objects
-- 14 random rotations
+- 5 random rotations
 - Sensor noise
 
 This captures core model performance in a realistic setting.
@@ -41,7 +41,7 @@ Consists of 5 experiments:
 This means performance is evaluated with:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
-- Sensor noise and 14 random rotations
+- Sensor noise and 5 random rotations
 - Voting over 1, 2, 4, 8, or 16 LMs
 
 The main output measure is accuracy and rotation error as a function of number of LMs.
@@ -65,7 +65,7 @@ Consists of 3 experiments:
 
 This means performance is evaluated with:
 - 77 objects
-- Sensor noise and 14 random rotations
+- Sensor noise and 5 random rotations
 - No voting
 - Varying levels of hypothesis-testing
 
@@ -86,7 +86,7 @@ Consists of 6 experiments:
 
 This means performance is evaluated with:
 - 77 objects
-- 14 random rotations
+- 5 random rotations
 - NO sensor noise*
 - NO hypothesis-testing*
 - No voting
@@ -118,27 +118,27 @@ Consists of 8 experiments:
 - `dist_agent_1lm_randrot_nohyp_x_percent_80p` - 80% threshold
 - `dist_agent_1lm_randrot_nohyp_x_percent_100p` - 100% threshold
 
-### Training (1 experiment):
-- `dist_agent_77obj_1rot_trained`*
-
 This means performance is evaluated with:
 - 77 objects
-- 14 random rotations
-- No sensor noise**
-- No hypothesis-testing**
+- 5 random rotations
+- No sensor noise*
+- No hypothesis-testing*
 - No voting
 
-*Single rotation evaluation due to FLOPs counting overhead, so we will extrapolate total FLOPs to 14 rotations based on this/
-or can compare to a ViT trained on 1 rotation.
-
-**Due to ViT model comparison.
-
+*Due to ViT model comparison.
 
 The main output measure is accuracy and FLOPs as a function of x-percent threshold.
 
+### Training (1 experiment):
+- `dist_agent_77obj_1rot_trained`**
+
+**Single rotation evaluation due to FLOPs counting overhead, so we will extrapolate total FLOPs to 14 rotations based on this/or can compare to a ViT trained on 1 rotation.
+
+The main output measure is as a function of whether the ViT or Monty is training.
+
 **TODO:**
 - Configs need specification (including `dist_agent_77obj_1rot_trained` in `dmc_pretrain_experiments.py`)
-- Comparable config needed to generate views corresponding to the 14 random, evaluated rotations, which can then be passed to the ViT model(s) for comparison.
+- Comparable config needed to generate views corresponding to the 5 random, evaluated rotations, which can then be passed to the ViT model(s) for comparison.
 
 ## Figure 8: Multi-Modal Transfer
 
@@ -150,7 +150,7 @@ Consists of 4 experiments:
 
 This means performance is evaluated with:
 - 77 objects
-- 14 random rotations
+- 5 random rotations
 - Sensor noise
 - Hypothesis-testing policy active
 - No voting
@@ -164,13 +164,16 @@ Consists of 1 experiment:
 
 This means performance is evaluated with:
 - 10 morphologically similar objects
-  - This config should therefore also use the model trained on the 10 morphologically similar objects.
 - Random rotations
 - Sensor noise
 - Hypothesis-testing policy active
 - No voting
 
 The main output measure is a dendrogram showing evidence score clustering for the 10 objects.
+
+**Notes:**
+- Although evaluating on 10 objects, the model is trained on 77 objects.
+- We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
 
 **TODO:**
 - Config needs specification, including training config for similar objects in `dmc_pretrain_experiments.py`.
