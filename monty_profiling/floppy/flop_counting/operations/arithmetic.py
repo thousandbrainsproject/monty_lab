@@ -10,23 +10,6 @@ class ArithmeticOperation:
     def __init__(self, name: str):
         self.name = name
 
-    def _compute_broadcast_shape(
-        self, *shapes: Tuple[int, ...]
-    ) -> Optional[Tuple[int, ...]]:
-        """Compute the broadcast shape for the inputs."""
-        try:
-            # Handle case where one input is scalar
-            if not all(shapes):
-                return shapes[1] if not shapes[0] else shapes[0]
-
-            # Create dummy arrays of ones with the given shapes
-            arrays = [np.ones(shape) for shape in shapes]
-            result = np.broadcast_arrays(*arrays)
-            return result[0].shape
-        except ValueError as e:
-            warnings.warn(f"Invalid broadcast shape: {str(e)}")
-            return None
-
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count the FLOPs for the operation."""
         # Handle scalar operations
