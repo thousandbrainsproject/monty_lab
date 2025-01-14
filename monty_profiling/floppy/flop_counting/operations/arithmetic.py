@@ -10,8 +10,25 @@ class ArithmeticOperation:
     def __init__(self, name: str):
         self.name = name
 
-    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
-        """Count the FLOPs for the operation."""
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Counts the floating point operations (FLOPs) for an arithmetic operation.
+
+        Handles both scalar and array operations. For scalar operations, counts one FLOP
+        per element in the non-scalar array. For array operations, counts one FLOP per
+        element in the result array, taking into account broadcasting.
+
+        Args:
+            *args: Variable length argument list containing the input operands.
+                Expected to have at least 2 arguments where each can be a scalar
+                or numpy array.
+            result: The result of the arithmetic operation, used to determine the
+                final shape after broadcasting.
+
+        Returns:
+            int: The total number of FLOPs performed in the operation, calculated as:
+                - For scalar operations: size of the non-scalar array
+                - For array operations: product of the result array's dimensions
+        """
         # Handle scalar operations
         if np.isscalar(args[0]) or np.isscalar(args[1]):
             array_arg = args[1] if np.isscalar(args[0]) else args[0]
