@@ -121,9 +121,6 @@ class TrackedArray(np.ndarray):
 
         return result
 
-    """
-    Patch direct calls, e.g. arr.sum(), @, etc.
-    """
     def __getitem__(self, key):
         result = super().__getitem__(key)
         return (
