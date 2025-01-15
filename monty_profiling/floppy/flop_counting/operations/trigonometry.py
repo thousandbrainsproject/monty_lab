@@ -31,15 +31,6 @@ class SineOperation:
         """
         return 20 * np.size(result)
 
-    def validate_inputs(self, *args: Any) -> bool:
-        if len(args) != 1:
-            return False
-        try:
-            np.asarray(args[0])
-            return True
-        except Exception:
-            return False
-
 
 class CosineOperation:
     """FLOP counter for cosine operations."""
@@ -47,23 +38,18 @@ class CosineOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for cosine operation.
 
-        Cosine is typically implemented using Taylor series or CORDIC algorithm.
-        We estimate 8 FLOPs per value based on common implementations.
+        Cosine is typically implemented using Taylor series:
+        cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...
+
+        Each term requires:
+        - Power calculation (2-3 FLOPs)
+        - Factorial division (1 FLOP)
+        - Addition to sum (1 FLOP)
+
+        With ~7-8 terms for good precision, plus argument reduction,
+        we estimate 20 FLOPs per value for consistency with sine and log operations.
         """
-        if not self.validate_inputs(*args):
-            return None
-
-        return 8 * np.size(result)
-
-    def validate_inputs(self, *args: Any) -> bool:
-        if len(args) != 1:
-            return False
-        try:
-            np.asarray(args[0])
-            return True
-        except Exception:
-            return False
-
+        return 20 * np.size(result)
 
 class CrossOperation:
     """FLOP counter for vector cross product operations."""
