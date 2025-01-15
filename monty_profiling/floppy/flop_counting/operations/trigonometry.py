@@ -75,11 +75,19 @@ class ArccosOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for inverse cosine operation.
 
-        Arccos is typically implemented using a combination of
-        logarithms and square roots. We estimate 10 FLOPs per value
-        based on common implementations.
+        Arccos is typically implemented using the relationship:
+        arccos(x) = 2 * arctan(sqrt(1-x)/sqrt(1+x))
+
+        This requires:
+        - Two subtractions (1-x, 1+x): 2 FLOPs
+        - Two square roots: 20 FLOPs (10 each)
+        - One division: 1 FLOP
+        - One arctan: 55 FLOPs
+        - One multiplication by 2: 1 FLOP
+
+        Total per element: 79 FLOPs
         """
-        return 10 * np.size(result)
+        return 79 * np.size(result)
 
 
 class TangentOperation:
