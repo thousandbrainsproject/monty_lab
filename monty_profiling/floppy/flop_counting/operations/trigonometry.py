@@ -57,6 +57,7 @@ class CrossOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for cross product operation.
 
+        Note: Cross product is only defined for 3D vectors (and 7D, though rarely used).
         For 3D vectors, cross product requires:
         - 6 multiplications
         - 3 subtractions
