@@ -112,11 +112,18 @@ Consists of 8 experiments:
 
 ### Inference (7 experiments):
 - `dist_agent_1lm_randrot_nohyp_x_percent_5p` - 5% threshold
+  - `evidence_update_threshold=x_percent_threshold`  # Evidence update threshold is the same as x-percent threshold for determining convergence.
 - `dist_agent_1lm_randrot_nohyp_x_percent_10p` - 10% threshold
+- `dist_agent_1lm_randrot_nohyp_x_percent_15p` - 15% threshold
 - `dist_agent_1lm_randrot_nohyp_x_percent_20p` - 20% threshold (default for other experiments)
-- `dist_agent_1lm_randrot_nohyp_x_percent_40p` - 40% threshold
-- `dist_agent_1lm_randrot_nohyp_x_percent_80p` - 80% threshold
-- `dist_agent_1lm_randrot_nohyp_x_percent_100p` - 100% threshold
+- `dist_agent_1lm_randrot_nohyp_x_percent_30p` - 30% threshold
+- `dist_agent_1lm_randrot_nohyp_x_percent_20p_evidence_update_all`
+  - 20% x-percent threshold for *convergence*
+  - Effectively 100% threshold for which hypotheses to test, i.e. all hypotheses are tested; determined by setting `evidence_update_threshold='all'
+  
+**Notes:**
+- For the first 5 experiments above, x-percent threshold determines the threshold at which the LM determines it has converged. In addition we set `evidence_update_threshold=x_percent_threshold`, so that this same threshold also determines which evidence values are updated. 
+- For the final experiment, these are separated out as noted.
 
 This means performance is evaluated with:
 - 77 objects
@@ -134,7 +141,7 @@ The main output measure is accuracy and FLOPs as a function of x-percent thresho
 
 **Single rotation evaluation due to FLOPs counting overhead, so we will extrapolate total FLOPs to 14 rotations based on this/or can compare to a ViT trained on 1 rotation.
 
-The main output measure is as a function of whether the ViT or Monty is training.
+The main output measure is FLOPs as a function of whether the ViT or Monty is training.
 
 **TODO:**
 - Configs need specification (including `dist_agent_77obj_1rot_trained` in `dmc_pretrain_experiments.py`)
