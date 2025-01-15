@@ -96,14 +96,18 @@ class TangentOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for tangent operation.
 
-        Tangent is typically implemented as sin/cos, requiring:
-        - 8 FLOPs for sine
-        - 8 FLOPs for cosine
-        - 1 division
-        Total: 17 FLOPs per value
-        """
+        Tangent can be computed using Taylor series:
+        tan(x) = x + x³/3 + 2x⁵/15 + 17x⁷/315 + ...
 
-        return 17 * np.size(result)
+        Each term requires:
+        - Power calculation (2-3 FLOPs)
+        - Coefficient multiplication/division (1-2 FLOPs)
+        - Addition to sum (1 FLOP)
+
+        With ~7-8 terms for good precision, plus argument reduction,
+        we estimate 20 FLOPs per value for consistency with other trig operations.
+        """
+        return 20 * np.size(result)
 
 
 class ArcTangentOperation:
