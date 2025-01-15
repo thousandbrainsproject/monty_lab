@@ -58,7 +58,8 @@ class MinOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for min operation.
 
-        Each element requires 1 comparison operation.
+        Finding the minimum requires comparing each pair of elements sequentially.
+        For n elements, we need (n-1) comparisons total.
         """
         return np.size(args[0]) - 1
 
@@ -69,7 +70,8 @@ class MaxOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for max operation.
 
-        Each element requires 1 comparison operation.
+        Finding the maximum requires comparing each pair of elements sequentially.
+        For n elements, we need (n-1) comparisons total.
         """
         return np.size(args[0]) - 1
 
