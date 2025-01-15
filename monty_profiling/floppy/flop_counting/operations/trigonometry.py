@@ -135,8 +135,16 @@ class ArcSineOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for inverse sine operation.
 
-        Arcsine is typically implemented using a combination of
-        logarithms and square roots. We estimate 10 FLOPs per value
-        based on common implementations.
+        Arcsine can be computed using arctan:
+        arcsin(x) = arctan(x/sqrt(1-x²))
+
+        This requires:
+        - One multiplication (x²): 1 FLOP
+        - One subtraction (1-x²): 1 FLOP
+        - One square root: 10 FLOPs (using Newton iteration)
+        - One division: 1 FLOP
+        - One arctan: 20 FLOPs
+
+        Total per element: 33 FLOPs
         """
-        return 10 * np.size(result)
+        return 33 * np.size(result)
