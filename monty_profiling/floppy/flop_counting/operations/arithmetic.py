@@ -34,13 +34,9 @@ class ArithmeticOperation:
             array_arg = args[1] if np.isscalar(args[0]) else args[0]
             return np.size(array_arg)
 
-        # Handle array operations
-        arrays = [np.asarray(arg) for arg in args[:2]]
         # Get the result shape directly from the actual result
         # This ensures we correctly account for broadcasting
-        result_shape = np.asarray(result).shape
-
-        return np.prod(result_shape)
+        return np.size(np.asarray(result))
 
 
 class Addition(ArithmeticOperation):
