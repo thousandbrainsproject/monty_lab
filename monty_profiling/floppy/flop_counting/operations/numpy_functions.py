@@ -245,9 +245,32 @@ class PowerOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for power operation.
 
-        Each element requires 1 power operation.
+        FLOP count depends on the exponent:
+        - For integer exponents > 0: Uses repeated multiplication, requiring (exponent-1) FLOPs
+        - For integer exponent = 0: No FLOPs (just returns 1)
+        - For integer exponent < 0: Same as positive + 1 division
+        - For fractional exponents: Uses logarithm (~20 FLOPs) and exponential (~20 FLOPs), or total ~40 FLOPs
+
+        Args:
+            args: (base, exponent)
+            result: Result of the operation
         """
-        return np.size(args[0])
+        base, exponent = args
+        n = np.size(base)
+
+        if np.isscalar(exponent):
+            if float(exponent).is_integer():
+                exp = abs(int(exponent))
+                flops_per_element = max(0, exp - 1)  # exp-1 multiplications needed
+                if exponent < 0:
+                    flops_per_element += 1  # Additional division for negative exponents
+            else:
+                flops_per_element = 40  # Approximate FLOPs for fractional exponents
+        else:
+            # If exponent is an array, use worst case (fractional exponent)
+            flops_per_element = 40
+
+        return n * flops_per_element
 
 
 class FloorDivideOperation:
