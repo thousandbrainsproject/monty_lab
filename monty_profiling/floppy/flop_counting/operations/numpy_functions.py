@@ -306,9 +306,13 @@ class ModuloOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for modulo operation.
 
-        Each element requires 1 modulo operation.
+        Each element requires:
+        - 1 division (quotient = a ÷ b)
+        - 1 multiplication (product = quotient * b)
+        - 1 subtraction (remainder = a - product)
+        Total: 3 FLOPs per element
         """
-        return np.size(args[0])
+        return 3 * np.size(args[0])
 
 
 class BitwiseAndOperation:
