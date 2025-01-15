@@ -17,13 +17,19 @@ class SineOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for sine operation.
 
-        Sine is typically implemented using Taylor series or CORDIC algorithm.
-        We estimate 8 FLOPs per value based on common implementations.
-        """
-        if not self.validate_inputs(*args):
-            return None
+        Sine is typically implemented using Taylor series:
+        sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...
 
-        return 8 * np.size(result)
+        Each term requires:
+        - Power calculation (2-3 FLOPs)
+        - Factorial division (1 FLOP)
+        - Addition to sum (1 FLOP)
+
+        With ~7-8 terms for good precision, plus argument reduction,
+        we estimate 20 FLOPs per value. This was also chosen to be consistent
+        with the log operation, which also uses some form of series expansion.
+        """
+        return 20 * np.size(result)
 
     def validate_inputs(self, *args: Any) -> bool:
         if len(args) != 1:
