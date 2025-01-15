@@ -232,9 +232,12 @@ class LogOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for logarithm operation.
 
-        Each element requires 1 logarithm operation.
+        Each logarithm typically requires ~20-30 FLOPs depending on the implementation
+        and desired precision. Common implementations use series expansions or
+        iterative methods that involve multiple multiplications and divisions.
+        We use a conservative estimate of 20 FLOPs per logarithm.
         """
-        return np.size(args[0])
+        return 20 * np.size(args[0])
 
 class PowerOperation:
     """FLOP count for power operation."""
