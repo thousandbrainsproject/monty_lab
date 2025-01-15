@@ -20,6 +20,19 @@ class MontyFlopTracer:
         )
         self.episode_start_time = None
         self._setup_csv()
+        self._original_methods = {
+            # Monty methods
+            "_matching_step": self.monty._matching_step,
+            "_exploratory_step": self.monty._exploratory_step,
+            "post_episode": self.monty.post_episode,
+            # MontyExperiment methods
+            "run_episode": self.experiment.run_episode,
+            "pre_episode": self.experiment.pre_episode,
+            "pre_step": self.experiment.pre_step,
+            "step": self.monty.step,
+            "post_step": self.experiment.post_step,
+            "post_episode": self.experiment.post_episode,
+        }
         self._wrap_methods()
 
     def _setup_csv(self):
@@ -41,21 +54,6 @@ class MontyFlopTracer:
 
     def _wrap_methods(self):
         """Wrap key Monty methods to count FLOPs."""
-        self._original_methods = {
-            # Monty methods
-            "_matching_step": self.monty._matching_step,
-            "_exploratory_step": self.monty._exploratory_step,
-            "post_episode": self.monty.post_episode,
-            # MontyExperiment methods
-            "run_episode": self.experiment.run_episode,
-            "pre_episode": self.experiment.pre_episode,
-            "pre_step": self.experiment.pre_step,
-            "step": self.monty.step,
-            "post_step": self.experiment.post_step,
-            "post_episode": self.experiment.post_episode,
-        }
-
-        # Replace with wrapped methods that show per-step FLOPs
 
         def wrap_method(method_name, target_obj):
             original = self._original_methods[method_name]
