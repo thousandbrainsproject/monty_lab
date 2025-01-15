@@ -75,19 +75,19 @@ class ArccosOperation:
     def count_flops(self, *args: Any, result: Any) -> Optional[int]:
         """Count FLOPs for inverse cosine operation.
 
-        Arccos is typically implemented using the relationship:
+        Arccos can be computed using arctan:
         arccos(x) = 2 * arctan(sqrt(1-x)/sqrt(1+x))
 
         This requires:
         - Two subtractions (1-x, 1+x): 2 FLOPs
-        - Two square roots: 20 FLOPs (10 each)
+        - Two square roots: 20 FLOPs (10 each, using Newton iteration)
         - One division: 1 FLOP
-        - One arctan: 55 FLOPs
+        - One arctan: 20 FLOPs
         - One multiplication by 2: 1 FLOP
 
-        Total per element: 79 FLOPs
+        Total per element: 44 FLOPs
         """
-        return 79 * np.size(result)
+        return 44 * np.size(result)
 
 
 class TangentOperation:
@@ -113,19 +113,16 @@ class ArcTangentOperation:
         """Count FLOPs for inverse tangent operation.
 
         Using Taylor series: arctan(x) = x - x³/3 + x⁵/5 - x⁷/7 + ...
-        For 7 terms, counting per element:
 
-        Term 1 (x):      1 FLOP  (copy)
-        Term 2 (x³/3):   4 FLOPs (2 for x³, 1 div, 1 add)
-        Term 3 (x⁵/5):   6 FLOPs (4 for x⁵, 1 div, 1 add)
-        Term 4 (x⁷/7):   8 FLOPs (6 for x⁷, 1 div, 1 add)
-        Term 5 (x⁹/9):   10 FLOPs (8 for x⁹, 1 div, 1 add)
-        Term 6 (x¹¹/11): 12 FLOPs (10 for x¹¹, 1 div, 1 add)
-        Term 7 (x¹³/13): 14 FLOPs (12 for x¹³, 1 div, 1 add)
+        Each term requires:
+        - Power calculation (2-3 FLOPs)
+        - Division by odd number (1 FLOP)
+        - Addition to sum (1 FLOP)
 
-        Total per element: 55 FLOPs
+        With ~7-8 terms for good precision, plus argument reduction,
+        we estimate 20 FLOPs per value for consistency with sine operation.
         """
-        return 55 * np.size(result)
+        return 20 * np.size(result)
 
 
 class ArcSineOperation:
