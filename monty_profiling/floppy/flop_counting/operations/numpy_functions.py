@@ -292,9 +292,12 @@ class FloorDivideOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for floor divide operation.
 
-        Each element requires 1 division operation.
+        Each element requires:
+        - 1 division operation
+        - 1 floor/truncation operation
+        Total: 2 FLOPs per element
         """
-        return np.size(args[0])
+        return 2 * np.size(args[0])
 
 
 class ModuloOperation:
