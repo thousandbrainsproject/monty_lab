@@ -117,8 +117,8 @@ Consists of 8 experiments:
 - `dist_agent_1lm_randrot_nohyp_x_percent_15p` - 15% threshold
 - `dist_agent_1lm_randrot_nohyp_x_percent_20p` - 20% threshold (default for other experiments)
 - `dist_agent_1lm_randrot_nohyp_x_percent_30p` - 30% threshold
-- `dist_agent_1lm_randrot_nohyp_x_percent_20p_evidence_update_all`
-  - 20% x-percent threshold for *convergence*
+- `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
+  - 30% x-percent threshold for *convergence*
   - Effectively 100% threshold for which hypotheses to test, i.e. all hypotheses are tested; determined by setting `evidence_update_threshold='all'
   
 **Notes:**
