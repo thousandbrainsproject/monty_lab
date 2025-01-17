@@ -75,7 +75,7 @@ class TrackedArray(np.ndarray):
 
         # 4) Count FLOPs if active
         if self.counter and self.counter._is_active:
-            if should_skip_flop_counting():
+            if self.counter._should_skip_counting():
                 return result
             op_name = ufunc.__name__
             if op_name in self.counter._ufunc_operations:
@@ -170,7 +170,7 @@ class TrackedArray(np.ndarray):
 
         # 4) Count FLOPs if active
         if self.counter and self.counter._is_active:
-            if should_skip_flop_counting():
+            if self.counter._should_skip_counting():
                 return result
             op_name = ufunc.__name__
             if op_name in self.counter._ufunc_operations:
