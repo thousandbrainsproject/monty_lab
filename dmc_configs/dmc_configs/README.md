@@ -119,7 +119,7 @@ Consists of 8 experiments:
 - `dist_agent_1lm_randrot_nohyp_x_percent_30p` - 30% threshold
 - `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
   - 30% x-percent threshold for *convergence*
-  - Effectively 100% threshold for which hypotheses to test, i.e. all hypotheses are tested; determined by setting `evidence_update_threshold='all'
+  - Effectively >100% threshold for which hypotheses to test, i.e. all hypotheses are tested, even those with negative evidence; determined by setting `evidence_update_threshold='all'
   
 **Notes:**
 - For the first 5 experiments above, x-percent threshold determines the threshold at which the LM determines it has converged. In addition we set `evidence_update_threshold=x_percent_threshold`, so that this same threshold also determines which evidence values are updated. 
