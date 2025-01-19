@@ -25,10 +25,14 @@ class CondOperation:
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for condition number calculation.
 
-        Condition number requires:
-        - SVD decomposition (~14n³ for an nxn matrix)
-        - Division of largest by smallest singular value
-        Total: ~14n³ + 1 FLOPs
+        For a square matrix (m=n), the total FLOP count is:
+        - SVD decomposition (~14n^3)
+        An estimate for complexity of SVD is ~2mn^2 + 11n^3 per equation 11.22
+        in "Numerical Linear Algebra" by Trefethen and Bau.
+
+        - Division of largest by smallest singular value (1)
+
+        Total: ~14n^3 + 1 FLOPs
         """
         n = args[0].shape[0]
         return 14 * n**3 + 1
