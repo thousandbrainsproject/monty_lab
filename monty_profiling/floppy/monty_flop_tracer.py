@@ -2,6 +2,23 @@ from .flop_counting.counter import FlopCounter
 import csv
 from pathlib import Path
 import time
+from typing import Optional, Callable
+from dataclasses import dataclass
+from contextlib import contextmanager
+import inspect
+import types
+
+
+@dataclass
+class MethodTrace:
+    """Dataclass for storing method trace information."""
+
+    timestamp: float
+    episode: int
+    method_name: str
+    flops: int
+    parent_method: Optional[str] = None
+
 
 class MontyFlopTracer:
     """Tracks FLOPs for Monty class methods."""
@@ -11,31 +28,20 @@ class MontyFlopTracer:
         self.experiment = experiment_instance
         self.flop_counter = FlopCounter()
         self.total_flops = 0
+        self.current_episode = 0
+        self._method_stack = []
 
-        # Setup logging with proper path resolution
+        # Setup logging
         self.log_path = (
             Path(log_path or "~/tbp/monty_lab/monty_profiling/results/flop_traces.csv")
             .expanduser()
             .resolve()
         )
-        self.episode_start_time = None
-        self._setup_csv()
-        self._original_methods = {
-            # Monty methods
-            "_matching_step": self.monty._matching_step,
-            "_exploratory_step": self.monty._exploratory_step,
-            "post_episode": self.monty.post_episode,
-            # MontyExperiment methods
-            "run_episode": self.experiment.run_episode,
-            "pre_episode": self.experiment.pre_episode,
-            "pre_step": self.experiment.pre_step,
-            "step": self.monty.step,
-            "post_step": self.experiment.post_step,
-            "post_episode": self.experiment.post_episode,
-        }
+        self._initialize_csv()
+        self._original_methods = self._collect_methods()
         self._wrap_methods()
 
-    def _setup_csv(self):
+    def _initialize_csv(self):
         """Initialize CSV file with headers."""
         # Create parent directories if they don't exist
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,72 +50,100 @@ class MontyFlopTracer:
         with open(self.log_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["timestamp", "episode", "method", "flops"])
-        self.current_episode = 0
 
-    def _log_flops(self, method_name, flops):
-        """Log FLOP counts to CSV file."""
+    def _log_trace(self, trace: MethodTrace):
+        """Log a method trace to the CSV file."""
         with open(self.log_path, "a", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([time.time(), self.current_episode, method_name, flops])
+            writer.writerow(
+                [trace.timestamp, trace.episode, trace.method_name, trace.flops]
+            )
 
-    def _wrap_methods(self):
-        """Wrap key Monty methods to count FLOPs."""
+    def _collect_methods(self):
+        """Collect methods that need to be wrapped."""
+        return {
+            "monty._matching_step": self.monty._matching_step,
+            "monty._exploratory_step": self.monty._exploratory_step,
+            "experiment.run_episode": self.experiment.run_episode,
+            "experiment.pre_episode": self.experiment.pre_episode,
+            "experiment.pre_step": self.experiment.pre_step,
+            "monty.step": self.monty.step,
+            "experiment.post_step": self.experiment.post_step,
+            "experiment.post_episode": self.experiment.post_episode,
+        }
 
-        def wrap_method(method_name, target_obj):
-            original = self._original_methods[method_name]
+    @contextmanager
+    def _method_context(self, method_name: str):
+        """Context manager for tracking method hierarchy."""
+        parent_method = self._method_stack[-1] if self._method_stack else None
+        self._method_stack.append(method_name)
+        start_flops = self.flop_counter.flops
 
-            def wrapped(*args, **kwargs):
-                self.flop_counter.flops = 0
+        try:
+            yield parent_method
+        finally:
+            method_flops = self.flop_counter.flops - start_flops
+            self._method_stack.pop()
 
+            trace = MethodTrace(
+                timestamp=time.time(),
+                episode=self.current_episode,
+                method_name=method_name,
+                flops=method_flops,
+                parent_method=parent_method,
+            )
+            self._log_trace(trace)
+
+    def _create_wrapper(self, method_name: str, original_method: Callable) -> Callable:
+        """Create a wrapper for the given method."""
+
+        # Get method's signature
+        sig = inspect.signature(original_method)
+
+        def wrapped(*args, **kwargs):
+            with self._method_context(method_name):
                 with self.flop_counter:
-                    result = original(*args, **kwargs)
+                    return original_method(*args, **kwargs)
 
-                step_flops = self.flop_counter.flops
-                self._log_flops(method_name, step_flops)
-                self.total_flops += step_flops
-                return result
+        # Copy the original method's signature and docstring
+        wrapped.__signature__ = sig
+        wrapped.__doc__ = original_method.__doc__
+        wrapped.__wrapped__ = original_method
+        return wrapped
 
-            setattr(target_obj, method_name, wrapped)
+    def _wrap_methods(self) -> None:
+        """Wrap methods to count FLOPs."""
+        for method_key, original in self._original_methods.items():
+            # Extract target class or instance
+            if method_key.startswith("monty."):
+                target = self.monty
+                method_name = method_key.split(".", 1)[1]
+            elif method_key.startswith("experiment."):
+                target = self.experiment
+                method_name = method_key.split(".", 1)[1]
+            else:
+                continue
+            current_method = getattr(target, method_name, None)
+            if current_method and getattr(current_method, "__wrapped__", False):
+                continue
 
-        # Special wrapper for run_episode to track total FLOPs independently
-        def wrapped_run_episode(*args, **kwargs):
-            self.current_episode += 1
-            episode_start_flops = self.total_flops
-            result = self._original_methods["run_episode"](*args, **kwargs)
-            episode_total = self.total_flops - episode_start_flops
-            self._log_flops("run_episode_total", episode_total)
-            return result
+            # Create a wrapper with the original function/method
+            wrapped_method = self._create_wrapper(method_name, original)
 
-        # Wrap Monty methods
-        wrap_method("_matching_step", self.monty)
-        wrap_method("_exploratory_step", self.monty)
+            # Re-bind if the method belongs to an instance
+            if not isinstance(target, type):
+                wrapped_method = types.MethodType(wrapped_method, target)
 
-        # Wrap MontyExperiment methods
-        experiment_methods = [
-            "pre_episode",
-            "pre_step",
-            "step",
-            "post_step",
-            "post_episode",
-        ]
-        for method in experiment_methods:
-            wrap_method(method, self.experiment)
-
-        # Set the special run_episode wrapper
-        setattr(self.experiment, "run_episode", wrapped_run_episode)
+            # Set the wrapped method directly
+            setattr(target, method_name, wrapped_method)
 
     def unwrap(self):
         """Restore original methods."""
-        for method_name, original in self._original_methods.items():
-            setattr(self.monty, method_name, original)
+        for method_name, original_method in self._original_methods.items():
+            target = self.monty if hasattr(self.monty, method_name) else self.experiment
+            setattr(target, method_name, original_method)
 
     def reset(self):
         """Reset FLOP counters."""
         self.total_flops = 0
         self.flop_counter.flops = 0
-
-
-# Helper function to easily add FLOP tracking to any Monty instance
-def add_flop_tracking(monty_instance, experiment_instance):
-    """Adds FLOP tracking to both Monty and MontyExperiment instances."""
-    return MontyFlopTracer(monty_instance, experiment_instance)
