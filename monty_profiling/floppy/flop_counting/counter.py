@@ -47,6 +47,29 @@ class TrackedArray(np.ndarray):
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """
         Intercept NumPy ufuncs (like add, multiply, etc.) and count FLOPs.
+
+        Args:
+            ufunc: The NumPy universal function being called (e.g., np.add, np.multiply)
+            method: The method of the ufunc being called ('__call__', 'reduce', etc.)
+            *inputs: The input arrays to the ufunc
+            **kwargs: Additional keyword arguments, including potentially 'out'
+
+        Notes:
+            1) Unwrap inputs into base NumPy arrays
+               - Converts TrackedArrays to their underlying numpy arrays
+               - Handles nested TrackedArrays through recursive unwrapping
+
+            2) Handle 'out' parameter separately
+               - The 'out' parameter specifies pre-allocated array(s) for results
+               - Can be either a single array or tuple of arrays for multi-output ufuncs
+               - Must be unwrapped to base arrays so ufunc can write directly to memory
+               Example:
+                   tracked_out = TrackedArray(np.zeros(3))
+                   np.add(a, b, out=tracked_out)  # Needs unwrapped array for in-place operation
+
+            3) Perform the actual ufunc operation
+
+            4) Count FLOPs if active
         """
 
         # 1) Unwrap inputs into base NumPy arrays
