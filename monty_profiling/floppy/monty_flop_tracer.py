@@ -64,12 +64,12 @@ class MontyFlopTracer:
         return {
             "monty._matching_step": self.monty._matching_step,
             "monty._exploratory_step": self.monty._exploratory_step,
-            "experiment.run_episode": self.experiment.run_episode,
-            "experiment.pre_episode": self.experiment.pre_episode,
-            "experiment.pre_step": self.experiment.pre_step,
-            "monty.step": self.monty.step,
-            "experiment.post_step": self.experiment.post_step,
-            "experiment.post_episode": self.experiment.post_episode,
+            # "experiment.run_episode": self.experiment.run_episode,
+            # "experiment.pre_episode": self.experiment.pre_episode,
+            # "experiment.pre_step": self.experiment.pre_step,
+            # "monty.step": self.monty.step,
+            # "experiment.post_step": self.experiment.post_step,
+            # "experiment.post_episode": self.experiment.post_episode,
         }
 
     @contextmanager
@@ -109,6 +109,10 @@ class MontyFlopTracer:
         wrapped.__signature__ = sig
         wrapped.__doc__ = original_method.__doc__
         wrapped.__wrapped__ = original_method
+
+        # Re-bind to the original instance if necessary
+        if inspect.ismethod(original_method):
+            return types.MethodType(wrapped, original_method.__self__)
         return wrapped
 
     def _wrap_methods(self) -> None:
@@ -123,16 +127,22 @@ class MontyFlopTracer:
                 method_name = method_key.split(".", 1)[1]
             else:
                 continue
+
             current_method = getattr(target, method_name, None)
             if current_method and getattr(current_method, "__wrapped__", False):
+                # Skip already-wrapped methods
                 continue
 
             # Create a wrapper with the original function/method
             wrapped_method = self._create_wrapper(method_name, original)
 
-            # Re-bind if the method belongs to an instance
-            if not isinstance(target, type):
-                wrapped_method = types.MethodType(wrapped_method, target)
+            # Handle binding for instance methods
+            if hasattr(
+                target, method_name
+            ):  # This ensures the method exists on the target
+                if inspect.ismethod(current_method):
+                    # Re-bind to the target instance
+                    wrapped_method = types.MethodType(wrapped_method, target)
 
             # Set the wrapped method directly
             setattr(target, method_name, wrapped_method)
