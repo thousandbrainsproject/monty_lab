@@ -1,6 +1,5 @@
 # flop_counting/operations/matmul.py
 import numpy as np
-import warnings
 from typing import Any, Optional, Tuple
 
 __all__ = ["MatmulOperation"]
@@ -82,5 +81,4 @@ class MatmulOperation:
             return batch_size * M * P * (2 * N - 1)
 
         except Exception as e:
-            warnings.warn(f"Error counting matmul FLOPs: {str(e)}")
-            return None
+            raise ValueError(f"Error counting matmul FLOPs: {str(e)}")

@@ -1,6 +1,5 @@
 import numpy as np
 from typing import Any, Optional, Union
-import warnings
 __all__ = ["NormOperation", "CondOperation", "InvOperation", "EigOperation"]
 
 
@@ -144,7 +143,7 @@ class NormOperation:
             k = min(m, n)
             return 14 * k**3 + k  # SVD + k-1 additions
         else:
-            warnings.warn(
+            raise ValueError(
                 f"FLOP count for norm order '{ord}' for matrix norm not implemented"
             )
 
