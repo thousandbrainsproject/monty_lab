@@ -17,15 +17,19 @@ class NormOperation:
         self,
         *args: Any,
         ord: Optional[Union[int, float, str]] = None,
+        axis: Optional[Union[int, tuple]] = None,
+        keepdims: bool = False,
         result: Any = None,
     ) -> int:
         """Count FLOPs for norm calculation.
 
         Args:
             args: Variable length argument list. First argument is the input array.
-            ord: Order of the norm. For vectors: {non-zero int, inf, -inf}.
-                For matrices: {1, 2, inf, -inf, 'fro', 'nuc'}. Default is 2-norm
-                for vectors and Frobenius norm for matrices.
+            ord: Order of the norm.
+            axis: If axis is an integer, it specifies the axis of x along which to compute the vector norms.
+                 If axis is a 2-tuple, it specifies the axes that hold 2-D matrices for matrix norm computation.
+                 If axis is None, either a vector norm (when x is 1-D) or a matrix norm (when x is 2-D) is returned.
+            keepdims: If this is set to True, the axes which are normed over are left in the result as dimensions with size one.
             result: Not used, kept for API consistency.
 
         Returns:
@@ -51,11 +55,49 @@ class NormOperation:
         """
         x = args[0]
 
-        # Determine if input is a vector or matrix
-        if x.ndim <= 1 or (x.ndim == 2 and (x.shape[0] == 1 or x.shape[1] == 1)):
-            return self._count_vector_norm_flops(x, ord)
+        if axis is None:
+            # If no axis specified, compute norm over entire array
+            if x.ndim <= 1:
+                return self._count_vector_norm_flops(x, ord)
+            elif x.ndim == 2:
+                return self._count_matrix_norm_flops(x, ord)
+            else:
+                # For higher dimensions, treat as vector norm over flattened array
+                return self._count_vector_norm_flops(x.reshape(-1), ord)
+
+        elif isinstance(axis, tuple) and len(axis) == 2:
+            # Matrix norm along specified axes
+            # Count FLOPs for each matrix in the remaining dimensions
+            matrices_count = np.prod(
+                [x.shape[i] for i in range(x.ndim) if i not in axis]
+            )
+            single_matrix_flops = self._count_matrix_norm_flops(
+                x.transpose((*axis, *[i for i in range(x.ndim) if i not in axis]))[
+                    0, 0
+                ],
+                ord,
+            )
+            return matrices_count * single_matrix_flops
+
+        elif isinstance(axis, (int, tuple)):
+            # Vector norm along specified axis/axes
+            # Count FLOPs for each vector
+            vectors_count = np.prod(
+                [
+                    x.shape[i]
+                    for i in range(x.ndim)
+                    if i not in (axis if isinstance(axis, tuple) else (axis,))
+                ]
+            )
+            vector_size = np.prod(
+                [x.shape[i] for i in (axis if isinstance(axis, tuple) else (axis,))]
+            )
+            return vectors_count * self._count_vector_norm_flops(
+                np.ones(vector_size), ord
+            )
+
         else:
-            return self._count_matrix_norm_flops(x, ord)
+            raise ValueError(f"Invalid axis parameter: {axis}")
 
     def _count_vector_norm_flops(
         self, x: np.ndarray, ord: Optional[Union[int, float, str]]
