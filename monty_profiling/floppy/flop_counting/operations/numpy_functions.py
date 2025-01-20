@@ -23,8 +23,11 @@ __all__ = [
     "BitwiseAndOperation",
     "BitwiseOrOperation",
 ]
+
+
 class SumOperation:
     """FLOP count for sum operation."""
+
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for sum operation.
 
@@ -252,6 +255,7 @@ class LogOperation:
         """
         return 20 * np.size(args[0])
 
+
 class PowerOperation:
     """FLOP count for power operation."""
 
@@ -328,8 +332,6 @@ class BitwiseAndOperation:
 
 class BitwiseOrOperation:
     """FLOP count for bitwise or operation."""
-
-
 
     def count_flops(self, *args: Any, result: Any) -> int:
         """Count FLOPs for bitwise or operation.
