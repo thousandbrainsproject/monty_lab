@@ -20,6 +20,50 @@ Multiple approaches are necessary because numerical operations in Python are imp
 
 In addition, it contains code for static code analysis in `floppy.flop_analysis` to automatically identify operations that contribute to potential FLOP operations.
 
+## Static Code Analysis
+
+The static code analysis is implemented in `floppy.flop_analysis.core.analyzer.py`. It uses Python's `ast` module to parse source code and identify operations that could contribute to FLOP operations. The analyzer tracks:
+
+### Function Calls
+
+- **NumPy Operations**: Tracks all NumPy function calls, including ufuncs, linear algebra operations, and array manipulations
+- **SciPy Operations**: Identifies SciPy function calls, particularly from spatial and linear algebra modules
+- **scikit-learn Operations**: Captures machine learning operations that may involve significant numerical computations
+
+### Import Analysis
+
+Tracks all imports related to numerical computing libraries to understand dependencies and potential FLOP sources:
+
+- NumPy imports (e.g., `import numpy as np`, `from numpy import array`)
+- SciPy imports (e.g., `from scipy.spatial import KDTree`)
+- scikit-learn imports (e.g., `from sklearn.neighbors import NearestNeighbors`)
+
+### Usage Example
+
+Analyze a file:
+
+```python
+from floppy.flop_analysis.core.analyzer import FlopAnalyzer
+
+analyzer = FlopAnalyzer()
+analyzer.analyze_file('example_code.py')
+```
+
+Analyze a directory:
+
+```python
+analyzer.analyze_directory('path/to/code')
+```
+
+The analysis results include:
+
+- File-level breakdown of numerical operations
+- Location information (line numbers) for each operation
+- Import dependencies
+- Aggregated statistics across multiple files
+
+This static analysis complements the runtime FLOP counting by helping identify where FLOPs might occur in the codebase, even before execution.
+
 ## Counting Approaches
 
 ### TrackedArray Wrapper
