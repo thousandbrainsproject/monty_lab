@@ -253,7 +253,6 @@ class FlopCounter(ContextDecorator):
     def __init__(self):
         self.flops = 0
         self._is_active = False
-        self.skip_library_calls = True
 
         self._original_array_func = None
         self._original_funcs = {}
@@ -435,9 +434,7 @@ class FlopCounter(ContextDecorator):
         if not self._is_active:
             return True
 
-        if not self.skip_library_calls:
-            return False
-
+        # Check for library calls
         stack_frames = inspect.stack()
         for frame in stack_frames:
             if any(
