@@ -60,7 +60,14 @@ class Multiplication(ArithmeticOperation):
 
 
 class Division(ArithmeticOperation):
-    """Class for division operation."""
+    """Class for division operation.
+
+    Note:
+        While division operations can require multiple FLOPs in hardware (e.g., 4 FLOPs),
+        we follow the common convention of counting it as 1 FLOP for simplicity.
+        This aligns with standard practice in numerical analysis
+        (see https://www.stat.cmu.edu/~ryantibs/convexopt-F18/scribes/Lecture_19.pdf).
+    """
 
     def __init__(self):
         super().__init__("divide")
