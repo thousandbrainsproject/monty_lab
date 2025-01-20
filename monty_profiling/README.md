@@ -90,6 +90,61 @@ class FlopCounterEvidenceGraphLM(EvidenceGraphLM):
         # ... remainder ofexisting code ...
 ```
 
+#### FLOPs for KDTree Construction and Query
+
+KDTree operations are one of the key components we track in Monty's evidence matching system.
+
+**KDTree Construction:**
+The construction of a k-d tree has a complexity of $O(kn \log_2(n))$ FLOPs, where:
+
+- $n$ is the number of points in the dataset
+- $k$ is the number of dimensions
+- $\log_2(n)$ represents the average depth of the tree
+
+For each level of the tree ($\log_2(n)$ levels), we need to:
+
+1. Find the median along the current dimension ($O(n)$ operations)
+2. Partition the points ($O(kn)$ operations to compare k-dimensional points)
+
+**KDTree Query:**
+For querying nearest neighbors, our implementation breaks down FLOP counting into several components:
+
+1. **Tree Traversal:**
+   - FLOPs = num_search_points $\times$ dim $\times$ $\log_2(\text{num_reference_points})$
+   - Represents operations needed to traverse the tree to the appropriate leaf nodes
+
+2. **Distance Calculations:**
+   - FLOPs = num_search_points $\times$ num_examined_points $\times$ (3*dim + dim + 1)
+   - Where num_examined_points = $\log_2(\text{num_reference_points})$
+   - 3 operations per dimension (subtract, square, add)
+   - dim additions for summing
+   - 1 square root operation
+
+3. **Heap Operations:**
+   - FLOPs = num_search_points $\times$ num_examined_points $\times$ $\log_2(k)$
+   - Where k is the number of nearest neighbors requested (vote_nn)
+   - Maintains priority queue for k-nearest neighbors
+
+4. **Bounding Box Checks:**
+   - FLOPs = num_search_points $\times$ num_examined_points $\times$ dim
+   - Represents comparisons against bounding box boundaries
+
+Total query FLOPs = traversal_flops + distance_flops + heap_flops + bounding_box_flops
+
+Where:
+
+- num_search_points: number of query points
+- num_reference_points: number of points in the KD-tree
+- dim: dimensionality of the points
+- num_examined_points: estimated as log₂(num_reference_points)
+
+Note: These are theoretical approximations. Actual FLOP counts may vary based on:
+
+- Data distribution
+- Tree balance
+- Search radius/nearest neighbor parameters
+- Optimizations in the underlying SciPy implementation
+
 ## Dependencies
 
 Floppy requires the same dependencies as Monty because it is running Monty code. There are no additional dependencies for counting.
