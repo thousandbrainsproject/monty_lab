@@ -107,26 +107,27 @@ For each level of the tree ($\log_2(n)$ levels), we need to:
 2. Partition the points ($O(kn)$ operations to compare k-dimensional points)
 
 **KDTree Query:**
-For querying nearest neighbors, our implementation breaks down FLOP counting into several components:
+For querying nearest neighbors, our implementation breaks down FLOP counting into several components. Note that we assume a balanced tree structure, which is the default behavior in [SciPy's KDTree implementation (balanced_tree=True)](https://docs.scipy.org/doc/scipy-1.15.0/reference/generated/scipy.spatial.KDTree.html):
 
 1. **Tree Traversal:**
-   - FLOPs = num_search_points $\times$ dim $\times$ $\log_2(\text{num_reference_points})$
+   - FLOPs = num_search_points × dim × log₂(num_reference_points)
    - Represents operations needed to traverse the tree to the appropriate leaf nodes
+   - This logarithmic complexity is guaranteed by the balanced tree structure
 
 2. **Distance Calculations:**
-   - FLOPs = num_search_points $\times$ num_examined_points $\times$ (3*dim + dim + 1)
-   - Where num_examined_points = $\log_2(\text{num_reference_points})$
+   - FLOPs = num_search_points × num_examined_points × (3 $\times$ dim + dim + 1)
+   - Where num_examined_points = log₂(num_reference_points) due to balanced tree property
    - 3 operations per dimension (subtract, square, add)
    - dim additions for summing
    - 1 square root operation
 
 3. **Heap Operations:**
-   - FLOPs = num_search_points $\times$ num_examined_points $\times$ $\log_2(k)$
+   - FLOPs = num_search_points × num_examined_points × log₂(k)
    - Where k is the number of nearest neighbors requested (vote_nn)
    - Maintains priority queue for k-nearest neighbors
 
 4. **Bounding Box Checks:**
-   - FLOPs = num_search_points $\times$ num_examined_points $\times$ dim
+   - FLOPs = num_search_points × num_examined_points × dim
    - Represents comparisons against bounding box boundaries
 
 Total query FLOPs = traversal_flops + distance_flops + heap_flops + bounding_box_flops
@@ -153,8 +154,7 @@ Floppy requires the same dependencies as Monty because it is running Monty code.
 
 Execute Monty the same way in this repository. Floppy adjusted the run.py script to use the FlopCounter.
 
-```
-cd ~/tbp/monty_labs/monty_profiling
+```cd ~/tbp/monty_labs/monty_profiling
 python run.py -e <experiment_name>
 ```
 
