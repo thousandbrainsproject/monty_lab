@@ -175,6 +175,8 @@ class InvOperation:
         Matrix inversion using LU decomposition:
         - LU decomposition (~2/3 n³)
         - Forward and backward substitution (~2n²)
+        An estimate for complexity of LU decomposition is ~2/3 n³ FLOPs per equation 20.8
+        in "Numerical Linear Algebra" by Trefethen and Bau.
         Total: ~2/3 n³ + 2n² FLOPs
         """
         n = args[0].shape[0]
@@ -189,8 +191,13 @@ class EigOperation:
 
         Eigenvalue decomposition using QR algorithm:
         - Reduction to Hessenberg form (~10/3 n³)
-        - QR iterations (~9n³ per iteration, typically ~2 iterations)
-        Total: ~22n³ FLOPs (approximate)
+        An estimate for complexity of reduction to Hessenberg form is ~10/3 n³ FLOPs per equation 26.1
+        in "Numerical Linear Algebra" by Trefethen and Bau.
+        - QR iterations using Householder reflections: ~4/3 n³ FLOPs per iteration (~20 iterations)
+        An estimate for complexity of QR iterations is ~4/3 n³ FLOPs per equation 10.9
+        in "Numerical Linear Algebra" by Trefethen and Bau.
+
+        Total: 10/3 n³ + 4/3 n³ * 20 = 10/3 n³ + 80/3 n³ = 90/3 n³ = 30 n³ FLOPs
         """
         n = args[0].shape[0]
-        return 22 * n**3
+        return 30 * n**3
