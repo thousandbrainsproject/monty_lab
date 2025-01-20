@@ -3,7 +3,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
 import pandas as pd
-from .visitors import ASTVisitor
+from ..visitors.numpy_visitor import NumpyCallVisitor
+from ..visitors.scipy_visitor import ScipyCallVisitor
+from ..visitors.sklearn_visitor import SklearnCallVisitor
 from .exceptions import FileAnalysisError
 
 
@@ -12,7 +14,9 @@ class FlopAnalyzer:
 
     def __init__(self):
         self.analysis_results: Dict[str, Dict] = {}
-        self._visitor = ASTVisitor()
+        self.numpy_visitor = NumpyCallVisitor()
+        self.scipy_visitor = ScipyCallVisitor()
+        self.sklearn_visitor = SklearnCallVisitor()
 
     def analyze_file(self, filepath: str) -> Dict[str, Any]:
         """Analyze a single Python file for FLOP operations.
@@ -25,7 +29,6 @@ class FlopAnalyzer:
             - numpy_calls: List of NumPy function calls
             - scipy_calls: List of SciPy function calls
             - sklearn_calls: List of scikit-learn function calls
-            - method_contexts: Dict mapping functions to their contexts
 
         Raises:
             FileAnalysisError: If there's an error reading or parsing the file
@@ -36,20 +39,87 @@ class FlopAnalyzer:
         except (IOError, SyntaxError) as e:
             raise FileAnalysisError(f"Error reading/parsing {filepath}: {str(e)}")
 
-        self._visitor.reset()
-        self._visitor.visit(tree)
+        # Reset visitors
+        self.numpy_visitor = NumpyCallVisitor()
+        self.scipy_visitor = ScipyCallVisitor()
+        self.sklearn_visitor = SklearnCallVisitor()
+
+        # Visit the AST with each visitor
+        self.numpy_visitor.visit(tree)
+        self.scipy_visitor.visit(tree)
+        self.sklearn_visitor.visit(tree)
+
+        # Format calls into a consistent structure
+        numpy_calls = [
+            {
+                "module": "numpy",
+                "type": t,
+                "function": n,
+                "line": l,
+                "col": 0,  # Column information not currently tracked
+                "method_context": "",  # Method context not currently tracked
+            }
+            for t, n, l in self.numpy_visitor.numpy_calls
+        ]
+
+        scipy_calls = [
+            {
+                "module": "scipy",
+                "type": t,
+                "function": n,
+                "line": l,
+                "col": 0,
+                "method_context": "",
+            }
+            for t, n, l in self.scipy_visitor.scipy_calls
+        ]
+
+        sklearn_calls = [
+            {
+                "module": "sklearn",
+                "type": t,
+                "function": n,
+                "line": l,
+                "col": 0,
+                "method_context": "",
+            }
+            for t, n, l in self.sklearn_visitor.sklearn_calls
+        ]
 
         results = {
-            "numpy_calls": self._visitor.numpy_calls,
-            "scipy_calls": self._visitor.scipy_calls,
-            "sklearn_calls": self._visitor.sklearn_calls,
-            "method_contexts": self._visitor.method_contexts,
-            "imports": self._visitor.imports,
-            "operators": self._visitor.operators,
+            "numpy_calls": numpy_calls,
+            "scipy_calls": scipy_calls,
+            "sklearn_calls": sklearn_calls,
+            "imports": self._collect_imports(),
         }
 
         self.analysis_results[filepath] = results
         return results
+
+    def _collect_imports(self) -> List[Dict]:
+        """Collect all imports from the visitors."""
+        imports = []
+
+        # Collect NumPy imports
+        for name, module in self.numpy_visitor.numpy_imports.items():
+            imports.append(
+                {
+                    "module": "numpy",
+                    "name": name,
+                    "line": 0,  # Line numbers not currently tracked for imports
+                    "col": 0,
+                }
+            )
+
+        # Collect SciPy imports
+        for name, module in self.scipy_visitor.scipy_imports.items():
+            imports.append({"module": "scipy", "name": name, "line": 0, "col": 0})
+
+        # Collect scikit-learn imports
+        for name, module in self.sklearn_visitor.sklearn_imports.items():
+            imports.append({"module": "sklearn", "name": name, "line": 0, "col": 0})
+
+        return imports
 
     def analyze_directory(
         self, directory: str, recursive: bool = True

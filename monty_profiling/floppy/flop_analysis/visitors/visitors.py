@@ -3,7 +3,6 @@
 import ast
 from typing import Dict, List, Set, Any, Optional
 from collections import defaultdict
-from floppy.flop_analysis.core.operations import OperationRegistry
 
 
 class ASTVisitor(ast.NodeVisitor):
