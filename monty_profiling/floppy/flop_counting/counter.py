@@ -337,64 +337,64 @@ class FlopCounter(ContextDecorator):
             "argmax": (np, "argmax"),
         }
 
+    def _tracked_array(self, *args, **kwargs):
+        """Create a tracked array from numpy array creation."""
+        arr = self._original_array_func(*args, **kwargs)
+        return TrackedArray(arr, self)
+
+    def _make_wrapper(self, func_name, func):
+        """
+        Create a closure that intercepts the high-level call,
+        counts FLOPs, then calls the original.
+        """
+
+        def wrapper(*args, **kwargs):
+            # Preprocess arguments to ensure they are valid for `func`
+            clean_args = []
+            for arg in args:
+                if isinstance(arg, TrackedArray):
+                    # Unwrap nested TrackedArray to its base array
+                    while isinstance(arg, TrackedArray):
+                        arg = arg.view(np.ndarray)
+                clean_args.append(arg)
+
+            # Clean kwargs similarly
+            clean_kwargs = {}
+            for k, v in kwargs.items():
+                if isinstance(v, TrackedArray):
+                    # Unwrap TrackedArray in kwargs
+                    clean_kwargs[k] = v.view(np.ndarray)
+                else:
+                    clean_kwargs[k] = v
+
+            # Call the original function with cleaned arguments
+            result = func(*clean_args, **clean_kwargs)
+
+            # If recognized, count FLOPs via self._function_operations
+            if func_name in self._function_operations and self._is_active:
+                flops = self._function_operations[func_name].count_flops(
+                    *clean_args, result=result
+                )
+                if flops is not None:
+                    self.add_flops(flops)
+
+            return result
+
+        return wrapper
+
     def __enter__(self):
         # Store original numpy array class and array function
         self._original_array = np.ndarray
         self._original_array_func = np.array
 
         # Override numpy array creation to return tracked arrays
-        def tracked_array(*args, **kwargs):
-            arr = self._original_array_func(*args, **kwargs)
-            return TrackedArray(arr, self)
-
-        np.array = tracked_array
+        np.array = self._tracked_array
 
         # Monkey-patch the functions in _patch_targets
         for name, (mod, attr) in self._patch_targets.items():
             original_func = getattr(mod, attr)
             self._original_funcs[name] = original_func
-
-            def make_wrapper(func_name, func):
-                """
-                Create a closure that intercepts the high-level call,
-                counts FLOPs, then calls the original.
-                """
-
-                def wrapper(*args, **kwargs):
-                    # Preprocess arguments to ensure they are valid for `func`
-                    clean_args = []
-                    for arg in args:
-                        if isinstance(arg, TrackedArray):
-                            # Unwrap nested TrackedArray to its base array
-                            while isinstance(arg, TrackedArray):
-                                arg = arg.view(np.ndarray)
-                        clean_args.append(arg)
-
-                    # Clean kwargs similarly
-                    clean_kwargs = {}
-                    for k, v in kwargs.items():
-                        if isinstance(v, TrackedArray):
-                            # Unwrap TrackedArray in kwargs
-                            clean_kwargs[k] = v.view(np.ndarray)
-                        else:
-                            clean_kwargs[k] = v
-
-                    # Call the original function with cleaned arguments
-                    result = func(*clean_args, **clean_kwargs)
-
-                    # If recognized, count FLOPs via self._function_operations
-                    if func_name in self._function_operations and self._is_active:
-                        flops = self._function_operations[func_name].count_flops(
-                            *clean_args, result=result
-                        )
-                        if flops is not None:
-                            self.add_flops(flops)
-
-                    return result
-
-                return wrapper
-
-            wrapped_func = make_wrapper(name, original_func)
+            wrapped_func = self._make_wrapper(name, original_func)
             setattr(mod, attr, wrapped_func)
 
         # Enable the flop counter after patching is complete
