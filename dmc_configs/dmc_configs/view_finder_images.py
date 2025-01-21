@@ -1,4 +1,13 @@
-"""
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+"""Generate images from the viewfinder for use with the ViT-based models.
 This module contains configs, a logger, and a motor policy for generating RGBD images
 of objects taken from the viewfinder. The motor policy ensures that the whole
 object fits within the view-finder's frame. It does this by moving forward until the
@@ -6,11 +15,8 @@ object enters a small buffer region around the viewfinder's frame. The logger sa
 images as .npy files and writes a jsonl file containing metadata about the object
 and pose for each image.
 
-This module currently requires a pretrained model.
-
-The primary use case for this module is to generate object images used for training
-and testing traditional models (e.g., vision transformers).
-
+To visualize the images, run the script
+`monty_lab/dmc_config/scripts/render_view_finder_images.py`.
 """
 
 import copy
@@ -45,7 +51,7 @@ from tbp.monty.frameworks.config_utils.policy_setup_utils import (
     make_informed_policy_config,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
-from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS, SHUFFLED_YCB_OBJECTS
+from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
 from tbp.monty.frameworks.loggers.monty_handlers import MontyHandler
 from tbp.monty.frameworks.models.buffer import BufferEncoder
@@ -53,6 +59,8 @@ from tbp.monty.frameworks.models.motor_policies import (
     InformedPolicy,
     get_perc_on_obj_semantic,
 )
+
+from .common import PRETRAIN_DIR, RANDOM_ROTATIONS_5
 
 """
 Basic setup
@@ -63,19 +71,12 @@ output_dir = os.path.expanduser("~/tbp/results/monty/projects/view_finder_images
 
 # Where to find the pretrained model. Not really used, but necessary
 # to set up an eval experiment.
+model_name = PRE
 model_path = os.path.expanduser(
     "~/tbp/results/dmc/pretrained_models/dist_agent_1lm/pretrained/model.pt"
 )
 
-object_names = SHUFFLED_YCB_OBJECTS
 train_rotations = get_cube_face_and_corner_views_rotations()
-random_rotations_5 = [
-    [19, 339, 301],
-    [196, 326, 225],
-    [68, 100, 252],
-    [256, 284, 218],
-    [259, 193, 172],
-]
 
 
 class ViewFinderRGBDHandler(MontyHandler):
@@ -277,7 +278,7 @@ view_finder_base = dict(
     # Set up experiment
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=model_path,  # load the pre-trained models from this path
+        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
         n_eval_epochs=len(train_rotations),
         max_eval_steps=1,
         max_total_steps=1,
@@ -299,7 +300,7 @@ view_finder_base = dict(
     # dataset_args=dataset_args,
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=object_names,
+        object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(
             positions=[[0.0, 1.5, -0.2]], rotations=train_rotations
         ),
@@ -307,7 +308,7 @@ view_finder_base = dict(
     # Doesn't get used, but currently needs to be set anyways.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=object_names,
+        object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=train_rotations),
     ),
 )
@@ -340,7 +341,8 @@ view_finder_randrot_5["logging_config"].run_name = "view_finder_randrot_5"
 view_finder_randrot_5[
     "eval_dataloader_args"
 ].object_init_sampler = PredefinedObjectInitializer(
-    positions=[[0.0, 1.5, -0.2]], rotations=random_rotations_5
+    positions=[[0.0, 1.5, -0.2]],
+    rotations=RANDOM_ROTATIONS_5,
 )
 
 CONFIGS = {
