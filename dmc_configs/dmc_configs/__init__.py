@@ -1,4 +1,4 @@
-from .fig3_rapid_inference_with_voting import CONFIGS as FIG_3_CONFIGS
+from .fig3_robust_sensorimotor_inference import CONFIGS as FIG_3_CONFIGS
 from .fig4_rapid_inference_with_voting import CONFIGS as FIG_4_CONFIGS
 from .fig5_rapid_inference_with_model_based_policies import CONFIGS as FIG_5_CONFIGS
 from .fig8_multimodal_transfer import CONFIGS as FIG_8_CONFIGS
