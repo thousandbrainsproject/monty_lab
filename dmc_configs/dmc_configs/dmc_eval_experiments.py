@@ -99,38 +99,25 @@ import os
 from pathlib import Path
 
 import numpy as np
-
 from tbp.monty.frameworks.config_utils.config_args import (
-    FiveLMMontyConfig,
     MontyArgs,
     MotorSystemConfigCurInformedSurfaceGoalStateDriven,
     MotorSystemConfigInformedGoalStateDriven,
     ParallelEvidenceLMLoggingConfig,
     PatchAndViewMontyConfig,
     SurfaceAndViewMontyConfig,
-    TwoLMMontyConfig,
     get_cube_face_and_corner_views_rotations,
+    make_multi_lm_monty_config,
 )
-from .config_args import (
-    NineLMMontyConfig,
-    TenLMMontyConfig,
-)
-
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    FiveLMMountHabitatDatasetArgs,
     PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
     SurfaceViewFinderMountHabitatDatasetArgs,
+    make_multi_sensor_habitat_dataset_args,
 )
-from .make_dataset_configs import (
-    NineLMMountHabitatDatasetArgs,
-    TenLMMountHabitatDatasetArgs,
-    TwoLMMountHabitatDatasetArgs,
-)
-
 from tbp.monty.frameworks.environments import embodied_data as ED
 from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS, SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
@@ -147,6 +134,8 @@ from tbp.monty.frameworks.models.sensor_modules import (
     FeatureChangeSM,
 )
 
+from .common import PRETRAIN_DIR, RANDOM_ROTATIONS_5, RESULTS_DIR
+
 # Specify defaults here
 
 # - Logging
@@ -154,37 +143,15 @@ PYTHON_LOG_LEVEL = "WARNING"
 LOG_WANDB = True
 WANDB_GROUP = "dmc"
 LOG_REPRODUCE_EPISODES = False
-OUTPUT_DIR_STEM = "dmc"  # easy switching to different output dirs
 
 # - Experiment and Monty args
 MAX_TOTAL_STEPS = 10_000
 MIN_EVAL_STEPS = 20
 MAX_EVAL_STEPS = 500
 
-
-# - Paths
-monty_models_dir = os.getenv("MONTY_MODELS")
-if not monty_models_dir:
-    monty_models_dir = "~/tbp/results/monty/pretrained_models"
-PRETRAIN_DIR = Path(monty_models_dir).expanduser() / "pretrained_ycb_dmc"
-
-monty_logs_dir = os.getenv("MONTY_LOGS")
-if not monty_logs_dir:
-    monty_logs_dir = "~/nta/results/monty"
-OUTPUT_DIR = Path(monty_logs_dir).expanduser() / OUTPUT_DIR_STEM
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
 # - Define testing rotations. Views from enclosing cube faces plus its corners.
 TEST_ROTATIONS = get_cube_face_and_corner_views_rotations()
 
-# - Noise settings
-DEFAULT_NOISE_PARAMS = dict(
-    pose_vectors=2.0,
-    hsv=0.1,
-    principal_curvatures_log=0.1,
-    pose_fully_defined=0.01,
-    location=0.002,
-)
 
 # ------------------------------------------------------------------------------
 # Getter functions for learning modules, sensor modules, and motor configs.
@@ -313,7 +280,7 @@ def get_surf_evidence_lm_config(
     return out
 
 
-def get_fc_dist_patch_config(
+def get_dist_patch_config(
     sensor_module_id: str = "patch",
     color: bool = True,
 ) -> dict:
@@ -355,7 +322,7 @@ def get_fc_dist_patch_config(
     return out
 
 
-def get_fc_surf_patch_config(
+def get_surf_patch_config(
     sensor_module_id: str = "patch",
     color: bool = True,
 ) -> dict:
@@ -450,25 +417,53 @@ Functions used for generating experiment variants.
 """
 
 
-def make_noise_variant(
-    template: dict,
-    noise_params: dict = DEFAULT_NOISE_PARAMS,
+def add_sensor_noise(
+    config: dict,
     color: bool = True,
-) -> dict:
-    """Duplicate an experiment but with sensor noise.
+    pose_vectors: float = 2.0,
+    hsv: float = 0.1,
+    principal_curvatures_log: float = 0.1,
+    pose_fully_defined: float = 0.01,
+    location: float = 0.002,
+) -> None:
+    """Add defaultsensor noise to an experiment config in-place.
 
-    Does not add noise to the view finder sensor module.
+    Applies noise parameters to all sensor modules except the view finder. The
+    `color` parameter controls whether to add 'hsv' noise. Set this to `False` for
+    touch experiments and experiments using the pretrained touch model.
 
     Args:
-        template: Dictionary containing experiment configuration.
-        noise_params: Dictionary of noise parameters to add to sensor modules.
-            Defaults to DEFAULT_NOISE_PARAMS.
-        color: Whether to include HSV noise parameters. If False, HSV noise is removed.
-            Defaults to True.
+        config: Experiment config to add sensor noise to.
 
     Returns:
-        dict: Modified experiment config with noise parameters added to sensor modules
-            and "_noise" suffix appended to the logging config's run_name.
+        None: Modifies the input config in-place.
+    """
+    noise_params = {
+        "pose_vectors": pose_vectors,
+        "hsv": hsv,
+        "principal_curvatures_log": principal_curvatures_log,
+        "pose_fully_defined": pose_fully_defined,
+        "location": location,
+    }
+    if not color:
+        noise_params.pop("hsv")
+
+    for sm_dict in config["monty_config"].sensor_module_configs.values():
+        sm_args = sm_dict["sensor_module_args"]
+        if sm_args["sensor_module_id"] == "view_finder":
+            continue
+        sm_args["noise_params"] = noise_params
+
+
+def make_noise_variant(template: dict, color: bool = True) -> dict:
+    """Duplicate an experiment config with added sensor noise.
+
+    Args:
+        template: Experiment config to copy.
+
+    Returns:
+        dict: Copy of `template` with added sensor noise and with the
+          "_noise" suffix appended to the logging config's `run_name`.
 
     Raises:
         ValueError: If experiment config does not have a run name.
@@ -480,31 +475,20 @@ def make_noise_variant(
         raise ValueError("Experiment must have a run name to make a noisy version.")
 
     config["logging_config"].run_name = f"{run_name}_noise"
-
-    noise_params = copy.deepcopy(noise_params)
-    if not color:
-        noise_params.pop("hsv")
-
-    for sm_dict in config["monty_config"].sensor_module_configs.values():
-        sm_args = sm_dict["sensor_module_args"]
-        if sm_args["sensor_module_id"] == "view_finder":
-            continue
-        sm_args["noise_params"] = copy.deepcopy(noise_params)
+    add_sensor_noise(config, color=color)
 
     return config
 
 
-def make_randrot_variant(
-    template: dict,
-) -> dict:
-    """Duplicate an experiment but with random object rotations.
+def make_randrot_variant(template: dict) -> dict:
+    """Duplicate an experiment config with random object rotations.
 
     Args:
-        template: Dictionary containing experiment configuration.
+        template: Experiment config to copy.
 
     Returns:
-        dict: Modified experiment config with random rotation object initializer
-              and "_randrot" suffix appended to the logging config's run_name.
+        dict: Copy of `template` with a random rotation object initializer and the
+          "_randrot" suffix appended to the logging config's `run_name`.
 
     Raises:
         ValueError: If experiment config does not have a run name.
@@ -523,17 +507,8 @@ def make_randrot_variant(
     return config
 
 
-def make_randrot_noise_variant(
-    template: dict,
-    noise_params: dict = DEFAULT_NOISE_PARAMS,
-    color: bool = True,
-) -> dict:
+def make_randrot_noise_variant(template: dict, color: bool = True) -> dict:
     """Creates a variant of an experiment with both random rotations and sensor noise.
-
-    This is equivalent to `make_noise_variant(make_randrot_variant(config, ...))`
-    but not `make_randrot_variant(make_noise_variant(config, ...))` since the latter
-    adds suffixes in order. Use this function instead of composing randrot/noise
-    functions to ensure naming conventions.
 
     Args:
         template: Dictionary containing experiment configuration.
@@ -542,12 +517,14 @@ def make_randrot_noise_variant(
         color: Whether to add noise to color features. Defaults to True.
 
     Returns:
-        dict: Modified experiment config with random rotations, noise parameters,
-            and "_randrot_noise" suffix appended to the logging config's run_name.
-
+        dict: Copy of `template` with sensor noise and a random rotation object
+            initializer. The logging config's `run_name` has the original run name
+            plus the suffix "_randrot_noise".
     """
+    run_name = template["logging_config"].run_name
     config = make_randrot_variant(template)
-    config = make_noise_variant(config, noise_params, color=color)
+    config = make_noise_variant(config, color=color)
+    config["logging_config"].run_name = f"{run_name}_randrot_noise"
 
     return config
 
@@ -555,23 +532,23 @@ def make_randrot_noise_variant(
 def make_10distinctobj_variant(template: dict) -> dict:
     """Make 10 distinct object variants for a given config.
 
+    NOTE: We aren't likely to use any 10distinctobj variants in the DMC paper,
+    so this will be removed soon. For the time being, it can be useful to
+    sometimes test models on the 10-distinctobj dataset for debugging purposes.
+
+    TODO: Remove this function when bringing this code into a publishable state.
+
+    Args:
+        template: Experiment config to copy.
+
     Returns:
-        dict: Copy of `template` config that evaluates on DISTINCT_OBJECTS dataset.
+        dict: Copy of `template` that evaluates on the DISTINCT_OBJECTS dataset.
             The logging config's `run_name` is appended with "_10distinctobj",
-            and the experiment's model path is updated to point to the model trained
-            on the DISTINCT_OBJECTS dataset.
 
     """
     config = copy.deepcopy(template)
     run_name = template["logging_config"].run_name + "_10distinctobj"
-    old_model_path = Path(template["experiment_args"].model_name_or_path)
-    new_model_path = (
-        old_model_path.parent.parent
-        / f"{old_model_path.parent.name}_10distinctobj"
-        / "pretrained"
-    )
     config["logging_config"].run_name = run_name
-    config["experiment_args"].model_name_or_path = str(new_model_path)
     config["eval_dataloader_args"].object_names = DISTINCT_OBJECTS
     return config
 
@@ -595,7 +572,7 @@ dist_agent_1lm = dict(
         monty_class=MontyForEvidenceGraphMatching,
         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
         sensor_module_configs=dict(
-            sensor_module_0=get_fc_dist_patch_config(),
+            sensor_module_0=get_dist_patch_config(),
             sensor_module_1=get_view_finder_config(),
         ),
         learning_module_configs=dict(
@@ -626,7 +603,7 @@ touch_agent_1lm = dict(
         monty_class=MontyForEvidenceGraphMatching,
         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
         sensor_module_configs=dict(
-            sensor_module_0=get_fc_surf_patch_config(color=False),
+            sensor_module_0=get_surf_patch_config(color=False),
             sensor_module_1=get_view_finder_config(),
         ),
         learning_module_configs=dict(
@@ -696,7 +673,7 @@ dist_on_touch["experiment_args"].model_name_or_path = str(
 )
 dist_on_touch["logging_config"].run_name = "dist_on_touch"
 dist_on_touch["monty_config"].sensor_module_configs["sensor_module_0"] = (
-    get_fc_dist_patch_config(color=False)
+    get_dist_patch_config(color=False)
 )
 dist_on_touch["monty_config"].learning_module_configs["learning_module_0"] = (
     get_dist_evidence_lm_config(color=False)
@@ -719,207 +696,207 @@ dist_on_touch_randrot_noise = make_randrot_noise_variant(dist_on_touch, color=Fa
 ------------------------------------------------------------------------------
 """
 
-dist_agent_2lm = dict(
-    experiment_class=MontyObjectRecognitionExperiment,
-    experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_2lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
-        max_total_steps=MAX_TOTAL_STEPS,
-        max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=1,
-    ),
-    logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_2lm"),
-    monty_config=TwoLMMontyConfig(
-        monty_class=MontyForEvidenceGraphMatching,
-        monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_evidence_lm_config("patch_0"),
-            learning_module_1=get_dist_evidence_lm_config("patch_1"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_fc_dist_patch_config("patch_0"),
-            sensor_module_1=get_fc_dist_patch_config("patch_1"),
-            sensor_module_2=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
-    # Set up environment.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=TwoLMMountHabitatDatasetArgs(),
-    eval_dataloader_class=ED.InformedEnvironmentDataLoader,
-    eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
-    ),
-)
+# dist_agent_2lm = dict(
+#     experiment_class=MontyObjectRecognitionExperiment,
+#     experiment_args=EvalExperimentArgs(
+#         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_2lm/pretrained"),
+#         n_eval_epochs=len(TEST_ROTATIONS),
+#         max_total_steps=MAX_TOTAL_STEPS,
+#         max_eval_steps=MAX_EVAL_STEPS,
+#         min_lms_match=1,
+#     ),
+#     logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_2lm"),
+#     monty_config=TwoLMMontyConfig(
+#         monty_class=MontyForEvidenceGraphMatching,
+#         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
+#         learning_module_configs=dict(
+#             learning_module_0=get_dist_evidence_lm_config("patch_0"),
+#             learning_module_1=get_dist_evidence_lm_config("patch_1"),
+#         ),
+#         sensor_module_configs=dict(
+#             sensor_module_0=get_dist_patch_config("patch_0"),
+#             sensor_module_1=get_dist_patch_config("patch_1"),
+#             sensor_module_2=get_view_finder_config(),
+#         ),
+#         motor_system_config=get_dist_motor_config(),
+#     ),
+#     # Set up environment.
+#     dataset_class=ED.EnvironmentDataset,
+#     dataset_args=TwoLMMountHabitatDatasetArgs(),
+#     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
+#     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+#         object_names=SHUFFLED_YCB_OBJECTS,
+#         object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+#     ),
+# )
 
-dist_agent_2lm_noise = make_noise_variant(dist_agent_2lm)
-dist_agent_2lm_randrot = make_randrot_variant(dist_agent_2lm)
-dist_agent_2lm_randrot_noise = make_randrot_noise_variant(dist_agent_2lm)
+# dist_agent_2lm_noise = make_noise_variant(dist_agent_2lm)
+# dist_agent_2lm_randrot = make_randrot_variant(dist_agent_2lm)
+# dist_agent_2lm_randrot_noise = make_randrot_noise_variant(dist_agent_2lm)
 
-"""
-------------------------------------------------------------------------------
-5-LM models
-------------------------------------------------------------------------------
-"""
-dist_agent_5lm = dict(
-    experiment_class=MontyObjectRecognitionExperiment,
-    experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_5lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
-        max_total_steps=MAX_TOTAL_STEPS,
-        max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=3,
-    ),
-    logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_5lm"),
-    monty_config=FiveLMMontyConfig(
-        monty_class=MontyForEvidenceGraphMatching,
-        monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_evidence_lm_config("patch_0"),
-            learning_module_1=get_dist_evidence_lm_config("patch_1"),
-            learning_module_2=get_dist_evidence_lm_config("patch_2"),
-            learning_module_3=get_dist_evidence_lm_config("patch_3"),
-            learning_module_4=get_dist_evidence_lm_config("patch_4"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_fc_dist_patch_config("patch_0"),
-            sensor_module_1=get_fc_dist_patch_config("patch_1"),
-            sensor_module_2=get_fc_dist_patch_config("patch_2"),
-            sensor_module_3=get_fc_dist_patch_config("patch_3"),
-            sensor_module_4=get_fc_dist_patch_config("patch_4"),
-            sensor_module_5=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
-    # Set up environment.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=FiveLMMountHabitatDatasetArgs(),
-    eval_dataloader_class=ED.InformedEnvironmentDataLoader,
-    eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
-    ),
-)
+# """
+# ------------------------------------------------------------------------------
+# 5-LM models
+# ------------------------------------------------------------------------------
+# """
+# dist_agent_5lm = dict(
+#     experiment_class=MontyObjectRecognitionExperiment,
+#     experiment_args=EvalExperimentArgs(
+#         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_5lm/pretrained"),
+#         n_eval_epochs=len(TEST_ROTATIONS),
+#         max_total_steps=MAX_TOTAL_STEPS,
+#         max_eval_steps=MAX_EVAL_STEPS,
+#         min_lms_match=3,
+#     ),
+#     logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_5lm"),
+#     monty_config=FiveLMMontyConfig(
+#         monty_class=MontyForEvidenceGraphMatching,
+#         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
+#         learning_module_configs=dict(
+#             learning_module_0=get_dist_evidence_lm_config("patch_0"),
+#             learning_module_1=get_dist_evidence_lm_config("patch_1"),
+#             learning_module_2=get_dist_evidence_lm_config("patch_2"),
+#             learning_module_3=get_dist_evidence_lm_config("patch_3"),
+#             learning_module_4=get_dist_evidence_lm_config("patch_4"),
+#         ),
+#         sensor_module_configs=dict(
+#             sensor_module_0=get_dist_patch_config("patch_0"),
+#             sensor_module_1=get_dist_patch_config("patch_1"),
+#             sensor_module_2=get_dist_patch_config("patch_2"),
+#             sensor_module_3=get_dist_patch_config("patch_3"),
+#             sensor_module_4=get_dist_patch_config("patch_4"),
+#             sensor_module_5=get_view_finder_config(),
+#         ),
+#         motor_system_config=get_dist_motor_config(),
+#     ),
+#     # Set up environment.
+#     dataset_class=ED.EnvironmentDataset,
+#     dataset_args=FiveLMMountHabitatDatasetArgs(),
+#     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
+#     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+#         object_names=SHUFFLED_YCB_OBJECTS,
+#         object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+#     ),
+# )
 
-dist_agent_5lm_noise = make_noise_variant(dist_agent_5lm)
-dist_agent_5lm_randrot = make_randrot_variant(dist_agent_5lm)
-dist_agent_5lm_randrot_noise = make_randrot_noise_variant(dist_agent_5lm)
+# dist_agent_5lm_noise = make_noise_variant(dist_agent_5lm)
+# dist_agent_5lm_randrot = make_randrot_variant(dist_agent_5lm)
+# dist_agent_5lm_randrot_noise = make_randrot_noise_variant(dist_agent_5lm)
 
 
-"""
-9 LM models
---------------------------------------------------------------------------------
-"""
-dist_agent_9lm = dict(
-    experiment_class=MontyObjectRecognitionExperiment,
-    experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_9lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
-        max_total_steps=MAX_TOTAL_STEPS,
-        max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=3,
-    ),
-    logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_9lm"),
-    monty_config=NineLMMontyConfig(
-        monty_class=MontyForEvidenceGraphMatching,
-        monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_evidence_lm_config("patch_0"),
-            learning_module_1=get_dist_evidence_lm_config("patch_1"),
-            learning_module_2=get_dist_evidence_lm_config("patch_2"),
-            learning_module_3=get_dist_evidence_lm_config("patch_3"),
-            learning_module_4=get_dist_evidence_lm_config("patch_4"),
-            learning_module_5=get_dist_evidence_lm_config("patch_5"),
-            learning_module_6=get_dist_evidence_lm_config("patch_6"),
-            learning_module_7=get_dist_evidence_lm_config("patch_7"),
-            learning_module_8=get_dist_evidence_lm_config("patch_8"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_fc_dist_patch_config("patch_0"),
-            sensor_module_1=get_fc_dist_patch_config("patch_1"),
-            sensor_module_2=get_fc_dist_patch_config("patch_2"),
-            sensor_module_3=get_fc_dist_patch_config("patch_3"),
-            sensor_module_4=get_fc_dist_patch_config("patch_4"),
-            sensor_module_5=get_fc_dist_patch_config("patch_5"),
-            sensor_module_6=get_fc_dist_patch_config("patch_6"),
-            sensor_module_7=get_fc_dist_patch_config("patch_7"),
-            sensor_module_8=get_fc_dist_patch_config("patch_8"),
-            sensor_module_9=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
-    # Set up environment.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=NineLMMountHabitatDatasetArgs(),
-    eval_dataloader_class=ED.InformedEnvironmentDataLoader,
-    eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
-    ),
-)
+# """
+# 9 LM models
+# --------------------------------------------------------------------------------
+# """
+# dist_agent_9lm = dict(
+#     experiment_class=MontyObjectRecognitionExperiment,
+#     experiment_args=EvalExperimentArgs(
+#         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_9lm/pretrained"),
+#         n_eval_epochs=len(TEST_ROTATIONS),
+#         max_total_steps=MAX_TOTAL_STEPS,
+#         max_eval_steps=MAX_EVAL_STEPS,
+#         min_lms_match=3,
+#     ),
+#     logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_9lm"),
+#     monty_config=NineLMMontyConfig(
+#         monty_class=MontyForEvidenceGraphMatching,
+#         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
+#         learning_module_configs=dict(
+#             learning_module_0=get_dist_evidence_lm_config("patch_0"),
+#             learning_module_1=get_dist_evidence_lm_config("patch_1"),
+#             learning_module_2=get_dist_evidence_lm_config("patch_2"),
+#             learning_module_3=get_dist_evidence_lm_config("patch_3"),
+#             learning_module_4=get_dist_evidence_lm_config("patch_4"),
+#             learning_module_5=get_dist_evidence_lm_config("patch_5"),
+#             learning_module_6=get_dist_evidence_lm_config("patch_6"),
+#             learning_module_7=get_dist_evidence_lm_config("patch_7"),
+#             learning_module_8=get_dist_evidence_lm_config("patch_8"),
+#         ),
+#         sensor_module_configs=dict(
+#             sensor_module_0=get_dist_patch_config("patch_0"),
+#             sensor_module_1=get_dist_patch_config("patch_1"),
+#             sensor_module_2=get_dist_patch_config("patch_2"),
+#             sensor_module_3=get_dist_patch_config("patch_3"),
+#             sensor_module_4=get_dist_patch_config("patch_4"),
+#             sensor_module_5=get_dist_patch_config("patch_5"),
+#             sensor_module_6=get_dist_patch_config("patch_6"),
+#             sensor_module_7=get_dist_patch_config("patch_7"),
+#             sensor_module_8=get_dist_patch_config("patch_8"),
+#             sensor_module_9=get_view_finder_config(),
+#         ),
+#         motor_system_config=get_dist_motor_config(),
+#     ),
+#     # Set up environment.
+#     dataset_class=ED.EnvironmentDataset,
+#     dataset_args=NineLMMountHabitatDatasetArgs(),
+#     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
+#     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+#         object_names=SHUFFLED_YCB_OBJECTS,
+#         object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+#     ),
+# )
 
-dist_agent_9lm_noise = make_noise_variant(dist_agent_9lm)
-dist_agent_9lm_randrot = make_randrot_variant(dist_agent_9lm)
-dist_agent_9lm_randrot_noise = make_randrot_noise_variant(dist_agent_9lm)
+# dist_agent_9lm_noise = make_noise_variant(dist_agent_9lm)
+# dist_agent_9lm_randrot = make_randrot_variant(dist_agent_9lm)
+# dist_agent_9lm_randrot_noise = make_randrot_noise_variant(dist_agent_9lm)
 
-"""
-10 LM models
---------------------------------------------------------------------------------
-"""
-dist_agent_10lm = dict(
-    experiment_class=MontyObjectRecognitionExperiment,
-    experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_10lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
-        max_total_steps=MAX_TOTAL_STEPS,
-        max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=3,
-    ),
-    logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_10lm"),
-    monty_config=TenLMMontyConfig(
-        monty_class=MontyForEvidenceGraphMatching,
-        monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_evidence_lm_config("patch_0"),
-            learning_module_1=get_dist_evidence_lm_config("patch_1"),
-            learning_module_2=get_dist_evidence_lm_config("patch_2"),
-            learning_module_3=get_dist_evidence_lm_config("patch_3"),
-            learning_module_4=get_dist_evidence_lm_config("patch_4"),
-            learning_module_5=get_dist_evidence_lm_config("patch_5"),
-            learning_module_6=get_dist_evidence_lm_config("patch_6"),
-            learning_module_7=get_dist_evidence_lm_config("patch_7"),
-            learning_module_8=get_dist_evidence_lm_config("patch_8"),
-            learning_module_9=get_dist_evidence_lm_config("patch_9"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_fc_dist_patch_config("patch_0"),
-            sensor_module_1=get_fc_dist_patch_config("patch_1"),
-            sensor_module_2=get_fc_dist_patch_config("patch_2"),
-            sensor_module_3=get_fc_dist_patch_config("patch_3"),
-            sensor_module_4=get_fc_dist_patch_config("patch_4"),
-            sensor_module_5=get_fc_dist_patch_config("patch_5"),
-            sensor_module_6=get_fc_dist_patch_config("patch_6"),
-            sensor_module_7=get_fc_dist_patch_config("patch_7"),
-            sensor_module_8=get_fc_dist_patch_config("patch_8"),
-            sensor_module_9=get_fc_dist_patch_config("patch_9"),
-            sensor_module_10=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
-    # Set up environment.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=TenLMMountHabitatDatasetArgs(),
-    eval_dataloader_class=ED.InformedEnvironmentDataLoader,
-    eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
-    ),
-)
+# """
+# 10 LM models
+# --------------------------------------------------------------------------------
+# """
+# dist_agent_10lm = dict(
+#     experiment_class=MontyObjectRecognitionExperiment,
+#     experiment_args=EvalExperimentArgs(
+#         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_10lm/pretrained"),
+#         n_eval_epochs=len(TEST_ROTATIONS),
+#         max_total_steps=MAX_TOTAL_STEPS,
+#         max_eval_steps=MAX_EVAL_STEPS,
+#         min_lms_match=3,
+#     ),
+#     logging_config=ParallelEvidenceLMLoggingConfig(run_name="dist_agent_10lm"),
+#     monty_config=TenLMMontyConfig(
+#         monty_class=MontyForEvidenceGraphMatching,
+#         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
+#         learning_module_configs=dict(
+#             learning_module_0=get_dist_evidence_lm_config("patch_0"),
+#             learning_module_1=get_dist_evidence_lm_config("patch_1"),
+#             learning_module_2=get_dist_evidence_lm_config("patch_2"),
+#             learning_module_3=get_dist_evidence_lm_config("patch_3"),
+#             learning_module_4=get_dist_evidence_lm_config("patch_4"),
+#             learning_module_5=get_dist_evidence_lm_config("patch_5"),
+#             learning_module_6=get_dist_evidence_lm_config("patch_6"),
+#             learning_module_7=get_dist_evidence_lm_config("patch_7"),
+#             learning_module_8=get_dist_evidence_lm_config("patch_8"),
+#             learning_module_9=get_dist_evidence_lm_config("patch_9"),
+#         ),
+#         sensor_module_configs=dict(
+#             sensor_module_0=get_dist_patch_config("patch_0"),
+#             sensor_module_1=get_dist_patch_config("patch_1"),
+#             sensor_module_2=get_dist_patch_config("patch_2"),
+#             sensor_module_3=get_dist_patch_config("patch_3"),
+#             sensor_module_4=get_dist_patch_config("patch_4"),
+#             sensor_module_5=get_dist_patch_config("patch_5"),
+#             sensor_module_6=get_dist_patch_config("patch_6"),
+#             sensor_module_7=get_dist_patch_config("patch_7"),
+#             sensor_module_8=get_dist_patch_config("patch_8"),
+#             sensor_module_9=get_dist_patch_config("patch_9"),
+#             sensor_module_10=get_view_finder_config(),
+#         ),
+#         motor_system_config=get_dist_motor_config(),
+#     ),
+#     # Set up environment.
+#     dataset_class=ED.EnvironmentDataset,
+#     dataset_args=TenLMMountHabitatDatasetArgs(),
+#     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
+#     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+#         object_names=SHUFFLED_YCB_OBJECTS,
+#         object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+#     ),
+# )
 
-dist_agent_10lm_noise = make_noise_variant(dist_agent_10lm)
-dist_agent_10lm_randrot = make_randrot_variant(dist_agent_10lm)
-dist_agent_10lm_randrot_noise = make_randrot_noise_variant(dist_agent_10lm)
+# dist_agent_10lm_noise = make_noise_variant(dist_agent_10lm)
+# dist_agent_10lm_randrot = make_randrot_variant(dist_agent_10lm)
+# dist_agent_10lm_randrot_noise = make_randrot_noise_variant(dist_agent_10lm)
 
 
 """
@@ -956,49 +933,21 @@ CONFIGS = {
     "dist_on_touch_randrot": dist_on_touch_randrot,
     "dist_on_touch_randrot_noise": dist_on_touch_randrot_noise,
     # Multi-LM models
-    "dist_agent_2lm": dist_agent_2lm,
-    "dist_agent_2lm_noise": dist_agent_2lm_noise,
-    "dist_agent_2lm_randrot": dist_agent_2lm_randrot,
-    "dist_agent_2lm_randrot_noise": dist_agent_2lm_randrot_noise,
-    "dist_agent_5lm": dist_agent_5lm,
-    "dist_agent_5lm_noise": dist_agent_5lm_noise,
-    "dist_agent_5lm_randrot": dist_agent_5lm_randrot,
-    "dist_agent_5lm_randrot_noise": dist_agent_5lm_randrot_noise,
-    "dist_agent_9lm": dist_agent_9lm,
-    "dist_agent_9lm_noise": dist_agent_9lm_noise,
-    "dist_agent_9lm_randrot": dist_agent_9lm_randrot,
-    "dist_agent_9lm_randrot_noise": dist_agent_9lm_randrot_noise,
-    "dist_agent_10lm": dist_agent_10lm,
-    "dist_agent_10lm_noise": dist_agent_10lm_noise,
-    "dist_agent_10lm_randrot": dist_agent_10lm_randrot,
-    "dist_agent_10lm_randrot_noise": dist_agent_10lm_randrot_noise,
 }
 
 """
 Finalize configs
 """
 
-# Add versions that test on 10distinctobj and use *_10distinctobj pretrained model.
-_new_configs = {}
-for key, exp in CONFIGS.items():
-    _config = make_10distinctobj_variant(exp)
-    _new_configs[f"{key}_10distinctobj"] = _config
-CONFIGS.update(_new_configs)
-del _new_configs, _config
-
-
 # Perform final checks and attribute assignments.
 _output_paths = []
 for key, exp in CONFIGS.items():
     # Configure logging.
-    exp["logging_config"].output_dir = str(OUTPUT_DIR)
+    exp["logging_config"].output_dir = str(RESULTS_DIR)
     exp["logging_config"].python_log_level = PYTHON_LOG_LEVEL
     exp["logging_config"].wandb_group = WANDB_GROUP
     if not LOG_WANDB:
         exp["logging_config"].wandb_handlers = []
-    if not LOG_REPRODUCE_EPISODES:
-        if ReproduceEpisodeHandler in exp["logging_config"].monty_handlers:
-            exp["logging_config"].monty_handlers.remove(ReproduceEpisodeHandler)
 
     # Configure dummy train dataloader. Required but not used.
     exp["train_dataloader_class"] = ED.InformedEnvironmentDataLoader

@@ -324,7 +324,7 @@ Functions used for generating experiment variants.
 
 
 def make_10distinctobj_variant(template: dict) -> dict:
-    """Make 10 distinct object variants for a given config.
+    """Make a 10-distinct object variant of a config.
 
     NOTE: We aren't likely to use any 10distinctobj variants in the DMC paper,
     so this will be removed eventually. For the time being, it can be useful to

@@ -48,8 +48,19 @@ __all__ = [
 # - Path setup
 DMC_ROOT = Path("~/tbp/results/dmc").expanduser()
 PRETRAIN_DIR = DMC_ROOT / "pretrained_models"
+RESULTS_DIR = DMC_ROOT / "results"
 
-# monty_models_dir = os.getenv("MONTY_MODELS")
-# if not monty_models_dir:
-#     monty_models_dir = "~/tbp/results/monty/pretrained_models"
-# PRETRAIN_DIR = Path(monty_models_dir).expanduser() / "pretrained_ycb_dmc"
+RANDOM_ROTATIONS_5 = np.array(
+    [
+        [19, 339, 301],
+        [196, 326, 225],
+        [68, 100, 252],
+        [256, 284, 218],
+        [259, 193, 172],
+    ]
+)
+
+
+"""
+Config "Getter" Functions for Evaluation Experiments.
+"""
