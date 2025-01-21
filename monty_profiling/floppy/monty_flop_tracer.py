@@ -32,8 +32,12 @@ class MontyFlopTracer:
         self._method_stack = []
 
         # Setup logging
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.log_path = (
-            Path(log_path or "~/tbp/monty_lab/monty_profiling/results/flop_traces.csv")
+            Path(
+                log_path
+                or f"~/tbp/monty_lab/monty_profiling/results/flop_traces_{self.experiment.name}_{timestamp}.csv"
+            )
             .expanduser()
             .resolve()
         )
