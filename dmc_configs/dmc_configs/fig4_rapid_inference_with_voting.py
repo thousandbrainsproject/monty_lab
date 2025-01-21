@@ -48,6 +48,7 @@ from .common import (
     PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
     RESULTS_DIR,
+    DMCEvalLoggingConfig,
     get_dist_lm_config,
     get_dist_motor_config,
     get_dist_patch_config,
@@ -89,11 +90,7 @@ dist_agent_2lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=1,
     ),
-    logging_config=ParallelEvidenceLMLoggingConfig(
-        output_dir=str(RESULTS_DIR / "dist_agent_2lm"),
-        run_name="dist_agent_2lm",
-        wandb_group="dmc",
-    ),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_2lm"),
     monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -120,11 +117,7 @@ dist_agent_4lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=2,
     ),
-    logging_config=ParallelEvidenceLMLoggingConfig(
-        output_dir=str(RESULTS_DIR / "dist_agent_4lm"),
-        run_name="dist_agent_4lm",
-        wandb_group="dmc",
-    ),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_4lm"),
     monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -151,11 +144,7 @@ dist_agent_8lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=4,
     ),
-    logging_config=ParallelEvidenceLMLoggingConfig(
-        output_dir=str(RESULTS_DIR / "dist_agent_8lm"),
-        run_name="dist_agent_8lm",
-        wandb_group="dmc",
-    ),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_8lm"),
     monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -182,11 +171,7 @@ dist_agent_16lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=8,
     ),
-    logging_config=ParallelEvidenceLMLoggingConfig(
-        output_dir=str(RESULTS_DIR / "dist_agent_16lm"),
-        run_name="dist_agent_16lm",
-        wandb_group="dmc",
-    ),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_16lm"),
     monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,

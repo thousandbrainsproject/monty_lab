@@ -24,7 +24,6 @@ This module defines the following experiments:
 
 import copy
 
-import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
     ParallelEvidenceLMLoggingConfig,
@@ -50,6 +49,7 @@ from .common import (
     PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
     RESULTS_DIR,
+    DMCEvalLoggingConfig,
     get_surf_lm_config,
     get_surf_motor_config,
     get_surf_patch_config,
@@ -69,11 +69,7 @@ touch_agent_1lm = dict(
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
     ),
-    logging_config=ParallelEvidenceLMLoggingConfig(
-        output_dir=str(RESULTS_DIR / "touch_agent_1lm"),
-        run_name="touch_agent_1lm",
-        wandb_group="dmc",
-    ),
+    logging_config=DMCEvalLoggingConfig(run_name="touch_agent_1lm"),
     monty_config=SurfaceAndViewMontyConfig(
         monty_class=MontyForEvidenceGraphMatching,
         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),

@@ -1,14 +1,20 @@
 import copy
+from dataclasses import field
 from pathlib import Path
+from typing import List
 
 import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
     MotorSystemConfigCurInformedSurfaceGoalStateDriven,
     MotorSystemConfigInformedGoalStateDriven,
+    ParallelEvidenceLMLoggingConfig,
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
+)
+from tbp.monty.frameworks.loggers.monty_handlers import (
+    BasicCSVStatsHandler,
 )
 from tbp.monty.frameworks.models.evidence_matching import (
     EvidenceGraphLM,
@@ -40,6 +46,19 @@ RANDOM_ROTATIONS_5 = [
     [259, 193, 172],
 ]
 
+"""
+Custom classes
+"""
+
+
+class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
+    output_dir: str = str(RESULTS_DIR)
+    monty_handlers: List = field(
+        default_factory=lambda: [
+            BasicCSVStatsHandler,
+        ]
+    )
+    wandb_group = "dmc"
 
 """
 Config "Getter" Functions for Evaluation Experiments.

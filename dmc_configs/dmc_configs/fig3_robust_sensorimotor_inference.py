@@ -29,7 +29,6 @@ is defined in `fig4_rapid_inference_with_voting.py`.
 
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
-    ParallelEvidenceLMLoggingConfig,
     PatchAndViewMontyConfig,
     get_cube_face_and_corner_views_rotations,
 )
@@ -52,6 +51,7 @@ from .common import (
     MIN_EVAL_STEPS,
     PRETRAIN_DIR,
     RESULTS_DIR,
+    DMCEvalLoggingConfig,
     get_dist_lm_config,
     get_dist_motor_config,
     get_dist_patch_config,
@@ -73,11 +73,7 @@ dist_agent_1lm = dict(
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
     ),
-    logging_config=ParallelEvidenceLMLoggingConfig(
-        output_dir=str(RESULTS_DIR),
-        run_name="dist_agent_1lm",
-        wandb_group="dmc",
-    ),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_1lm"),
     monty_config=PatchAndViewMontyConfig(
         monty_class=MontyForEvidenceGraphMatching,
         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
