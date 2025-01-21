@@ -1,4 +1,24 @@
-# %%
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+"""Render images from `view_finder_images` experiments.
+
+Three configs are defined:
+- view_finder_base: 14 standard training rotations
+- view_finder_randrot_all: 14 randomly generated rotations
+- view_finder_randrot: 5 pre-defined "random" rotations
+
+All use 77 objects.
+
+To visualize the images, run the script
+`monty_lab/dmc_config/scripts/render_view_finder_images.py`.
+"""
 import json
 import os
 from pathlib import Path
@@ -7,7 +27,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-experiment = "view_finder_randrot_5"
+from dmc_configs.view_finder_images import VIEW_FINDER_DIR
+
+experiment = "view_finder_randrot"
 
 figure_settings = {
     "view_finder_base": {
@@ -16,13 +38,13 @@ figure_settings = {
         "n_cols": 7,
         "figsize": (8, 4),
     },
-    "view_finder_randrot_14": {
+    "view_finder_randrot_all": {
         "n_rotations": 14,
         "n_rows": 2,
         "n_cols": 7,
         "figsize": (8, 4),
     },
-    "view_finder_randrot_5": {
+    "view_finder_randrot": {
         "n_rotations": 5,
         "n_rows": 1,
         "n_cols": 5,
@@ -30,8 +52,7 @@ figure_settings = {
     },
 }
 
-project_dir = Path("~/tbp/results/monty/projects/view_finder_images").expanduser()
-data_dir = project_dir / f"{experiment}/view_finder_rgbd"
+data_dir = VIEW_FINDER_DIR / f"{experiment}/view_finder_rgbd"
 arrays_dir = data_dir / "arrays"
 visualization_dir = data_dir / "visualizations"
 visualization_dir.mkdir(parents=True, exist_ok=True)
