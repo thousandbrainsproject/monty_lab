@@ -96,7 +96,7 @@ TRAIN_ROTATIONS = [
 class PretrainingExperimentWithCheckpointing(
     MontySupervisedObjectPretrainingExperiment
 ):
-    """Supervised pretraining class that saves the model after certain epochs.
+    """Supervised pretraining class that saves the model after every epoch.
 
     NOTE: Experiments using this class cannot be run in parallel.
     """
