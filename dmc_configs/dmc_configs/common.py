@@ -1,5 +1,5 @@
 import copy
-from dataclasses import field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
@@ -51,14 +51,16 @@ Custom classes
 """
 
 
+@dataclass
 class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
     output_dir: str = str(RESULTS_DIR)
+    wandb_group: str = "dmc"
     monty_handlers: List = field(
         default_factory=lambda: [
             BasicCSVStatsHandler,
         ]
     )
-    wandb_group = "dmc"
+
 
 """
 Config "Getter" Functions for Evaluation Experiments.
