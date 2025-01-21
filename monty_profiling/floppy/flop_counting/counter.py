@@ -97,15 +97,14 @@ class TrackedArray(np.ndarray):
         result = getattr(ufunc, method)(*clean_inputs, **kwargs)
 
         # 4) Count FLOPs if active
-        if self.counter and self.counter._is_active:
-            if self.counter._should_skip_counting():
-                return result
-            op_name = ufunc.__name__
-            if op_name in self.counter._ufunc_operations:
-                flops = self.counter._ufunc_operations[op_name].count_flops(
-                    *clean_inputs, result=result
-                )
-                self.counter.add_flops(flops)
+        if self.counter:
+            if not self.counter.should_skip_counting():
+                op_name = ufunc.__name__
+                if op_name in self.counter._ufunc_operations:
+                    flops = self.counter._ufunc_operations[op_name].count_flops(
+                        *clean_inputs, result=result
+                    )
+                    self.counter.add_flops(flops)
 
         # 5) Wrap the result back into a TrackedArray, if applicable
         if "out" in kwargs:
@@ -218,24 +217,6 @@ class FlopCounter(ContextDecorator):
             "argmin": (np, "argmin"),
             "argmax": (np, "argmax"),
         }
-        self._patch_targets = {
-            "matmul": (np, "matmul"),
-            "sum": (np, "sum"),
-            "dot": (np, "dot"),
-            # Functions in np.linalg
-            "linalg.norm": (np.linalg, "norm"),
-            "linalg.cond": (np.linalg, "cond"),
-            "linalg.inv": (np.linalg, "inv"),
-            "linalg.eig": (np.linalg, "eig"),
-            # Statistics / reductions in np
-            "mean": (np, "mean"),
-            "std": (np, "std"),
-            "var": (np, "var"),
-            "average": (np, "average"),
-            "trace": (np, "trace"),
-            "argmin": (np, "argmin"),
-            "argmax": (np, "argmax"),
-        }
 
     def _tracked_array(self, *args, **kwargs):
         """Create a tracked array from numpy array creation."""
@@ -317,7 +298,8 @@ class FlopCounter(ContextDecorator):
 
         return False
 
-    def _should_skip_counting(self) -> bool:
+    @classmethod
+    def should_skip_counting(cls) -> bool:
         """
         Determine if FLOP counting should be skipped based on the call stack.
 
@@ -347,5 +329,5 @@ class FlopCounter(ContextDecorator):
 
     def add_flops(self, count: int):
         """Add to the FLOP count only if counter is active and not in library code."""
-        if not self._should_skip_counting():
+        if not self.should_skip_counting():
             self.flops += count
