@@ -23,7 +23,10 @@ class MethodTrace:
 class MontyFlopTracer:
     """Tracks FLOPs for Monty class methods."""
 
-    def __init__(self, monty_instance, experiment_instance, log_path=None):
+    def __init__(
+        self, experiment_name, monty_instance, experiment_instance, log_path=None
+    ):
+        self.experiment_name = experiment_name
         self.monty = monty_instance
         self.experiment = experiment_instance
         self.flop_counter = FlopCounter()
@@ -36,7 +39,7 @@ class MontyFlopTracer:
         self.log_path = (
             Path(
                 log_path
-                or f"~/tbp/monty_lab/monty_profiling/results/flop_traces_{self.experiment.name}_{timestamp}.csv"
+                or f"~/tbp/monty_lab/monty_profiling/results/flop_traces_{self.experiment_name}_{timestamp}.csv"
             )
             .expanduser()
             .resolve()
@@ -62,6 +65,7 @@ class MontyFlopTracer:
             writer.writerow(
                 [trace.timestamp, trace.episode, trace.method_name, trace.flops]
             )
+        print(f"Logged trace: {trace}")
 
     def _collect_methods(self):
         """Collect methods that need to be wrapped."""
@@ -71,7 +75,7 @@ class MontyFlopTracer:
             # "experiment.run_episode": self.experiment.run_episode,
             # "experiment.pre_episode": self.experiment.pre_episode,
             # "experiment.pre_step": self.experiment.pre_step,
-            # "monty.step": self.monty.step,
+            "monty.step": self.monty.step,
             # "experiment.post_step": self.experiment.post_step,
             # "experiment.post_episode": self.experiment.post_episode,
         }

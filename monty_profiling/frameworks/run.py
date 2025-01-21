@@ -24,7 +24,7 @@ from frameworks.models.goal_state_generation import (
 )
 from floppy.monty_flop_tracer import MontyFlopTracer
 
-def wrap_experiment_with_flops(experiment_cls):
+def wrap_experiment_with_flops(experiment_cls, run_name):
     """Wraps both Monty and Experiment classes to add FLOP tracking."""
     original_setup = experiment_cls.setup_experiment
 
@@ -47,7 +47,7 @@ def wrap_experiment_with_flops(experiment_cls):
         # Call original setup
         original_setup(self, modified_config)
 
-        flop_tracker = MontyFlopTracer(self.model, self)
+        flop_tracker = MontyFlopTracer(run_name, self.model, self)
         one_true_flop_counter = flop_tracker.flop_counter
         for lm in self.model.learning_modules:
             if isinstance(lm, FlopCountingEvidenceGraphLM):
@@ -65,14 +65,13 @@ def wrap_experiment_with_flops(experiment_cls):
 
 def run_with_flops(exp_config: Dict[str, Any]):
     """Runs an experiment with FLOP tracking by modifying both classes."""
-    # Get both classes
     original_experiment_class = exp_config.get("experiment_class")
 
     if original_experiment_class is None:
         raise ValueError("No experiment_class found in exp_config")
 
-    # Wrap both classes
-    wrapped_experiment = wrap_experiment_with_flops(original_experiment_class)
+    run_name = exp_config["logging_config"]["run_name"]
+    wrapped_experiment = wrap_experiment_with_flops(original_experiment_class, run_name)
 
     # Update config with wrapped classes
     exp_config["experiment_class"] = wrapped_experiment
