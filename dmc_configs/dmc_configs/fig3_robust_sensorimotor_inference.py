@@ -76,6 +76,7 @@ dist_agent_1lm = dict(
     logging_config=ParallelEvidenceLMLoggingConfig(
         output_dir=str(RESULTS_DIR),
         run_name="dist_agent_1lm",
+        wandb_group="dmc",
     ),
     monty_config=PatchAndViewMontyConfig(
         monty_class=MontyForEvidenceGraphMatching,

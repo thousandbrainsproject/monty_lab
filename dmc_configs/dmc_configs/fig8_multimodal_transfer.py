@@ -72,6 +72,7 @@ touch_agent_1lm = dict(
     logging_config=ParallelEvidenceLMLoggingConfig(
         output_dir=str(RESULTS_DIR / "touch_agent_1lm"),
         run_name="touch_agent_1lm",
+        wandb_group="dmc",
     ),
     monty_config=SurfaceAndViewMontyConfig(
         monty_class=MontyForEvidenceGraphMatching,

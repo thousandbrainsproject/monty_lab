@@ -92,6 +92,7 @@ dist_agent_2lm = dict(
     logging_config=ParallelEvidenceLMLoggingConfig(
         output_dir=str(RESULTS_DIR / "dist_agent_2lm"),
         run_name="dist_agent_2lm",
+        wandb_group="dmc",
     ),
     monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
     # Set up environment.
@@ -122,6 +123,7 @@ dist_agent_4lm = dict(
     logging_config=ParallelEvidenceLMLoggingConfig(
         output_dir=str(RESULTS_DIR / "dist_agent_4lm"),
         run_name="dist_agent_4lm",
+        wandb_group="dmc",
     ),
     monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
     # Set up environment.
@@ -152,6 +154,7 @@ dist_agent_8lm = dict(
     logging_config=ParallelEvidenceLMLoggingConfig(
         output_dir=str(RESULTS_DIR / "dist_agent_8lm"),
         run_name="dist_agent_8lm",
+        wandb_group="dmc",
     ),
     monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
     # Set up environment.
@@ -182,6 +185,7 @@ dist_agent_16lm = dict(
     logging_config=ParallelEvidenceLMLoggingConfig(
         output_dir=str(RESULTS_DIR / "dist_agent_16lm"),
         run_name="dist_agent_16lm",
+        wandb_group="dmc",
     ),
     monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
     # Set up environment.
