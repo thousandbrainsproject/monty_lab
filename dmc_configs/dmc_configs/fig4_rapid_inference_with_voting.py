@@ -196,7 +196,7 @@ dist_agent_16lm = dict(
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
+        object_init_sampler=PredefinedObjectInitializer(),
     ),
 )
 dist_agent_1lm_randrot_noise = make_randrot_noise_variant(dist_agent_1lm)
