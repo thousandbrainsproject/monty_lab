@@ -53,6 +53,11 @@ Custom classes
 
 @dataclass
 class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
+    """Logging config with DMC-specific output directory and wandb group.
+
+    This config also drops the reproduce episode handler which is included
+    as a default handler in `ParallelEvidenceLMLoggingConfig`.
+    """
     output_dir: str = str(RESULTS_DIR)
     wandb_group: str = "dmc"
     monty_handlers: List = field(
