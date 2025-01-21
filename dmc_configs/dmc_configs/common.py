@@ -5,10 +5,10 @@ import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
     MotorSystemConfigCurInformedSurfaceGoalStateDriven,
     MotorSystemConfigInformedGoalStateDriven,
-    RandomRotationObjectInitializer,
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
+    RandomRotationObjectInitializer,
 )
 from tbp.monty.frameworks.models.evidence_matching import (
     EvidenceGraphLM,
@@ -32,15 +32,13 @@ MIN_EVAL_STEPS = 20
 MAX_EVAL_STEPS = 500
 
 # - Predefined rotations
-RANDOM_ROTATIONS_5 = np.array(
-    [
-        [19, 339, 301],
-        [196, 326, 225],
-        [68, 100, 252],
-        [256, 284, 218],
-        [259, 193, 172],
-    ]
-)
+RANDOM_ROTATIONS_5 = [
+    [19, 339, 301],
+    [196, 326, 225],
+    [68, 100, 252],
+    [256, 284, 218],
+    [259, 193, 172],
+]
 
 
 """
