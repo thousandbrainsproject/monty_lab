@@ -98,7 +98,7 @@ dist_agent_1lm = dict(
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
+        object_init_sampler=PredefinedObjectInitializer(),
     ),
 )
 
