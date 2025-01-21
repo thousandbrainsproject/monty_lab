@@ -87,7 +87,10 @@ class ArccosOperation:
 
         Total per element: 44 FLOPs
         """
-        return 44 * np.size(result)
+        # Handle both scalar and array inputs
+        input_value = args[0]
+        num_elements = 1 if np.isscalar(input_value) else np.size(input_value)
+        return 44 * num_elements
 
 
 class TangentOperation:
