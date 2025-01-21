@@ -100,8 +100,8 @@ class TrackedArray(np.ndarray):
         if self.counter:
             if not self.counter.should_skip_counting():
                 op_name = ufunc.__name__
-                if op_name in self.counter._ufunc_operations:
-                    flops = self.counter._ufunc_operations[op_name].count_flops(
+                if op_name in self.counter.ufunc_operations:
+                    flops = self.counter.ufunc_operations[op_name].count_flops(
                         *clean_inputs, result=result
                     )
                     self.counter.add_flops(flops)
@@ -157,7 +157,7 @@ class FlopCounter(ContextDecorator):
         self._original_array_func = None
         self._original_funcs = {}
 
-        self._ufunc_operations = {
+        self.ufunc_operations = {
             "add": Addition(),
             "subtract": Subtraction(),
             "multiply": Multiplication(),
@@ -183,7 +183,7 @@ class FlopCounter(ContextDecorator):
             "log": LogOperation(),
         }
 
-        self._function_operations = {
+        self.function_operations = {
             "matmul": MatmulOperation(),
             "sum": SumOperation(),
             "dot": MatmulOperation(),
@@ -199,7 +199,7 @@ class FlopCounter(ContextDecorator):
             "argmin": ArgminOperation(),
             "argmax": ArgmaxOperation(),
         }
-        self._patch_targets = {
+        self.patch_targets = {
             "matmul": (np, "matmul"),
             "sum": (np, "sum"),
             "dot": (np, "dot"),
