@@ -98,11 +98,7 @@ class PretrainingExperimentWithCheckpointing(
 ):
     """Supervised pretraining class that saves the model after certain epochs.
 
-    NOTE: I'm not sure this can be done in parallel runs. Post-parallel cleanup,
-    deletes checkpoints, and I'm not sure the models are combined in a reasonable
-    way during parallel mode mid-experiment anyways. It may be better just to
-    define the handful of pretraining experiments we really want rather than
-    checkpointing, but this is worth trying.
+    NOTE: Experiments using this class cannot be run in parallel.
     """
 
     def post_epoch(self):
