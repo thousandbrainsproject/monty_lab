@@ -35,8 +35,8 @@ be used for eval experiments. Some functions take an optional `color` argument, 
 setting it to `False` returns a sensor or learning module suitable for touch-only models.
 
 The config 'getter'functions defined here are
- - `get_dist_displacement_lm_config`
- - `get_surf_displacement_lm_config`
+ - `get_dist_lm_config`
+ - `get_surf_lm_config`
  - `get_dist_patch_config`
  - `get_surf_patch_config`
  - `get_view_finder_config`
@@ -45,8 +45,8 @@ The config 'getter'functions defined here are
 
 Names and logger args have follow certain rules for consistency and to help
 avoid accidental conflicts:
- - Model names follow the pattern `{SENSOR}_agent_{NUM_LMS}lm[s]`, where `SENSOR` is
-   one of `dist`, `surf`, or `touch`. The 'lm' suffix is 'lms' for multi-LM experiments.
+ - Model names follow the pattern `{SENSOR}_agent_{NUM_LMS}lm`, where `SENSOR` is
+   one of `dist`, `surf`, or `touch`.
  - The experiment key is `pretrain_{MODEL_NAME}` (e.g., `pretrain_dist_agent_1lm`). By
     'experiment key', I mean the key used to identify the config in `CONFIGS`.
  - The logging config's `run_name` is the model name.
@@ -111,7 +111,7 @@ Config "getter" functions
 """
 
 
-def get_dist_displacement_lm_config(
+def get_dist_lm_config(
     sensor_module_id: str = "patch",
     color: bool = True,
 ) -> dict:
@@ -151,7 +151,7 @@ def get_dist_displacement_lm_config(
     return out
 
 
-def get_surf_displacement_lm_config(
+def get_surf_lm_config(
     sensor_module_id: str = "patch",
     color: bool = True,
 ) -> dict:
@@ -327,7 +327,7 @@ def make_10distinctobj_variant(template: dict) -> dict:
     """Make a 10-distinct object variant of a config.
 
     NOTE: We aren't likely to use any 10distinctobj variants in the DMC paper,
-    so this will be removed eventually. For the time being, it can be useful to
+    so this will be removed soon. For the time being, it can be useful to
     sometimes train 10distinctobj models for debugging purposes.
 
     TODO: Remove this function when bringing this code into a publishable state.
@@ -359,7 +359,7 @@ pretrain_dist_agent_1lm = dict(
     monty_config=PatchAndViewMontyConfig(
         monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
         learning_module_configs=dict(
-            learning_module_0=get_dist_displacement_lm_config(),
+            learning_module_0=get_dist_lm_config(),
         ),
         sensor_module_configs=dict(
             sensor_module_0=get_dist_patch_config(),
@@ -390,7 +390,7 @@ pretrain_surf_agent_1lm = dict(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
         ),
         learning_module_configs=dict(
-            learning_module_0=get_surf_displacement_lm_config(),
+            learning_module_0=get_surf_lm_config(),
         ),
         sensor_module_configs=dict(
             sensor_module_0=get_surf_patch_config(),
@@ -421,7 +421,7 @@ pretrain_touch_agent_1lm = dict(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
         ),
         learning_module_configs=dict(
-            learning_module_0=get_surf_displacement_lm_config(color=False),
+            learning_module_0=get_surf_lm_config(color=False),
         ),
         sensor_module_configs=dict(
             sensor_module_0=get_surf_patch_config(color=False),
@@ -447,7 +447,7 @@ Setup for Multi-LM Experiments
 # - Set up arguments for `make_multi_lm_monty_config`. Use the prefix `mlm_` to indicate
 # that these are arguments for the multi-LM experiments.
 # - The following set of arguments are reused for all multi-LM configs.
-mlm_learning_module_config = get_dist_displacement_lm_config()
+mlm_learning_module_config = get_dist_lm_config()
 mlm_sensor_module_config = get_dist_patch_config()
 mlm_motor_system_config = get_dist_motor_config()
 mlm_monty_config_args = {
@@ -542,7 +542,6 @@ pretrain_dist_agent_16lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
         n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
     ),
     logging_config=PretrainLoggingConfig(run_name="dist_agent_16lm"),
     monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),

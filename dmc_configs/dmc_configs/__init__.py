@@ -1,6 +1,14 @@
-from .dmc_pretrain_experiments import CONFIGS as PRETRAININGS
-from .dmc_eval_experiments import CONFIGS as EVAL_CONFIGS
+from .fig3_rapid_inference_with_voting import CONFIGS as FIG_3_CONFIGS
+from .fig4_rapid_inference_with_voting import CONFIGS as FIG_4_CONFIGS
+from .fig5_rapid_inference_with_model_based_policies import CONFIGS as FIG_5_CONFIGS
+from .fig8_multimodal_transfer import CONFIGS as FIG_8_CONFIGS
+from .fig9_structured_object_representations import CONFIGS as FIG_9_CONFIGS
+from .pretraining_experiments import CONFIGS as PRETRAINING_CONFIGS
 
 CONFIGS = dict()
-CONFIGS.update(PRETRAININGS)
-CONFIGS.update(EVAL_CONFIGS)
+CONFIGS.update(PRETRAINING_CONFIGS)
+CONFIGS.update(FIG_3_CONFIGS)
+CONFIGS.update(FIG_4_CONFIGS)
+CONFIGS.update(FIG_5_CONFIGS)
+CONFIGS.update(FIG_8_CONFIGS)
+CONFIGS.update(FIG_9_CONFIGS)

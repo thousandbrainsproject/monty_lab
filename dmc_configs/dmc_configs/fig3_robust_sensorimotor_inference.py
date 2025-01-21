@@ -13,17 +13,20 @@
 This module defines the following experiments:
  - `dist_agent_1lm`
  - `dist_agent_1lm_noise`
- - `dist_agent_1lm_randrot`
- - `dist_agent_1lm_randrot_noise`
+ - `dist_agent_1lm_randrot_all`
+ - `dist_agent_1lm_randrot_all_noise`
+
+ Experiments use:
+ - 77 objects
+ - 14 rotations
+ - Goal-state-driven/hypothesis-testing policy active
+ - A single LM
 
 NOTE: random rotation variants use the random object initializer and 14 rotations.
+`dist_agent_1lm_randrot_noise` which uses the 5 predefined "random" rotations
+is defined in `fig4_rapid_inference_with_voting.py`.
 """
 
-import copy
-import os
-from pathlib import Path
-
-import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
     ParallelEvidenceLMLoggingConfig,
@@ -43,23 +46,20 @@ from tbp.monty.frameworks.models.evidence_matching import (
     MontyForEvidenceGraphMatching,
 )
 
-from .common import PRETRAIN_DIR, RESULTS_DIR
-from .dmc_eval_experiments import (
-    get_dist_evidence_lm_config,
+from .common import (
+    MAX_EVAL_STEPS,
+    MAX_TOTAL_STEPS,
+    MIN_EVAL_STEPS,
+    PRETRAIN_DIR,
+    RESULTS_DIR,
+    get_dist_lm_config,
     get_dist_motor_config,
     get_dist_patch_config,
     get_view_finder_config,
     make_noise_variant,
-    make_randrot_noise_variant,
-    make_randrot_variant,
+    make_randrot_all_noise_variant,
+    make_randrot_all_variant,
 )
-
-# Specify defaults here
-
-# - Experiment and Monty args
-MAX_TOTAL_STEPS = 10_000
-MIN_EVAL_STEPS = 20
-MAX_EVAL_STEPS = 500
 
 # - 14 Rotation used during training (cube faces + corners)
 TEST_ROTATIONS = get_cube_face_and_corner_views_rotations()
@@ -85,7 +85,7 @@ dist_agent_1lm = dict(
             sensor_module_1=get_view_finder_config(),
         ),
         learning_module_configs=dict(
-            learning_module_0=get_dist_evidence_lm_config(),
+            learning_module_0=get_dist_lm_config(),
         ),
         motor_system_config=get_dist_motor_config(),
     ),
@@ -109,13 +109,13 @@ dist_agent_1lm = dict(
 # ------------------------------------------------------------------------------
 
 dist_agent_1lm_noise = make_noise_variant(dist_agent_1lm)
-dist_agent_1lm_randrot = make_randrot_variant(dist_agent_1lm)
-dist_agent_1lm_randrot_noise = make_randrot_noise_variant(dist_agent_1lm)
+dist_agent_1lm_randrot_all = make_randrot_all_variant(dist_agent_1lm)
+dist_agent_1lm_randrot_all_noise = make_randrot_all_noise_variant(dist_agent_1lm)
 
 
 CONFIGS = {
     "dist_agent_1lm": dist_agent_1lm,
     "dist_agent_1lm_noise": dist_agent_1lm_noise,
-    "dist_agent_1lm_randrot": dist_agent_1lm_randrot,
-    "dist_agent_1lm_randrot_noise": dist_agent_1lm_randrot_noise,
+    "dist_agent_1lm_randrot_all": dist_agent_1lm_randrot_all,
+    "dist_agent_1lm_randrot_all_noise": dist_agent_1lm_randrot_all_noise,
 }
