@@ -1,3 +1,32 @@
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+"""Figure 6: Rapid Learning
+
+Consists of 6 experiments:
+- dist_agent_1lm_randrot_nohyp_1rot_trained
+- dist_agent_1lm_randrot_nohyp_2rot_trained
+- dist_agent_1lm_randrot_nohyp_4rot_trained
+- dist_agent_1lm_randrot_nohyp_8rot_trained
+- dist_agent_1lm_randrot_nohyp_16rot_trained
+- dist_agent_1lm_randrot_nohyp_32rot_trained
+
+This means performance is evaluated with:
+- 77 objects
+- 5 random rotations
+- NO sensor noise*
+- NO hypothesis-testing*
+- No voting
+- Varying numbers of rotations trained on (evaluations use different baseline models)
+
+"""
+
 import copy
 import time
 from pathlib import Path
@@ -17,7 +46,8 @@ from tbp.monty.frameworks.experiments.pretraining_experiments import (
     MontySupervisedObjectPretrainingExperiment,
 )
 
-from .common import PRETRAIN_DIR
+from .common import PRETRAIN_DIR, make_randrot_variant
+from .fig3_robust_sensorimotor_inference import dist_agent_1lm
 from .pretraining_experiments import pretrain_dist_agent_1lm
 
 """
@@ -121,6 +151,56 @@ pretrain_dist_agent_1lm_checkpoints.update(
     )
 )
 
+"""
+Evaluation Configs
+--------------------------------------------------------------------------------
+"""
+
+
+def make_partially_trained_eval_config(n_rot: int) -> dict:
+    """Make a config for a partially trained model.
+
+    Args:
+        n_rot (int): Number of rotations trained on.
+
+    Returns:
+        dict: Config for a partially trained model.
+    """
+    # Use base distant agent model with 5 random rotations
+    config = make_randrot_variant(dist_agent_1lm)
+
+    # Change model loading path
+    config["experiment_args"].model_name_or_path = str(
+        PRETRAIN_DIR
+        / f"dist_agent_1lm_checkpoints/pretrained/checkpoints/{n_rot}/model.pt"
+    )
+
+    # Rename the experiment
+    config[
+        "logging_config"
+    ].run_name = f"dist_agent_1lm_randrot_nohyp_{n_rot}rot_trained"
+
+    # Disable hypothesis-driven actions
+    config[
+        "monty_config"
+    ].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
+
+    return config
+
+
+dist_agent_1lm_randrot_nohyp_1rot_trained = make_partially_trained_eval_config(1)
+dist_agent_1lm_randrot_nohyp_2rot_trained = make_partially_trained_eval_config(2)
+dist_agent_1lm_randrot_nohyp_4rot_trained = make_partially_trained_eval_config(4)
+dist_agent_1lm_randrot_nohyp_8rot_trained = make_partially_trained_eval_config(8)
+dist_agent_1lm_randrot_nohyp_16rot_trained = make_partially_trained_eval_config(16)
+dist_agent_1lm_randrot_nohyp_32rot_trained = make_partially_trained_eval_config(32)
+
 CONFIGS = {
     "pretrain_dist_agent_1lm_checkpoints": pretrain_dist_agent_1lm_checkpoints,
+    "dist_agent_1lm_randrot_nohyp_1rot_trained": dist_agent_1lm_randrot_nohyp_1rot_trained,
+    "dist_agent_1lm_randrot_nohyp_2rot_trained": dist_agent_1lm_randrot_nohyp_2rot_trained,
+    "dist_agent_1lm_randrot_nohyp_4rot_trained": dist_agent_1lm_randrot_nohyp_4rot_trained,
+    "dist_agent_1lm_randrot_nohyp_8rot_trained": dist_agent_1lm_randrot_nohyp_8rot_trained,
+    "dist_agent_1lm_randrot_nohyp_16rot_trained": dist_agent_1lm_randrot_nohyp_16rot_trained,
+    "dist_agent_1lm_randrot_nohyp_32rot_trained": dist_agent_1lm_randrot_nohyp_32rot_trained,
 }
