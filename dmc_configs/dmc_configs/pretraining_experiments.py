@@ -58,7 +58,6 @@ import copy
 from pathlib import Path
 
 import numpy as np
-import torch
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
     MontyFeatureGraphArgs,
