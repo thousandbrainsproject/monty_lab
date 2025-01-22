@@ -6,7 +6,7 @@ This repository was developed in part during for the Demonstrating Monty Capabil
 
 ## Overview
 
-This framework provides multiple approaches to FLOP counting in the `floppy.flop_counting` module.
+This framework provides multiple approaches to FLOP counting in the `floppy.counting` module.
 
 1. Operation Interception via TrackedArray wrapper
 2. Function wrapping for high-level operations
@@ -18,11 +18,11 @@ Multiple approaches are necessary because numerical operations in Python are imp
 2. Higher-level functions like `np.matmul` or `np.linalg.norm` don't use ufuncs, so we need explicit function wrapping to count their FLOPs
 3. Complex operations from SciPy and scikit-learn (like KD-tree queries) are implemented by overriding methods in Monty directly, because these are harder to intercept.
 
-In addition, it contains code for static code analysis in `floppy.flop_analysis` to automatically identify operations that contribute to potential FLOP operations.
+In addition, it contains code for static code analysis in `floppy.analysis` to automatically identify operations that contribute to potential FLOP operations.
 
 ## Static Code Analysis
 
-The static code analysis is implemented in `floppy.flop_analysis.core.analyzer.py`. It uses Python's `ast` module to parse source code and identify operations that could contribute to FLOP operations. The analyzer tracks:
+The static code analysis is implemented in `floppy.analysis.analyzer.py`. It uses Python's `ast` module to parse source code and identify operations that could contribute to FLOP operations. The analyzer tracks:
 
 ### Function Calls
 
@@ -201,11 +201,11 @@ Floppy requires the same dependencies as Monty because it is running Monty code.
 To count FLOPs in Monty:
 
 ```bash
-cd ~/tbp/monty_labs/monty_profiling
+cd ~/tbp/monty_labs/floppy
 python run_flop_counter.py -e <experiment_name>
 ```
 
-Results are saved in `~/tbp/monty_lab/monty_profiling/results/flop_traces.csv`.
+Results are saved in `~/tbp/monty_lab/floppy/results/flop_traces.csv`.
 
 To count FLOPs in your own code:
 
@@ -234,14 +234,14 @@ To analyze FLOP operations in source code:
 python run_static_analysis.py --dir path/to/analyze
 ```
 
-Results are saved in `~/tbp/monty_lab/monty_profiling/results/static_analysis_{timestamp}.csv`.
+Results are saved in `~/tbp/monty_lab/floppy/results/static_analysis/flop_analysis.csv`.
 
 ## Running Tests
 
 Add the directory to the Python path:
 
 ```bash
-export PYTHONPATH=$PYTHONPATH:~/tbp/monty_labs/monty_profiling
+export PYTHONPATH=$PYTHONPATH:~/tbp/monty_labs/floppy
 ```
 
 To run the tests, use:
