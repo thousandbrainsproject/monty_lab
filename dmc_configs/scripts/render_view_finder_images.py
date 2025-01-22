@@ -27,8 +27,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 
-from dmc_configs.view_finder_images import VIEW_FINDER_DIR
-
 experiment = "view_finder_randrot"
 
 figure_settings = {
@@ -51,8 +49,8 @@ figure_settings = {
         "figsize": (4, 4),
     },
 }
-
-data_dir = VIEW_FINDER_DIR / f"{experiment}/view_finder_rgbd"
+view_finder_dir = Path("~/tbp/results/dmc").expanduser() / "view_finder_images"
+data_dir = view_finder_dir / f"{experiment}/view_finder_rgbd"
 arrays_dir = data_dir / "arrays"
 visualization_dir = data_dir / "visualizations"
 visualization_dir.mkdir(parents=True, exist_ok=True)

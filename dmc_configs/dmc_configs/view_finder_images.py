@@ -68,6 +68,7 @@ from tbp.monty.frameworks.models.motor_policies import (
 )
 
 from .common import DMC_ROOT, PRETRAIN_DIR, RANDOM_ROTATIONS_5
+from .fig6_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
 
 # All view-finder image experiments will be stored under 'view_finder_images',
 # a directory at the same level as the results directory.
@@ -380,9 +381,23 @@ view_finder_randrot[
     positions=[[0.0, 1.5, -0.2]],
     rotations=RANDOM_ROTATIONS_5,
 )
+"""
+32 Training Rotations for Rapid Learning Experiments
+----------------------------------------------------
+"""
+view_finder_32 = copy.deepcopy(view_finder_base)
+view_finder_32["experiment_args"].n_eval_epochs = 32
+view_finder_32["logging_config"].run_name = "view_finder_32"
+view_finder_32[
+    "eval_dataloader_args"
+].object_init_sampler = PredefinedObjectInitializer(
+    positions=[[0.0, 1.5, -0.2]],
+    rotations=TRAIN_ROTATIONS_32,
+)
 
 CONFIGS = {
     "view_finder_base": view_finder_base,
     "view_finder_randrot_all": view_finder_randrot_all,
     "view_finder_randrot": view_finder_randrot,
+    "view_finder_32": view_finder_32,
 }
