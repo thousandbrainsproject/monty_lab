@@ -3,9 +3,9 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
 import pandas as pd
-from ..visitors.numpy_visitor import NumpyCallVisitor
-from ..visitors.scipy_visitor import ScipyCallVisitor
-from ..visitors.sklearn_visitor import SklearnCallVisitor
+from .visitors.numpy_visitor import NumpyCallVisitor
+from .visitors.scipy_visitor import ScipyCallVisitor
+from .visitors.sklearn_visitor import SklearnCallVisitor
 from .exceptions import FileAnalysisError
 
 
