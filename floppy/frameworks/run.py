@@ -22,7 +22,7 @@ from frameworks.models.evidence_matching import FlopCountingEvidenceGraphLM
 from frameworks.models.goal_state_generation import (
     FlopCountingEvidenceGoalStateGenerator,
 )
-from floppy.monty_flop_tracer import MontyFlopTracer
+from src.floppy.counting.tracer import MontyFlopTracer
 
 def wrap_experiment_with_flops(experiment_cls, run_name):
     """Wraps both Monty and Experiment classes to add FLOP tracking."""

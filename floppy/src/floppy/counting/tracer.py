@@ -52,6 +52,9 @@ class MontyFlopTracer:
             .expanduser()
             .resolve()
         )
+        if not self.log_path.parent.exists():
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+
         if detailed_logging:
             # Create a logger with a unique name
             self.logger = logging.getLogger(f"flop_tracer_{timestamp}")
@@ -233,6 +236,10 @@ class MontyFlopTracer:
             self._log_trace(trace)
             if self.detailed_logging:
                 logging.debug(f"Logged trace: {trace}")
+
+            # Increment episode counter after run_episode completes
+            if method_name == "run_episode":
+                self.current_episode += 1
 
             return result
 

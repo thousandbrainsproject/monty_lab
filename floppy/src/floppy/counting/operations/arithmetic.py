@@ -1,7 +1,14 @@
 import numpy as np
-from typing import Any, Optional, Tuple
+from typing import Any
 
-__all__ = ["Addition", "Subtraction", "Multiplication", "Division"]
+__all__ = [
+    "Addition",
+    "Subtraction",
+    "Multiplication",
+    "Division",
+    "FloorDivideOperation",
+    "ModuloOperation",
+]
 
 class ArithmeticOperation:
     """Base class for arithmetic operations."""
