@@ -56,10 +56,8 @@ class FlopAnalyzer:
                 "type": t,
                 "function": n,
                 "line": l,
-                "col": 0,  # Column information not currently tracked
-                "method_context": "",  # Method context not currently tracked
             }
-            for t, n, l in self.numpy_visitor.numpy_calls
+            for t, n, l in self.numpy_visitor.calls
         ]
 
         scipy_calls = [
@@ -68,10 +66,8 @@ class FlopAnalyzer:
                 "type": t,
                 "function": n,
                 "line": l,
-                "col": 0,
-                "method_context": "",
             }
-            for t, n, l in self.scipy_visitor.scipy_calls
+            for t, n, l in self.scipy_visitor.calls
         ]
 
         sklearn_calls = [
@@ -80,10 +76,8 @@ class FlopAnalyzer:
                 "type": t,
                 "function": n,
                 "line": l,
-                "col": 0,
-                "method_context": "",
             }
-            for t, n, l in self.sklearn_visitor.sklearn_calls
+            for t, n, l in self.sklearn_visitor.calls
         ]
 
         results = {
@@ -101,23 +95,16 @@ class FlopAnalyzer:
         imports = []
 
         # Collect NumPy imports
-        for name, module in self.numpy_visitor.numpy_imports.items():
-            imports.append(
-                {
-                    "module": "numpy",
-                    "name": name,
-                    "line": 0,  # Line numbers not currently tracked for imports
-                    "col": 0,
-                }
-            )
+        for name, module in self.numpy_visitor.imports.items():
+            imports.append({"module": "numpy", "name": name})
 
         # Collect SciPy imports
-        for name, module in self.scipy_visitor.scipy_imports.items():
-            imports.append({"module": "scipy", "name": name, "line": 0, "col": 0})
+        for name, module in self.scipy_visitor.imports.items():
+            imports.append({"module": "scipy", "name": name})
 
         # Collect scikit-learn imports
-        for name, module in self.sklearn_visitor.sklearn_imports.items():
-            imports.append({"module": "sklearn", "name": name, "line": 0, "col": 0})
+        for name, module in self.sklearn_visitor.imports.items():
+            imports.append({"module": "sklearn", "name": name})
 
         return imports
 
@@ -134,7 +121,6 @@ class FlopAnalyzer:
             Dict containing:
             - files: Dict mapping filenames to their analysis results
             - total_stats: Aggregated statistics across all files
-            - summary: High-level summary of findings
         """
         path = Path(directory)
         if not path.exists():
@@ -149,7 +135,6 @@ class FlopAnalyzer:
                 "sklearn_calls": 0,
                 "total_files": 0,
             },
-            "summary": {},
         }
 
         for py_file in path.glob(pattern):
@@ -208,38 +193,41 @@ class FlopAnalyzer:
         self, rows: List[Dict], filename: str, analysis: Dict
     ) -> None:
         """Add rows for operations to the results DataFrame."""
-        # Add all operations including both library calls and arithmetic operations
+        # Add all operations including library calls, assignments, and binary operations
         for op_type in ["numpy_calls", "sklearn_calls", "scipy_calls"]:
             for op in analysis[op_type]:
                 row = {
                     "filename": filename,
-                    "operation_type": "arithmetic_ops"
-                    if op["module"] == "arithmetic"
-                    else op_type.replace("_calls", "_ops"),
+                    "operation_type": self._get_operation_type(op["type"]),
                     "module": op["module"],
                     "function": op["function"],
-                    "method_context": op["method_context"],
-                    "line": op["line"],
-                    "column": op["col"],
+                    "line": op.get("line", ""),
                 }
-
-                # Add symbol and flops for arithmetic operations
-                if op["module"] == "arithmetic":
-                    row["symbol"] = op.get("symbol", "")
-
                 rows.append(row)
+
+    def _get_operation_type(self, type_str: str) -> str:
+        """Convert the operation type to a consistent category."""
+        type_mapping = {
+            "direct": "function_call",
+            "attribute": "method_call",
+            "binary": "binary_operation",
+            "assign": "assignment",
+        }
+        return type_mapping.get(type_str, type_str)
 
     def _add_import_rows(self, rows: List[Dict], filename: str, analysis: Dict) -> None:
         """Add rows for imports to the results DataFrame."""
-        for imp in analysis["imports"]:
-            rows.append(
-                {
-                    "filename": filename,
-                    "operation_type": "import",
-                    "module": imp["module"],
-                    "function": imp.get("name", ""),
-                    "method_context": "",
-                    "line": imp["line"],
-                    "column": imp["col"],
-                }
-            )
+        for lib_type in ["numpy_imports", "sklearn_imports", "scipy_imports"]:
+            if lib_type in analysis:
+                for import_info in analysis[lib_type]:
+                    row = {
+                        "filename": filename,
+                        "import_type": import_info.get(
+                            "type", "direct"
+                        ),  # direct, from, star
+                        "module": import_info.get("module", ""),
+                        "name": import_info.get("name", ""),
+                        "alias": import_info.get("alias", ""),
+                        "line": import_info.get("line", ""),
+                    }
+                    rows.append(row)
