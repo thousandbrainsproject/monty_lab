@@ -47,7 +47,14 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
         # Call original setup
         original_setup(self, modified_config)
 
-        flop_tracker = MontyFlopTracer(run_name, self.model, self)
+        flop_tracker = MontyFlopTracer(
+            experiment_name=run_name,
+            monty_instance=self.model,
+            experiment_instance=self,
+            train_dataloader_instance=self.dataloader,
+            eval_dataloader_instance=self.eval_dataloader,
+            motor_system_instance=self.model.motor_system,
+        )
         one_true_flop_counter = flop_tracker.flop_counter
         for lm in self.model.learning_modules:
             if isinstance(lm, FlopCountingEvidenceGraphLM):

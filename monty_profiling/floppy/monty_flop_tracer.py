@@ -23,11 +23,21 @@ class MontyFlopTracer:
     """Tracks FLOPs for Monty class methods."""
 
     def __init__(
-        self, experiment_name, monty_instance, experiment_instance, log_path=None
+        self,
+        experiment_name,
+        monty_instance,
+        experiment_instance,
+        train_dataloader_instance,
+        eval_dataloader_instance,
+        motor_system_instance,
+        log_path=None,
     ):
         self.experiment_name = experiment_name
         self.monty = monty_instance
         self.experiment = experiment_instance
+        self.train_dataloader = train_dataloader_instance
+        self.eval_dataloader = eval_dataloader_instance
+        self.motor_system = motor_system_instance
         self.flop_counter = FlopCounter()
         self.total_flops = 0
         self.current_episode = 0
@@ -49,6 +59,16 @@ class MontyFlopTracer:
         self._initialize_csv()
         self._original_monty_methods = self._collect_monty_methods()
         self._original_experiment_methods = self._collect_experiment_methods()
+        if self.train_dataloader is not None:
+            self._original_train_dataloader_methods = (
+                self._collect_train_dataloader_methods()
+            )
+        if self.eval_dataloader is not None:
+            self._original_eval_dataloader_methods = (
+                self._collect_eval_dataloader_methods()
+            )
+        if self.motor_system is not None:
+            self._original_motor_system_methods = self._collect_motor_system_methods()
         self._wrap_methods()
 
     def _initialize_csv(self):
@@ -79,22 +99,56 @@ class MontyFlopTracer:
     def _collect_monty_methods(self):
         """Collect methods that need to be wrapped."""
         return {
-            # "step": self.monty.step,
-            "_matching_step": self.monty._matching_step,
-            # "_exploratory_step": self.monty._exploratory_step,
+            # "step": (self.monty.step, "monty.step"),
+            "_matching_step": (self.monty._matching_step, "monty._matching_step"),
+            # "_exploratory_step": (self.monty._exploratory_step, "monty._exploratory_step"),
         }
 
     def _collect_experiment_methods(self):
         """Collect methods that need to be wrapped."""
-        print("Collecting experiment methods...")
-        print(f"run_episode type: {type(self.experiment.run_episode)}")
-        print(f"run_episode: {self.experiment.run_episode}")
         return {
-            "run_episode": self.experiment.run_episode,
-            "pre_episode": self.experiment.pre_episode,
-            # "experiment.pre_step": self.experiment.pre_step,
-            # "experiment.post_step": self.experiment.post_step,
-            "post_episode": self.experiment.post_episode,
+            "run_episode": (self.experiment.run_episode, "experiment.run_episode"),
+            "pre_epoch": (self.experiment.pre_epoch, "experiment.pre_epoch"),
+            "pre_episode": (self.experiment.pre_episode, "experiment.pre_episode"),
+            "pre_step": (self.experiment.pre_step, "experiment.pre_step"),
+            # "post_step": (self.experiment.post_step, "experiment.post_step"),
+            "post_episode": (self.experiment.post_episode, "experiment.post_episode"),
+        }
+
+    def _collect_train_dataloader_methods(self):
+        return {
+            "pre_episode": (
+                self.train_dataloader.pre_episode,
+                "train_dataloader.pre_episode",
+            ),
+        }
+
+    def _collect_eval_dataloader_methods(self):
+        return {
+            "pre_episode": (
+                self.eval_dataloader.pre_episode,
+                "eval_dataloader.pre_episode",
+            ),
+            "get_good_view_with_patch_refinement": (
+                self.eval_dataloader.get_good_view_with_patch_refinement,
+                "eval_dataloader.get_good_view_with_patch_refinement",
+            ),
+            "get_good_view": (
+                self.eval_dataloader.get_good_view,
+                "eval_dataloader.get_good_view",
+            ),
+        }
+
+    def _collect_motor_system_methods(self):
+        return {
+            "orient_to_object": (
+                self.motor_system.orient_to_object,
+                "motor_system.orient_to_object",
+            ),
+            "move_close_enough": (
+                self.motor_system.move_close_enough,
+                "motor_system.move_close_enough",
+            ),
         }
 
     @contextmanager
@@ -106,27 +160,26 @@ class MontyFlopTracer:
         finally:
             self._method_stack.pop()
 
-    def _create_wrapper(self, method_name: str, original_method: Callable) -> Callable:
+    def _create_wrapper(
+        self, method_name: str, original_method: Callable, full_name: str
+    ) -> Callable:
         """Create a wrapper for the given method."""
 
         def wrapped(*args, **kwargs):
-            print(f"\nEntering wrapped {method_name}")  # Debug print
             is_outer_call = not self._active_counter
 
             if is_outer_call:
-                print(f"This is an outer call for {method_name}")  # Debug print
                 self._active_counter = True
                 self.flop_counter.flops = 0
 
             # Get the actual caller from the call stack
             caller_frame = inspect.currentframe().f_back
             caller_name = caller_frame.f_code.co_name if caller_frame else None
-            print(f"Caller for {method_name}: {caller_name}")  # Debug print
 
             start_flops = self.flop_counter.flops
             self._current_flops_stack.append(start_flops)
 
-            with self._method_context(method_name):
+            with self._method_context(full_name):  # Use full_name here
                 # Only use flop_counter context manager for outer calls
                 if is_outer_call:
                     with self.flop_counter:
@@ -143,12 +196,11 @@ class MontyFlopTracer:
             trace = MethodTrace(
                 timestamp=time.time(),
                 episode=self.current_episode,
-                method_name=method_name,
+                method_name=full_name,  # Use full_name here
                 flops=method_flops,
                 parent_method=caller_name,
             )
             self._log_trace(trace)
-            print(f"Exiting wrapped {method_name}")  # Debug print
 
             return result
 
@@ -156,26 +208,81 @@ class MontyFlopTracer:
 
     def _wrap_methods(self) -> None:
         """Wrap methods to count FLOPs."""
-        print("\nWrapping methods...")
-        for method_name, original_method in self._original_monty_methods.items():
-            print(f"Wrapping Monty method: {method_name}")
-            wrapped_method = self._create_wrapper(method_name, original_method)
+        for method_name, (
+            original_method,
+            full_name,
+        ) in self._original_monty_methods.items():
+            wrapped_method = self._create_wrapper(
+                method_name, original_method, full_name
+            )
             setattr(self.monty, method_name, wrapped_method)
 
-        for method_name, original_method in self._original_experiment_methods.items():
-            print(f"Wrapping Experiment method: {method_name}")
-            wrapped_method = self._create_wrapper(method_name, original_method)
-            print(f"Setting {method_name} on experiment")
-            setattr(self.experiment, method_name, wrapped_method)
-            print(
-                f"After wrapping, {method_name} is now: {getattr(self.experiment, method_name)}"
+        for method_name, (
+            original_method,
+            full_name,
+        ) in self._original_experiment_methods.items():
+            wrapped_method = self._create_wrapper(
+                method_name, original_method, full_name
             )
+            setattr(self.experiment, method_name, wrapped_method)
+
+        if self.train_dataloader is not None:
+            for method_name, (
+                original_method,
+                full_name,
+            ) in self._original_train_dataloader_methods.items():
+                wrapped_method = self._create_wrapper(
+                    method_name, original_method, full_name
+                )
+                setattr(self.train_dataloader, method_name, wrapped_method)
+
+        if self.eval_dataloader is not None:
+            for method_name, (
+                original_method,
+                full_name,
+            ) in self._original_eval_dataloader_methods.items():
+                wrapped_method = self._create_wrapper(
+                    method_name, original_method, full_name
+                )
+                setattr(self.eval_dataloader, method_name, wrapped_method)
+
+        if self.motor_system is not None:
+            for method_name, (
+                original_method,
+                full_name,
+            ) in self._original_motor_system_methods.items():
+                wrapped_method = self._create_wrapper(
+                    method_name, original_method, full_name
+                )
+                setattr(self.motor_system, method_name, wrapped_method)
 
     def unwrap(self):
         """Restore original methods."""
-        for method_name, original_method in self._original_methods.items():
-            target = self.monty if hasattr(self.monty, method_name) else self.experiment
-            setattr(target, method_name, original_method)
+        for method_name, original_method in self._original_monty_methods.items():
+            setattr(self.monty, method_name, original_method)
+        for method_name, original_method in self._original_experiment_methods.items():
+            setattr(self.experiment, method_name, original_method)
+
+        if self.train_dataloader is not None:
+            for (
+                method_name,
+                original_method,
+            ) in self._original_train_dataloader_methods.items():
+                setattr(self.train_dataloader, method_name, original_method)
+
+        if self.eval_dataloader is not None:
+            for (
+                method_name,
+                original_method,
+            ) in self._original_eval_dataloader_methods.items():
+                setattr(self.eval_dataloader, method_name, original_method)
+
+        if self.motor_system is not None:
+            for (
+                method_name,
+                original_method,
+            ) in self._original_motor_system_methods.items():
+                setattr(self.motor_system, method_name, original_method)
 
     def reset(self):
         """Reset FLOP counters."""
