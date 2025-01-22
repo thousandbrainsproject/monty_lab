@@ -327,4 +327,19 @@ class FlopCounter(ContextDecorator):
     def add_flops(self, count: int):
         """Add to the FLOP count only if counter is active and not in library code."""
         if not self.should_skip_counting():
+            # Get the call stack information
+            caller_frame = inspect.currentframe().f_back
+            while caller_frame:
+                filename = caller_frame.f_code.co_filename
+                # Skip internal frames from our FLOP counting infrastructure
+                if not any(
+                    x in filename for x in ["counter.py", "monty_flop_tracer.py"]
+                ):
+                    line_no = caller_frame.f_lineno
+                    function_name = caller_frame.f_code.co_name
+                    print(
+                        f"FLOPs: {count} | File: {filename} | Line: {line_no} | Function: {function_name}"
+                    )
+                    break
+                caller_frame = caller_frame.f_back
             self.flops += count
