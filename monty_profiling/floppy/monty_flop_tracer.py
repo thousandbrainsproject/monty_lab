@@ -6,6 +6,7 @@ from typing import Optional, Callable
 from dataclasses import dataclass
 from contextlib import contextmanager
 import inspect
+import logging
 
 
 @dataclass
@@ -31,6 +32,7 @@ class MontyFlopTracer:
         eval_dataloader_instance,
         motor_system_instance,
         log_path=None,
+        detailed_logging=True,
     ):
         self.experiment_name = experiment_name
         self.monty = monty_instance
@@ -38,15 +40,9 @@ class MontyFlopTracer:
         self.train_dataloader = train_dataloader_instance
         self.eval_dataloader = eval_dataloader_instance
         self.motor_system = motor_system_instance
-        self.flop_counter = FlopCounter()
-        self.total_flops = 0
-        self.current_episode = 0
-        self._method_stack = []
-        self._active_counter = False
-        self._current_flops_stack = []
-        self._call_stack = []  # Track actual call stack, not just wrapped methods
+        self.detailed_logging = detailed_logging
 
-        # Setup logging
+        # Setup logging first
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.log_path = (
             Path(
@@ -56,6 +52,38 @@ class MontyFlopTracer:
             .expanduser()
             .resolve()
         )
+        if detailed_logging:
+            # Create a logger with a unique name
+            self.logger = logging.getLogger(f"flop_tracer_{timestamp}")
+            self.logger.setLevel(logging.DEBUG)
+
+            # Create handlers
+            file_handler = logging.FileHandler(
+                self.log_path.parent / "detailed_flops.log"
+            )
+            console_handler = logging.StreamHandler()
+
+            # Create formatter
+            formatter = logging.Formatter("%(asctime)s | %(message)s")
+            file_handler.setFormatter(formatter)
+            console_handler.setFormatter(formatter)
+
+            # Add handlers to logger
+            self.logger.addHandler(file_handler)
+            self.logger.addHandler(console_handler)
+
+        # Initialize FlopCounter with the logger
+        self.flop_counter = FlopCounter(
+            logger=self.logger if detailed_logging else None
+        )
+
+        self.total_flops = 0
+        self.current_episode = 0
+        self._method_stack = []
+        self._active_counter = False
+        self._current_flops_stack = []
+        self._call_stack = []  # Track actual call stack, not just wrapped methods
+
         self._initialize_csv()
         self._original_monty_methods = self._collect_monty_methods()
         self._original_experiment_methods = self._collect_experiment_methods()
@@ -94,14 +122,16 @@ class MontyFlopTracer:
                     trace.parent_method,
                 ]
             )
-        print(f"Logged trace: {trace}")
 
     def _collect_monty_methods(self):
         """Collect methods that need to be wrapped."""
         return {
-            # "step": (self.monty.step, "monty.step"),
+            "step": (self.monty.step, "monty.step"),
             "_matching_step": (self.monty._matching_step, "monty._matching_step"),
-            # "_exploratory_step": (self.monty._exploratory_step, "monty._exploratory_step"),
+            "_exploratory_step": (
+                self.monty._exploratory_step,
+                "monty._exploratory_step",
+            ),
         }
 
     def _collect_experiment_methods(self):
@@ -111,7 +141,7 @@ class MontyFlopTracer:
             "pre_epoch": (self.experiment.pre_epoch, "experiment.pre_epoch"),
             "pre_episode": (self.experiment.pre_episode, "experiment.pre_episode"),
             "pre_step": (self.experiment.pre_step, "experiment.pre_step"),
-            # "post_step": (self.experiment.post_step, "experiment.post_step"),
+            "post_step": (self.experiment.post_step, "experiment.post_step"),
             "post_episode": (self.experiment.post_episode, "experiment.post_episode"),
         }
 
@@ -201,6 +231,8 @@ class MontyFlopTracer:
                 parent_method=caller_name,
             )
             self._log_trace(trace)
+            if self.detailed_logging:
+                logging.debug(f"Logged trace: {trace}")
 
             return result
 

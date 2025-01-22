@@ -3,7 +3,7 @@ from typing import Dict, Any
 import numpy as np
 from .operations import *
 import inspect
-
+import logging
 
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
@@ -150,9 +150,13 @@ class FlopCounter(ContextDecorator):
     3) accumulates FLOPs for each operation
     """
 
-    def __init__(self):
+    def __init__(self, logger=None):
         self.flops = 0
         self._is_active = False
+        self.logger = logger  # Store the logger instance
+        self.detailed_logging = (
+            logger is not None
+        )  # Enable detailed logging if logger is provided
 
         self._original_array_func = None
         self._original_funcs = {}
@@ -327,19 +331,19 @@ class FlopCounter(ContextDecorator):
     def add_flops(self, count: int):
         """Add to the FLOP count only if counter is active and not in library code."""
         if not self.should_skip_counting():
-            # Get the call stack information
-            caller_frame = inspect.currentframe().f_back
-            while caller_frame:
-                filename = caller_frame.f_code.co_filename
-                # Skip internal frames from our FLOP counting infrastructure
-                if not any(
-                    x in filename for x in ["counter.py", "monty_flop_tracer.py"]
-                ):
-                    line_no = caller_frame.f_lineno
-                    function_name = caller_frame.f_code.co_name
-                    print(
-                        f"FLOPs: {count} | File: {filename} | Line: {line_no} | Function: {function_name}"
-                    )
-                    break
-                caller_frame = caller_frame.f_back
+            if self.detailed_logging and self.logger:
+                caller_frame = inspect.currentframe().f_back
+                while caller_frame:
+                    filename = caller_frame.f_code.co_filename
+                    # Skip internal frames from our FLOP counting infrastructure
+                    if not any(
+                        x in filename for x in ["counter.py", "monty_flop_tracer.py"]
+                    ):
+                        line_no = caller_frame.f_lineno
+                        function_name = caller_frame.f_code.co_name
+                        self.logger.debug(
+                            f"FLOPs: {count} | File: {filename} | Line: {line_no} | Function: {function_name}"
+                        )
+                        break
+                    caller_frame = caller_frame.f_back
             self.flops += count
