@@ -1,4 +1,4 @@
-from .flop_counting.counter import FlopCounter
+from src.floppy.counting.counter import FlopCounter
 import csv
 from pathlib import Path
 import time
@@ -47,7 +47,7 @@ class MontyFlopTracer:
         self.log_path = (
             Path(
                 log_path
-                or f"~/tbp/monty_lab/monty_profiling/results/flop_traces_{self.experiment_name}_{timestamp}.csv"
+                or f"~/tbp/monty_lab/floppy/results/counting/flop_traces_{self.experiment_name}_{timestamp}.csv"
             )
             .expanduser()
             .resolve()

@@ -3,7 +3,6 @@ from typing import Dict, Any
 import numpy as np
 from .operations import *
 import inspect
-import logging
 
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""

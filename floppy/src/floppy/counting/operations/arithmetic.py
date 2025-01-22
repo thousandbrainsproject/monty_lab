@@ -71,3 +71,31 @@ class Division(ArithmeticOperation):
 
     def __init__(self):
         super().__init__("divide")
+
+class FloorDivideOperation:
+    """FLOP count for floor divide operation."""
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for floor divide operation.
+
+        Each element requires:
+        - 1 division operation
+        - 1 floor/truncation operation
+        Total: 2 FLOPs per element
+        """
+        return 2 * np.size(args[0])
+
+
+class ModuloOperation:
+    """FLOP count for modulo operation."""
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for modulo operation.
+
+        Each element requires:
+        - 1 division (quotient = a ÷ b)
+        - 1 multiplication (product = quotient * b)
+        - 1 subtraction (remainder = a - product)
+        Total: 3 FLOPs per element
+        """
+        return 3 * np.size(args[0])
