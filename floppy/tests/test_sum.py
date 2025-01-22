@@ -60,7 +60,7 @@ def test_sum_empty():
 
 if __name__ == "__main__":
     test_sum_np_function()
-    test_sum_method()
+    # test_sum_method()
     test_sum_axis()
     test_sum_keepdims()
     test_sum_where()
