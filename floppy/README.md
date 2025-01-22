@@ -196,15 +196,45 @@ Floppy requires the same dependencies as Monty because it is running Monty code.
 
 ## Usage
 
-Execute Monty the same way in this repository. Floppy adjusted the run.py script to use the FlopCounter.
+### FLOP Counting
 
-```cd ~/tbp/monty_labs/monty_profiling
-python run.py -e <experiment_name>
+To count FLOPs in Monty:
+
+```bash
+cd ~/tbp/monty_labs/monty_profiling
+python run_flop_counter.py -e <experiment_name>
 ```
 
-## Results
-
 Results are saved in `~/tbp/monty_lab/monty_profiling/results/flop_traces.csv`.
+
+To count FLOPs in your own code:
+
+```python
+from floppy.counting.counter import FlopCounter
+
+# Basic usage
+with FlopCounter() as counter:
+    # Your numerical computations here
+    result = np.matmul(a, b)
+    print(f"FLOPs: {counter.flops}")
+
+# With detailed logging
+from logging import getLogger
+logger = getLogger("flop_counter")
+with FlopCounter(logger=logger) as counter:
+    result = np.linalg.norm(vector)
+    print(f"FLOPs: {counter.flops}")
+```
+
+### Static Code Analysis
+
+To analyze FLOP operations in source code:
+
+```bash
+python run_static_analysis.py --dir path/to/analyze
+```
+
+Results are saved in `~/tbp/monty_lab/monty_profiling/results/static_analysis_{timestamp}.csv`.
 
 ## Running Tests
 
