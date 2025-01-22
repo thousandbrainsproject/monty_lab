@@ -252,8 +252,8 @@ class FlopCounter(ContextDecorator):
             result = func(*clean_args, **clean_kwargs)
 
             # If recognized, count FLOPs via self._function_operations
-            if func_name in self._function_operations and self._is_active:
-                flops = self._function_operations[func_name].count_flops(
+            if func_name in self.function_operations and self._is_active:
+                flops = self.function_operations[func_name].count_flops(
                     *clean_args, result=result
                 )
                 if flops is not None:
@@ -272,7 +272,7 @@ class FlopCounter(ContextDecorator):
         np.array = self._tracked_array
 
         # Monkey-patch the functions in _patch_targets
-        for name, (mod, attr) in self._patch_targets.items():
+        for name, (mod, attr) in self.patch_targets.items():
             original_func = getattr(mod, attr)
             self._original_funcs[name] = original_func
             wrapped_func = self._make_wrapper(name, original_func)
@@ -293,7 +293,7 @@ class FlopCounter(ContextDecorator):
 
         # Restore original monkey-patched functions
         for name, original_func in self._original_funcs.items():
-            mod, attr = self._patch_targets[name]
+            mod, attr = self.patch_targets[name]
             setattr(mod, attr, original_func)
 
         return False
@@ -314,9 +314,6 @@ class FlopCounter(ContextDecorator):
         Returns:
             bool: True if counting should be skipped (inside library code), False otherwise
         """
-        if not self._is_active:
-            return True
-
         # Check for library calls
         stack_frames = inspect.stack()
         for frame in stack_frames:
