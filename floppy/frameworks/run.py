@@ -44,10 +44,9 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
                 FlopCountingEvidenceGoalStateGenerator
             )
 
-        # Call original setup
         original_setup(self, modified_config)
 
-        flop_tracker = MontyFlopTracer(
+        flop_tracer = MontyFlopTracer(
             experiment_name=run_name,
             monty_instance=self.model,
             experiment_instance=self,
@@ -55,7 +54,7 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
             eval_dataloader_instance=self.eval_dataloader,
             motor_system_instance=self.model.motor_system,
         )
-        one_true_flop_counter = flop_tracker.flop_counter
+        one_true_flop_counter = flop_tracer.flop_counter
         for lm in self.model.learning_modules:
             if isinstance(lm, FlopCountingEvidenceGraphLM):
                 lm.flop_counter = one_true_flop_counter
@@ -63,8 +62,8 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
                     lm.gsg, FlopCountingEvidenceGoalStateGenerator
                 ):
                     lm.gsg.flop_counter = one_true_flop_counter
-        self.flop_tracker = flop_tracker
-    # Wrap the experiment's setup and Monty's init
+        self.flop_tracer = flop_tracer
+
     experiment_cls.setup_experiment = wrapped_setup
 
     return experiment_cls
@@ -80,10 +79,8 @@ def run_with_flops(exp_config: Dict[str, Any]):
     run_name = exp_config["logging_config"]["run_name"]
     wrapped_experiment = wrap_experiment_with_flops(original_experiment_class, run_name)
 
-    # Update config with wrapped classes
     exp_config["experiment_class"] = wrapped_experiment
 
-    # Run with the modified config
     result = run(exp_config)
     return result
 
