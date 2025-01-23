@@ -1,6 +1,7 @@
 import numpy as np
-from floppy.counting.counter import FlopCounter
 import pytest
+
+from floppy.counting.counter import FlopCounter
 
 
 class TestAdd:
