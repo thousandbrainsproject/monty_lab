@@ -1,64 +1,62 @@
-"""Run using python tests/test_subtract.py. Do not use pytest."""
-
 import numpy as np
-from floppy.flop_counting.counter import FlopCounter
+import pytest
+
+from floppy.counting.counter import FlopCounter
 
 
 def test_subtract_operator_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
-        _ = a - b
+        result = a - b
         assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([-3, -3, -3]))
 
 
 def test_subtract_ufunc_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
-        _ = np.subtract(a, b)
+        result = np.subtract(a, b)
         assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([-3, -3, -3]))
 
-
+# FIXME
+@pytest.mark.xfail(reason="TrackedArray object has no attribute 'subtract'")
 def test_subtract_method_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
-        _ = a.subtract(b)
+        result = a.subtract(b)
         assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([-3, -3, -3]))
 
 
 def test_subtract_augmented_assignment():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         a -= b
         assert counter.flops == 3
-
+        np.testing.assert_array_equal(a, np.array([-3, -3, -3]))
 
 def test_subtract_broadcasting():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = 2
-        _ = a - b
+        result = a - b
         assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([-1, 0, 1]))
 
     counter.flops = 0
     with counter:
         a = np.array([1, 2, 3])
         b = 2
-        _ = b - a
+        result = b - a
         assert counter.flops == 3
-
-
-if __name__ == "__main__":
-    test_subtract_operator_syntax()
-    test_subtract_ufunc_syntax()
-    # test_subtract_method_syntax()  # Expected to fail
-    test_subtract_augmented_assignment()
-    test_subtract_broadcasting()
+        np.testing.assert_array_equal(result, np.array([1, 0, -1]))
