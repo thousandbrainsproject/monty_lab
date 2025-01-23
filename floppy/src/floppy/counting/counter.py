@@ -1,8 +1,11 @@
-from contextlib import ContextDecorator
-from typing import Dict, Any
-import numpy as np
-from .operations import *
 import inspect
+from contextlib import ContextDecorator
+from typing import Any, Dict
+
+import numpy as np
+
+from .operations import *
+
 
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
@@ -168,7 +171,7 @@ class FlopCounter(ContextDecorator):
             "divide": Division(),
             "power": PowerOperation(),
             "floor_divide": FloorDivideOperation(),
-            "mod": ModuloOperation(),
+            "remainder": ModuloOperation(),  # NumPy ufunc for modulo operation is named "remainder"
             "bitwise_and": BitwiseAndOperation(),
             "bitwise_or": BitwiseOrOperation(),
             "sin": SineOperation(),
