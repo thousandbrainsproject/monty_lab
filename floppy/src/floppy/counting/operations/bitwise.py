@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 __all__ = [
     "BitwiseAndOperation",
@@ -15,7 +16,7 @@ class BitwiseAndOperation:
 
         Each element requires 1 bitwise and operation.
         """
-        return np.size(args[0])
+        return np.size(result)
 
 
 class BitwiseOrOperation:
@@ -26,4 +27,4 @@ class BitwiseOrOperation:
 
         Each element requires 1 bitwise or operation.
         """
-        return np.size(args[0])
+        return np.size(result)
