@@ -1,0 +1,17 @@
+[project]
+name = "floppy"
+version = "0.0.1"
+description = "FLOP counting framework"
+requires-python = ">=3.8"
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
+testpaths = [
+    "tests"
+]
