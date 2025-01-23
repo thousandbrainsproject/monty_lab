@@ -15,76 +15,50 @@ that experiments produce are:
  - `surf_agent_1lm`
  - `touch_agent_1lm`
  - `dist_agent_2lm`
- - `dist_agent_5lm`
- - `dist_agent_9lm`
- - `dist_agent_10lm`
+ - `dist_agent_4lm`
+ - `dist_agent_8lm`
+ - `dist_agent_16lm`
 
- All of these models are trained on 77 YCB objects with 14 rotations each. The `touch`
-model is the same as the `surf` model but without access to color information. 10
-distinct object variants are also created for each of these models, so each of the
-above also has a dual version with the suffix `_10distinctobj` (more on this below).
+All of these models are trained on 77 YCB objects with 14 rotations each (cube face
+and corners). The `touch` model is a surface agent without access to color information.
 
-Most settings are the same as in the standard `pretraining_experiments.py` module.
-The biggest exception here is the use of 14 unique rotations for training. This
-improves training speed significantly and yields improved object models for distant
-agents. For surface agents, the lower number of rotations entails less object
-exploration overall (14 episodes vs 32), yielding slightly less complete object
-models. To compensate for this, the learning modules used for surface and touch
-agents models have more exploratory steps than distant agents (1000 vs 500) which
-produces object models roughly equivalent to existing YCB v9 models.
+This module performs some config finalization which does a few useful things:
+ - Adds required (but unused) `eval_dataloader_class` and `eval_dataloader_args`.
+ - Sets the logging config's `output_dir` to `PRETRAIN_DIR`.
+ - Sets `do_eval` to `False` for all experiments.
+ - Checks that no two configs would have the same output directory.
 
-On style: Unlike `pretraining experiments.py`, this module prefers functions to return
-configs rather than copying and modifying them (for the most part). For example, we
-have the functions `get_dist_patch_config()` and `get_surf_patch_config()` which return
-default sensor module configs used for pretraining.
-
-This approach has two main benefits:
-
- 1. Make settings easier to find. Rather than following a chain of copied configs
-    back to find which sensor or learning module an experiment uses, we can just look
-    at the function that returns the config. In this way, the functions are an easy
-    way to look up defaults.
- 2. Parameterized configs. This is especially useful when creating multi-LM
-    experiments or deleting color information from sensor or learning modules in the
-    case of touch-only (no color) experiments.
+This module also defines a set of function that return default configs for learning
+modules, sensor modules, and motor systems specific to pretraining experiments. They
+may be useful for other modules that define pretraining experiments but should not
+be used for eval experiments. Some functions take an optional `color` argument, where
+setting it to `False` returns a sensor or learning module suitable for touch-only models.
 
 The config 'getter'functions defined here are
- - `get_dist_displacement_lm_config`
- - `get_surf_displacement_lm_config`
+ - `get_dist_lm_config`
+ - `get_surf_lm_config`
  - `get_dist_patch_config`
  - `get_surf_patch_config`
  - `get_view_finder_config`
  - `get_dist_motor_config`
  - `get_surf_motor_config`
 
-Names and logger args follow a specific pattern:
- - Model names follow the pattern `{SENSOR}_agent_{NUM_LMS}lm`, where `SENSOR` is one of
-    `dist`, `surf`, or `touch`. The suffix `_10distinctobj` is added automatically for
-    10 distinct object variants.
+Names and logger args have follow certain rules for consistency and to help
+avoid accidental conflicts:
+ - Model names follow the pattern `{SENSOR}_agent_{NUM_LMS}lm`, where `SENSOR` is
+   one of `dist`, `surf`, or `touch`.
  - The experiment key is `pretrain_{MODEL_NAME}` (e.g., `pretrain_dist_agent_1lm`). By
     'experiment key', I mean the key used to identify the config in `CONFIGS`.
  - The logging config's `run_name` is the model name.
  - The logging config's `output_dir` is `PRETRAIN_DIR`.
 
-This module also has a few conveniences that add to or modify configs.
- - A 10-distinct object variant is automatically generated for every config.
- - Eval dataloader arguments (required but unused) are added to each config.
- - Experiments are checked to make sure no two configs have the same `output_dir` /
-   `run_name` pair to ensure there is no conflict in output paths.
-
-These conveniences are implemented at the bottom of the module, after `CONFIGS` is
-defined.
 """
 
 import copy
-import os
 from pathlib import Path
 
 import numpy as np
-
-
 from tbp.monty.frameworks.config_utils.config_args import (
-    FiveLMMontyConfig,
     MontyArgs,
     MontyFeatureGraphArgs,
     MotorSystemConfigCurvatureInformedSurface,
@@ -92,27 +66,16 @@ from tbp.monty.frameworks.config_utils.config_args import (
     PatchAndViewMontyConfig,
     PretrainLoggingConfig,
     SurfaceAndViewMontyConfig,
-    TwoLMMontyConfig,
     get_cube_face_and_corner_views_rotations,
+    make_multi_lm_monty_config,
 )
-from .config_args import (
-    NineLMMontyConfig,
-    TenLMMontyConfig,
-)
-
-
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
-    FiveLMMountHabitatDatasetArgs,
     PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     SurfaceViewFinderMountHabitatDatasetArgs,
-)
-from .make_dataset_configs import (
-    NineLMMountHabitatDatasetArgs,
-    TenLMMountHabitatDatasetArgs,
-    TwoLMMountHabitatDatasetArgs,
+    make_multi_sensor_habitat_dataset_args,
 )
 from tbp.monty.frameworks.config_utils.policy_setup_utils import (
     make_naive_scan_policy_config,
@@ -123,34 +86,31 @@ from tbp.monty.frameworks.experiments.pretraining_experiments import (
     MontySupervisedObjectPretrainingExperiment,
 )
 from tbp.monty.frameworks.models.displacement_matching import DisplacementGraphLM
+from tbp.monty.frameworks.models.graph_matching import MontyForGraphMatching
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     HabitatDistantPatchSM,
     HabitatSurfacePatchSM,
 )
 
-# Specify default here
+from .common import PRETRAIN_DIR
 
+# Specify default here
 # - Experiment args
 NUM_EXPLORATORY_STEPS_DIST = 500
 NUM_EXPLORATORY_STEPS_SURF = 1000
 
-# - Paths
-monty_models_dir = os.getenv("MONTY_MODELS")
-if not monty_models_dir:
-    monty_models_dir = "~/tbp/results/monty/pretrained_models"
-PRETRAIN_DIR = Path(monty_models_dir).expanduser() / "pretrained_ycb_dmc"
-
-# - Define training rotations. Views from enclosing cube faces plus its corners.
+# - Define 14 training rotations. Views from enclosing cube faces plus its corners.
 TRAIN_ROTATIONS = get_cube_face_and_corner_views_rotations()
 
 
-# ------------------------------------------------------------------------------
-# Getter functions for learning modules, sensor modules, and motor configs.
-# ------------------------------------------------------------------------------
+"""
+Config "getter" functions
+--------------------------------------------------------------------------------
+"""
 
 
-def get_dist_displacement_lm_config(
+def get_dist_lm_config(
     sensor_module_id: str = "patch",
     color: bool = True,
 ) -> dict:
@@ -190,7 +150,7 @@ def get_dist_displacement_lm_config(
     return out
 
 
-def get_surf_displacement_lm_config(
+def get_surf_lm_config(
     sensor_module_id: str = "patch",
     color: bool = True,
 ) -> dict:
@@ -363,7 +323,13 @@ Functions used for generating experiment variants.
 
 
 def make_10distinctobj_variant(template: dict) -> dict:
-    """Make 10 distinct object variants for a given config.
+    """Make a 10-distinct object variant of a config.
+
+    NOTE: We aren't likely to use any 10distinctobj variants in the DMC paper,
+    so this will be removed soon. For the time being, it can be useful to
+    sometimes train 10distinctobj models for debugging purposes.
+
+    TODO: Remove this function when bringing this code into a publishable state.
 
     Returns:
         dict: Copy of `template` config that trains on DISTINCT_OBJECTS dataset.
@@ -378,10 +344,9 @@ def make_10distinctobj_variant(template: dict) -> dict:
 
 
 """
-1 LM models
+1-LM models
 --------------------------------------------------------------------------------
 """
-
 
 pretrain_dist_agent_1lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
@@ -393,7 +358,7 @@ pretrain_dist_agent_1lm = dict(
     monty_config=PatchAndViewMontyConfig(
         monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
         learning_module_configs=dict(
-            learning_module_0=get_dist_displacement_lm_config(),
+            learning_module_0=get_dist_lm_config(),
         ),
         sensor_module_configs=dict(
             sensor_module_0=get_dist_patch_config(),
@@ -412,7 +377,6 @@ pretrain_dist_agent_1lm = dict(
     ),
 )
 
-
 pretrain_surf_agent_1lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
@@ -425,7 +389,7 @@ pretrain_surf_agent_1lm = dict(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
         ),
         learning_module_configs=dict(
-            learning_module_0=get_surf_displacement_lm_config(),
+            learning_module_0=get_surf_lm_config(),
         ),
         sensor_module_configs=dict(
             sensor_module_0=get_surf_patch_config(),
@@ -444,7 +408,6 @@ pretrain_surf_agent_1lm = dict(
     ),
 )
 
-
 pretrain_touch_agent_1lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
@@ -457,7 +420,7 @@ pretrain_touch_agent_1lm = dict(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
         ),
         learning_module_configs=dict(
-            learning_module_0=get_surf_displacement_lm_config(color=False),
+            learning_module_0=get_surf_lm_config(color=False),
         ),
         sensor_module_configs=dict(
             sensor_module_0=get_surf_patch_config(color=False),
@@ -477,6 +440,28 @@ pretrain_touch_agent_1lm = dict(
 )
 
 """
+Setup for Multi-LM Experiments
+--------------------------------------------------------------------------------
+"""
+# - Set up arguments for `make_multi_lm_monty_config`. Use the prefix `mlm_` to indicate
+# that these are arguments for the multi-LM experiments.
+# - The following set of arguments are reused for all multi-LM configs.
+mlm_learning_module_config = get_dist_lm_config()
+mlm_sensor_module_config = get_dist_patch_config()
+mlm_motor_system_config = get_dist_motor_config()
+mlm_monty_config_args = {
+    "monty_class": MontyForGraphMatching,
+    "learning_module_class": mlm_learning_module_config["learning_module_class"],
+    "learning_module_args": mlm_learning_module_config["learning_module_args"],
+    "sensor_module_class": mlm_sensor_module_config["sensor_module_class"],
+    "sensor_module_args": mlm_sensor_module_config["sensor_module_args"],
+    "motor_system_class": mlm_motor_system_config.motor_system_class,
+    "motor_system_args": mlm_motor_system_config.motor_system_args,
+    "monty_args": dict(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
+}
+
+
+"""
 2 LMs
 --------------------------------------------------------------------------------
 """
@@ -488,22 +473,33 @@ pretrain_dist_agent_2lm = dict(
         do_eval=False,
     ),
     logging_config=PretrainLoggingConfig(run_name="dist_agent_2lm"),
-    monty_config=TwoLMMontyConfig(
-        monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_displacement_lm_config("patch_0"),
-            learning_module_1=get_dist_displacement_lm_config("patch_1"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_dist_patch_config("patch_0"),
-            sensor_module_1=get_dist_patch_config("patch_1"),
-            sensor_module_2=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
+    monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
-    dataset_args=TwoLMMountHabitatDatasetArgs(),
+    dataset_args=make_multi_sensor_habitat_dataset_args(2),
+    train_dataloader_class=ED.InformedEnvironmentDataLoader,
+    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+        object_names=SHUFFLED_YCB_OBJECTS,
+        object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
+    ),
+)
+
+"""
+4 LMs
+--------------------------------------------------------------------------------
+"""
+
+pretrain_dist_agent_4lm = dict(
+    experiment_class=MontySupervisedObjectPretrainingExperiment,
+    experiment_args=ExperimentArgs(
+        n_train_epochs=len(TRAIN_ROTATIONS),
+        do_eval=False,
+    ),
+    logging_config=PretrainLoggingConfig(run_name="dist_agent_4lm"),
+    monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
+    # Set up environment and agent.
+    dataset_class=ED.EnvironmentDataset,
+    dataset_args=make_multi_sensor_habitat_dataset_args(4),
     # Set up training dataloader.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
@@ -513,40 +509,21 @@ pretrain_dist_agent_2lm = dict(
 )
 
 """
-5 LMs
+8 LMs
 --------------------------------------------------------------------------------
 """
 
-
-pretrain_dist_agent_5lm = dict(
+pretrain_dist_agent_8lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_5lm"),
-    monty_config=FiveLMMontyConfig(
-        monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_displacement_lm_config("patch_0"),
-            learning_module_1=get_dist_displacement_lm_config("patch_1"),
-            learning_module_2=get_dist_displacement_lm_config("patch_2"),
-            learning_module_3=get_dist_displacement_lm_config("patch_3"),
-            learning_module_4=get_dist_displacement_lm_config("patch_4"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_dist_patch_config("patch_0"),
-            sensor_module_1=get_dist_patch_config("patch_1"),
-            sensor_module_2=get_dist_patch_config("patch_2"),
-            sensor_module_3=get_dist_patch_config("patch_3"),
-            sensor_module_4=get_dist_patch_config("patch_4"),
-            sensor_module_5=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
+    logging_config=PretrainLoggingConfig(run_name="dist_agent_8lm"),
+    monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
-    dataset_args=FiveLMMountHabitatDatasetArgs(),
+    dataset_args=make_multi_sensor_habitat_dataset_args(8),
     # Set up training dataloader.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
@@ -555,104 +532,21 @@ pretrain_dist_agent_5lm = dict(
     ),
 )
 
-# %%
 """
-9 LMs
+16 LMs
 --------------------------------------------------------------------------------
 """
 
-
-pretrain_dist_agent_9lm = dict(
+pretrain_dist_agent_16lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
         n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_9lm"),
-    monty_config=NineLMMontyConfig(
-        monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_displacement_lm_config("patch_0"),
-            learning_module_1=get_dist_displacement_lm_config("patch_1"),
-            learning_module_2=get_dist_displacement_lm_config("patch_2"),
-            learning_module_3=get_dist_displacement_lm_config("patch_3"),
-            learning_module_4=get_dist_displacement_lm_config("patch_4"),
-            learning_module_5=get_dist_displacement_lm_config("patch_5"),
-            learning_module_6=get_dist_displacement_lm_config("patch_6"),
-            learning_module_7=get_dist_displacement_lm_config("patch_7"),
-            learning_module_8=get_dist_displacement_lm_config("patch_8"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_dist_patch_config("patch_0"),
-            sensor_module_1=get_dist_patch_config("patch_1"),
-            sensor_module_2=get_dist_patch_config("patch_2"),
-            sensor_module_3=get_dist_patch_config("patch_3"),
-            sensor_module_4=get_dist_patch_config("patch_4"),
-            sensor_module_5=get_dist_patch_config("patch_5"),
-            sensor_module_6=get_dist_patch_config("patch_6"),
-            sensor_module_7=get_dist_patch_config("patch_7"),
-            sensor_module_8=get_dist_patch_config("patch_8"),
-            sensor_module_9=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
+    logging_config=PretrainLoggingConfig(run_name="dist_agent_16lm"),
+    monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
-    dataset_args=NineLMMountHabitatDatasetArgs(),
-    # Set up training dataloader.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
-    ),
-)
-
-
-"""
-10 LMs
---------------------------------------------------------------------------------
-"""
-
-
-pretrain_dist_agent_10lm = dict(
-    experiment_class=MontySupervisedObjectPretrainingExperiment,
-    experiment_args=ExperimentArgs(
-        n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
-    ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_10lm"),
-    monty_config=TenLMMontyConfig(
-        monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
-        learning_module_configs=dict(
-            learning_module_0=get_dist_displacement_lm_config("patch_0"),
-            learning_module_1=get_dist_displacement_lm_config("patch_1"),
-            learning_module_2=get_dist_displacement_lm_config("patch_2"),
-            learning_module_3=get_dist_displacement_lm_config("patch_3"),
-            learning_module_4=get_dist_displacement_lm_config("patch_4"),
-            learning_module_5=get_dist_displacement_lm_config("patch_5"),
-            learning_module_6=get_dist_displacement_lm_config("patch_6"),
-            learning_module_7=get_dist_displacement_lm_config("patch_7"),
-            learning_module_8=get_dist_displacement_lm_config("patch_8"),
-            learning_module_9=get_dist_displacement_lm_config("patch_9"),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_dist_patch_config("patch_0"),
-            sensor_module_1=get_dist_patch_config("patch_1"),
-            sensor_module_2=get_dist_patch_config("patch_2"),
-            sensor_module_3=get_dist_patch_config("patch_3"),
-            sensor_module_4=get_dist_patch_config("patch_4"),
-            sensor_module_5=get_dist_patch_config("patch_5"),
-            sensor_module_6=get_dist_patch_config("patch_6"),
-            sensor_module_7=get_dist_patch_config("patch_7"),
-            sensor_module_8=get_dist_patch_config("patch_8"),
-            sensor_module_9=get_dist_patch_config("patch_9"),
-            sensor_module_10=get_view_finder_config(),
-        ),
-        motor_system_config=get_dist_motor_config(),
-    ),
-    # Set up environment and agent.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=TenLMMountHabitatDatasetArgs(),
+    dataset_args=make_multi_sensor_habitat_dataset_args(16),
     # Set up training dataloader.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
@@ -666,38 +560,31 @@ pretrain_dist_agent_10lm = dict(
 Finalize configs
 --------------------------------------------------------------------------------
 """
+
 CONFIGS = {
     "pretrain_dist_agent_1lm": pretrain_dist_agent_1lm,
     "pretrain_surf_agent_1lm": pretrain_surf_agent_1lm,
     "pretrain_touch_agent_1lm": pretrain_touch_agent_1lm,
     "pretrain_dist_agent_2lm": pretrain_dist_agent_2lm,
-    "pretrain_dist_agent_5lm": pretrain_dist_agent_5lm,
-    "pretrain_dist_agent_9lm": pretrain_dist_agent_9lm,
-    "pretrain_dist_agent_10lm": pretrain_dist_agent_10lm,
+    "pretrain_dist_agent_4lm": pretrain_dist_agent_4lm,
+    "pretrain_dist_agent_8lm": pretrain_dist_agent_8lm,
+    "pretrain_dist_agent_16lm": pretrain_dist_agent_16lm,
 }
 
-# Add 10 distinct object variants.
-_new_configs = {}
-for key, exp in CONFIGS.items():
-    _new_exp = make_10distinctobj_variant(exp)
-    _new_configs[f"{key}_10distinctobj"] = _new_exp
-CONFIGS.update(_new_configs)
-del _new_configs, _new_exp
-
-# Perform final checks and attribute assignments.
+# Perform sanity checks and
 _output_paths = []
 for exp in CONFIGS.values():
-    # Configure logging.
-    exp["logging_config"].output_dir = str(PRETRAIN_DIR)
-
     # Add dummy eval dataloader. Required but not used.
     exp["eval_dataloader_class"] = ED.InformedEnvironmentDataLoader
     exp["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
         object_names=["mug"],
         object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
     )
-    # CHECK: `do_eval` must be set to False.
-    assert not exp["experiment_args"].do_eval
+    # Configure output directory..
+    exp["logging_config"].output_dir = str(PRETRAIN_DIR)
+
+    # Make sure eval is disabled.
+    exp["experiment_args"].do_eval = False
 
     # CHECK: output path must be unique.
     _path = Path(exp["logging_config"].output_dir) / exp["logging_config"].run_name
