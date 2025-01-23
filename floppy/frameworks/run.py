@@ -25,16 +25,26 @@ from frameworks.models.goal_state_generation import (
 from src.floppy.counting.tracer import MontyFlopTracer
 
 def wrap_experiment_with_flops(experiment_cls, run_name):
-    """Wraps both Monty and Experiment classes to add FLOP tracking."""
+    """Modifies Monty experiment class to enable FLOP counting.
+
+    This function modifies the experiment class's setup_experiment method by:
+    1. Creating a modified setup method that replaces standard learning modules
+       with FLOP-counting versions (FlopCountingEvidenceGraphLM and
+       FlopCountingEvidenceGoalStateGenerator)
+    2. Initializing a MontyFlopTracer to track FLOP counts
+    3. Assigning the MontyFlopTracer's counter to each learning module
+
+    Args:
+        experiment_cls: The experiment class to be modified
+        run_name (str): Name of the experiment run, used by the MontyFlopTracer
+
+    Returns:
+        experiment_cls: The modified experiment class with FLOP counting capabilities
+    """
     original_setup = experiment_cls.setup_experiment
 
     def wrapped_setup(self, config):
-        """Wrap the setup_experiment to initialize counters first."""
-        # Initialize counters before doing anything else
-        self.init_counters()
-
         modified_config = config.copy()
-        # Update config to replace EvidenceGraphLM with FlopCountingEvidenceGraphLM
         for lm_key in modified_config["monty_config"]["learning_module_configs"]:
             lm_config = modified_config["monty_config"]["learning_module_configs"][
                 lm_key
@@ -70,7 +80,6 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
 
 
 def run_with_flops(exp_config: Dict[str, Any]):
-    """Runs an experiment with FLOP tracking by modifying both classes."""
     original_experiment_class = exp_config.get("experiment_class")
 
     if original_experiment_class is None:
