@@ -8,8 +8,22 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""
-Implements `dist_agent_1lm_randrot_nohyp_x_percent_20p`
+"""Configs for Figure 7: Flops Comparison.
+This module defines the following experiments:
+ - `dist_agent_1lm_randrot_nohyp_x_percent_5p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_10p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_20p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_30p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
+
+Experiments use:
+ - 77 objects
+ - 5 random rotations
+ - No sensor noise*
+ - No hypothesis testing*
+ - No voting
+
+ The main output measure is accuracy and FLOPs as a function of x-percent threshold.
 """
 
 import copy
