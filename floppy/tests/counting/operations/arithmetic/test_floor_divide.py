@@ -1,54 +1,51 @@
-"""Run using python tests/test_floor_divide.py. Do not use pytest."""
-
 import numpy as np
-from floppy.flop_counting.counter import FlopCounter
+import pytest
+
+from floppy.counting.counter import FlopCounter
 
 
 def test_floor_divide_operator_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
-        _ = a // b
-        assert counter.flops == 3
+        result = a // b
+        assert counter.flops == 6
+        np.testing.assert_array_equal(result, np.array([0, 0, 0]))
 
 
 def test_floor_divide_ufunc_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
-        _ = np.floor_divide(a, b)
-        assert counter.flops == 3
+        result = np.floor_divide(a, b)
+        assert counter.flops == 6
+        np.testing.assert_array_equal(result, np.array([0, 0, 0]))
 
 
 def test_floor_divide_augmented_assignment():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         a //= b
-        assert counter.flops == 3
-
+        assert counter.flops == 6
+        np.testing.assert_array_equal(a, np.array([0, 0, 0]))
 
 def test_floor_divide_broadcasting():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
         b = 2
-        _ = a // b
-        assert counter.flops == 3
+        result = a // b
+        assert counter.flops == 6
+        np.testing.assert_array_equal(result, np.array([0, 1, 1]))
 
     counter.flops = 0
     with counter:
         a = np.array([1, 2, 3])
         b = 2
-        _ = b // a
-        assert counter.flops == 3
-
-
-if __name__ == "__main__":
-    test_floor_divide_operator_syntax()
-    test_floor_divide_ufunc_syntax()
-    test_floor_divide_augmented_assignment()
-    test_floor_divide_broadcasting()
+        result = b // a
+        assert counter.flops == 6
+        np.testing.assert_array_equal(result, np.array([2, 1, 0]))
