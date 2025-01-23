@@ -62,7 +62,8 @@ class MontyFlopTracer:
 
             # Create handlers
             file_handler = logging.FileHandler(
-                self.log_path.parent / "detailed_flops.log"
+                self.log_path.parent
+                / f"detailed_flops_{self.experiment_name}_{timestamp}.log"
             )
             console_handler = logging.StreamHandler()
 
