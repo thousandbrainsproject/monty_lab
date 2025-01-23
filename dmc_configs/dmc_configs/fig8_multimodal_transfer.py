@@ -48,7 +48,6 @@ from .common import (
     MIN_EVAL_STEPS,
     PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
-    RESULTS_DIR,
     DMCEvalLoggingConfig,
     get_surf_lm_config,
     get_surf_motor_config,
@@ -88,6 +87,12 @@ touch_agent_1lm = dict(
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+    ),
+    # Configure dummy train dataloader. Required but not used.
+    train_dataloader_class=ED.InformedEnvironmentDataLoader,
+    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+        object_names=["mug"],
+        object_init_sampler=PredefinedObjectInitializer(),
     ),
 )
 
