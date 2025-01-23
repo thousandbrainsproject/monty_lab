@@ -19,6 +19,7 @@ Three configs are defined:
 - view_finder_base: 14 standard training rotations
 - view_finder_randrot_all: 14 randomly generated rotations
 - view_finder_randrot: 5 pre-defined "random" rotations
+- view_finder_32: 32 training rotations for rapid learning experiments
 
 All use 77 objects.
 
