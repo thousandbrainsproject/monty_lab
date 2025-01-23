@@ -14,7 +14,16 @@ setup_env()
 # Load all experiment configurations from local project
 from configs import CONFIGS  # noqa: E402
 
+# Add monty_lab to Python path
+from pathlib import Path
+import sys
+
+monty_lab_path = Path("~/tbp/monty_lab").expanduser().resolve()
+sys.path.append(str(monty_lab_path))
+
+from dmc_configs.dmc_configs import CONFIGS as DMC_CONFIGS  # noqa: E402
 from frameworks.run import flop_main  # noqa: E402
 
 if __name__ == "__main__":
+    CONFIGS.update(DMC_CONFIGS)
     flop_main(all_configs=CONFIGS)
