@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 __all__ = [
     "Addition",
@@ -90,7 +91,7 @@ class FloorDivideOperation:
         - 1 floor/truncation operation
         Total: 2 FLOPs per element
         """
-        return 2 * np.size(args[0])
+        return 2 * np.size(result)
 
 
 class ModuloOperation:
@@ -105,4 +106,4 @@ class ModuloOperation:
         - 1 subtraction (remainder = a - product)
         Total: 3 FLOPs per element
         """
-        return 3 * np.size(args[0])
+        return 3 * np.size(result)
