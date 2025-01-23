@@ -205,6 +205,7 @@ class FlopCounter(ContextDecorator):
             "trace": TraceOperation(),
             "argmin": ArgminOperation(),
             "argmax": ArgmaxOperation(),
+            "log": LogOperation(),  # Required to intercept operation when input is scalar
         }
         self.patch_targets = {
             "matmul": (np, "matmul"),
@@ -223,6 +224,7 @@ class FlopCounter(ContextDecorator):
             "trace": (np, "trace"),
             "argmin": (np, "argmin"),
             "argmax": (np, "argmax"),
+            "log": (np, "log"),  # Required to intercept operation when input is scalar
         }
 
     def _tracked_array(self, *args, **kwargs):
@@ -271,7 +273,7 @@ class FlopCounter(ContextDecorator):
         return wrapper
 
     def __enter__(self):
-        # Store original numpy array class and array function
+        # Store original numpy array class and array functions
         self._original_array = np.ndarray
         self._original_array_func = np.array
 
@@ -295,7 +297,7 @@ class FlopCounter(ContextDecorator):
         """
         self._is_active = False
 
-        # Restore original array function
+        # Restore original array functions
         np.array = self._original_array_func
 
         # Restore original monkey-patched functions

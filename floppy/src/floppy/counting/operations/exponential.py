@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 __all__ = [
     "LogOperation",
@@ -17,8 +18,18 @@ class LogOperation:
         and desired precision. Common implementations use series expansions or
         iterative methods that involve multiple multiplications and divisions.
         We use a conservative estimate of 20 FLOPs per logarithm.
+
+        Args:
+            *args: Input arguments to the operation
+            result: Result of the operation
+
+        Returns:
+            Number of FLOPs
         """
-        return 20 * np.size(args[0])
+        # Handle Python scalars by checking the first argument
+        if np.isscalar(args[0]) and not isinstance(args[0], np.ndarray):
+            return 20
+        return 20 * np.size(result)
 
 
 class PowerOperation:
