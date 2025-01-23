@@ -149,13 +149,14 @@ class FlopCounter(ContextDecorator):
     3) accumulates FLOPs for each operation
     """
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, test_mode=False):
         self.flops = 0
         self._is_active = False
         self.logger = logger  # Store the logger instance
         self.detailed_logging = (
             logger is not None
         )  # Enable detailed logging if logger is provided
+        self.test_mode = test_mode
 
         self._original_array_func = None
         self._original_funcs = {}
@@ -301,8 +302,7 @@ class FlopCounter(ContextDecorator):
 
         return False
 
-    @classmethod
-    def should_skip_counting(cls) -> bool:
+    def should_skip_counting(self) -> bool:
         """
         Determine if FLOP counting should be skipped based on the call stack.
 
@@ -317,6 +317,8 @@ class FlopCounter(ContextDecorator):
         Returns:
             bool: True if counting should be skipped (inside library code), False otherwise
         """
+        if self.test_mode:
+            return False
         # Check for library calls
         stack_frames = inspect.stack()
         for frame in stack_frames:
