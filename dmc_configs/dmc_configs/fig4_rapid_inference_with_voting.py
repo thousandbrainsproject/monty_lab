@@ -47,7 +47,6 @@ from .common import (
     MIN_EVAL_STEPS,
     PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
-    RESULTS_DIR,
     DMCEvalLoggingConfig,
     get_dist_lm_config,
     get_dist_motor_config,
