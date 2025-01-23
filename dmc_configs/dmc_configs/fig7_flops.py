@@ -27,7 +27,9 @@ Experiments use:
 """
 
 import copy
-from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise_nohyp
+from .fig5_rapid_inference_with_model_based_policie import (
+    dist_agent_1lm_randrot_noise_nohyp,
+)
 
 
 def update_x_percent_threshold_in_config(
@@ -63,12 +65,14 @@ def update_x_percent_threshold_in_config(
     return config
 
 
-dist_agent_1lm_randrot_no_noise_nohyp = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
-)
-# TODO: Remove sensor noise
-# Or can I start from fig6's dist_agent_1lm_ranrot_nohyp_1rot_trained? (Though I think I need 14 rot?)
-
+dist_agent_1lm_randrot_nohyp = copy.deepcopy(dist_agent_1lm_randrot_noise_nohyp)
+for sm_dict in dist_agent_1lm_randrot_nohyp[
+    "monty_config"
+].sensor_module_configs.values():
+    sm_args = sm_dict["sensor_module_args"]
+    if sm_args["sensor_module_id"] == "view_finder":
+        continue
+    sm_args["noise_params"] = {}  # Set noise_param to empty dictionary to remove noise
 
 dist_agent_1lm_randrot_nohyp_x_percent_5p = copy.deepcopy(
     dist_agent_1lm_randrot_noise_nohyp
