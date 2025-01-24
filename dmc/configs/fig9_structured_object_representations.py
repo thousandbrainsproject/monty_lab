@@ -19,15 +19,29 @@ This module defines the following experiments:
  - Sensor noise
  - Hypothesis-testing policy active
  - No voting
+ - SELECTIVE evidence logging
 """
 
 import copy
 
+from tbp.monty.frameworks.config_utils.config_args import EvalEvidenceLMLoggingConfig
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 
+from .common import RESULTS_DIR
 from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
+# logging_config=EvalEvidenceLMLoggingConfig(
+# monty_handlers=[BasicCSVStatsHandler, DetailedJSONHandler],
+# wandb_handlers=[],
+# monty_log_level="SELECTIVE",
+# ),
 dist_agent_1lm_randrot_noise_10simobj = copy.deepcopy(dist_agent_1lm_randrot_noise)
+dist_agent_1lm_randrot_noise_10simobj["logging_config"] = EvalEvidenceLMLoggingConfig(
+    output_dir=RESULTS_DIR / "dist_agent_1lm_randrot_noise_10simobj",
+    run_name="dist_agent_1lm_randrot_noise_10simobj",
+    wandb_group="dmc",
+    monty_log_level="SELECTIVE",
+)
 dist_agent_1lm_randrot_noise_10simobj[
     "eval_dataloader_args"
 ].object_names = SIMILAR_OBJECTS

@@ -27,7 +27,8 @@ Experiments use:
 """
 
 import copy
-from .fig5_rapid_inference_with_model_based_policie import (
+
+from .fig5_rapid_inference_with_model_based_policies import (
     dist_agent_1lm_randrot_noise_nohyp,
 )
 

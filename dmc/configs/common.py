@@ -13,15 +13,9 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
 )
-from tbp.monty.frameworks.loggers.monty_handlers import (
-    BasicCSVStatsHandler,
-)
-from tbp.monty.frameworks.models.evidence_matching import (
-    EvidenceGraphLM,
-)
-from tbp.monty.frameworks.models.goal_state_generation import (
-    EvidenceGoalStateGenerator,
-)
+from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
+from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
+from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     FeatureChangeSM,
@@ -37,7 +31,7 @@ MAX_TOTAL_STEPS = 10_000
 MIN_EVAL_STEPS = 20
 MAX_EVAL_STEPS = 500
 
-# - Predefined rotations
+# - 5 Random Rotations
 RANDOM_ROTATIONS_5 = [
     [19, 339, 301],
     [196, 326, 225],
@@ -341,7 +335,7 @@ def add_sensor_noise(
     pose_fully_defined: float = 0.01,
     location: float = 0.002,
 ) -> None:
-    """Add defaultsensor noise to an experiment config in-place.
+    """Add default sensor noise to an experiment config in-place.
 
     Applies noise parameters to all sensor modules except the view finder. The
     `color` parameter controls whether to add 'hsv' noise. Set this to `False` for

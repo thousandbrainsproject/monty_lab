@@ -11,8 +11,8 @@
 """Configs for Figure 8: Multi-Modal Transfer
 
 This module defines the following experiments:
- - `dist_on_touch_1lm_randrot_noise`
  - `touch_agent_1lm_randrot_noise`
+ - `dist_on_touch_1lm_randrot_noise`
  - `touch_on_dist_1lm_randrot_noise`
 
  Experiments use:
@@ -26,7 +26,6 @@ import copy
 
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
-    ParallelEvidenceLMLoggingConfig,
     SurfaceAndViewMontyConfig,
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
@@ -57,14 +56,12 @@ from .common import (
 )
 from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
-TEST_ROTATIONS = RANDOM_ROTATIONS_5
-
-# - Touch agent (color removed from sensors)
+# `touch_agent_1lm`: a morphology-only model.
 touch_agent_1lm = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(PRETRAIN_DIR / "touch_agent_1lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
+        n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
     ),
@@ -86,7 +83,7 @@ touch_agent_1lm = dict(
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+        object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
@@ -96,25 +93,45 @@ touch_agent_1lm = dict(
     ),
 )
 
-# - Touch agent with random rotations and noise
-touch_agent_1lm_randrot_noise = make_randrot_noise_variant(touch_agent_1lm, color=False)
+# - Add noise and use 5 random rotations.
+touch_agent_1lm_randrot_noise = make_randrot_noise_variant(touch_agent_1lm)
 
-# - Distant agent using model trained on touch agent
+
+# `dist_on_touch_1lm_randrot_noise`: a distant agent using the touch agent's
+# pretrained model.
 dist_on_touch_1lm_randrot_noise = copy.deepcopy(dist_agent_1lm_randrot_noise)
+
+# - Update the run name.
+dist_on_touch_1lm_randrot_noise[
+    "logging_config"
+].run_name = "dist_on_touch_1lm_randrot_noise"
+
+# - Set the model path to the touch agent's pretrained model.
 dist_on_touch_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
     PRETRAIN_DIR / "touch_agent_1lm/pretrained"
 )
-# Remove HSV noise from sensor module.
-sm_config = dist_on_touch_1lm_randrot_noise["monty_config"].sensor_module_configs[
-    "sensor_module_0"
-]
-sm_config["sensor_module_args"]["noise_params"].pop("hsv")
+# - Tell the LM not to try and use the sensor's color data for graph matching
+#   since the model has no color data stored.
+lm_configs = dist_on_touch_1lm_randrot_noise["monty_config"].learning_module_configs
+lm_args = lm_configs["learning_module_0"]["learning_module_args"]
+lm_args["tolerances"]["patch"].pop("hsv")
+lm_args["feature_weights"]["patch"].pop("hsv")
 
-# Touch agent using model trained on distant agent
+
+# `touch_on_dist_1lm_randrot_noise`: a touch agent using the distant agent's
+# pretrained model.
 touch_on_dist_1lm_randrot_noise = copy.deepcopy(touch_agent_1lm_randrot_noise)
+
+# - Update the run name.
+touch_on_dist_1lm_randrot_noise[
+    "logging_config"
+].run_name = "touch_on_dist_1lm_randrot_noise"
+
+# - Set the model path to the distant agent's pretrained model.
 touch_on_dist_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
     PRETRAIN_DIR / "dist_agent_1lm/pretrained"
 )
+
 
 CONFIGS = {
     "touch_agent_1lm_randrot_noise": touch_agent_1lm_randrot_noise,
