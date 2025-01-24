@@ -1,3 +1,7 @@
-# Configurations for Demonstrating Monty Capabilities Experiments
+# Demonstrating Monty Capabilities Experiments
 
-Phase I Goal: Move draft PR from `tbp.monty` to `monty_lab`.
+This repository contains the code for the experiments in the paper "Demonstrating Monty Capabilities".
+
+## Running the Experiments
+
+## Reproducting Figures from the Paper
