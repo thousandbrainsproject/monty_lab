@@ -335,7 +335,7 @@ def add_sensor_noise(
     pose_fully_defined: float = 0.01,
     location: float = 0.002,
 ) -> None:
-    """Add defaultsensor noise to an experiment config in-place.
+    """Add default sensor noise to an experiment config in-place.
 
     Applies noise parameters to all sensor modules except the view finder. The
     `color` parameter controls whether to add 'hsv' noise. Set this to `False` for
