@@ -37,7 +37,7 @@ MAX_TOTAL_STEPS = 10_000
 MIN_EVAL_STEPS = 20
 MAX_EVAL_STEPS = 500
 
-# - Predefined rotations
+# - 5 Random Rotations
 RANDOM_ROTATIONS_5 = [
     [19, 339, 301],
     [196, 326, 225],
