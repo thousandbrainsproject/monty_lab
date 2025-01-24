@@ -11,7 +11,7 @@
 """Configs for Figure 8: Multi-Modal Transfer
 
 This module defines the following experiments:
-- `touch_agent_1lm_randrot_noise`
+ - `touch_agent_1lm_randrot_noise`
  - `dist_on_touch_1lm_randrot_noise`
  - `touch_on_dist_1lm_randrot_noise`
 
@@ -26,13 +26,11 @@ import copy
 
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
-    PatchAndViewMontyConfig,
     SurfaceAndViewMontyConfig,
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     SurfaceViewFinderMountHabitatDatasetArgs,
 )
@@ -50,9 +48,6 @@ from .common import (
     PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
     DMCEvalLoggingConfig,
-    get_dist_lm_config,
-    get_dist_motor_config,
-    get_dist_patch_config,
     get_surf_lm_config,
     get_surf_motor_config,
     get_surf_patch_config,
@@ -61,14 +56,12 @@ from .common import (
 )
 from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
-TEST_ROTATIONS = RANDOM_ROTATIONS_5
-
 # `touch_agent_1lm`: a morphology-only model.
 touch_agent_1lm = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(PRETRAIN_DIR / "touch_agent_1lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
+        n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
     ),
@@ -90,7 +83,7 @@ touch_agent_1lm = dict(
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+        object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
@@ -118,7 +111,7 @@ dist_on_touch_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
     PRETRAIN_DIR / "touch_agent_1lm/pretrained"
 )
 # - Tell the LM not to try and use the sensor's color data for graph matching
-#    since the model has no color data stored.
+#   since the model has no color data stored.
 lm_configs = dist_on_touch_1lm_randrot_noise["monty_config"].learning_module_configs
 lm_args = lm_configs["learning_module_0"]["learning_module_args"]
 lm_args["tolerances"]["patch"].pop("hsv")
