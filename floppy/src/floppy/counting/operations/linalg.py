@@ -1,7 +1,9 @@
-import numpy as np
 from typing import Any, Optional, Tuple, Union
 
+import numpy as np
+
 __all__ = [
+    "CrossOperation",
     "MatmulOperation",
     "TraceOperation",
     "NormOperation",
@@ -9,6 +11,24 @@ __all__ = [
     "InvOperation",
     "EigOperation",
 ]
+
+class CrossOperation:
+    """FLOP counter for vector cross product operations."""
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for cross product operation.
+
+        Note: Cross product is only defined for 3D vectors (and 7D, though rarely used).
+        For 3D vectors, cross product requires:
+        - 6 multiplications
+        - 3 subtractions
+        Total: 9 FLOPs per cross product
+        """
+        # Get number of cross products being computed
+        num_operations = max(
+            1, result.shape[0] if isinstance(result, np.ndarray) else 1
+        )
+        return 9 * num_operations
 
 
 class MatmulOperation:
