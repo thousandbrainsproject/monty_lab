@@ -1,11 +1,12 @@
 """Run using python tests/test_arccosine.py. Do not use pytest."""
 
 import numpy as np
-from floppy.flop_counting.counter import FlopCounter
+
+from floppy.counting.counter import FlopCounter
 
 
 def test_arccos_ufunc_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([-0.5, 0.0, 0.5])  # values within valid domain [-1, 1]
         result = np.arccos(a)
@@ -16,17 +17,16 @@ def test_arccos_ufunc_syntax():
 
 
 def test_arccos_scalar():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
-        # FIXME: counter.flops returns 0
         a = 0.5
         result = np.arccos(a)
-        assert counter.flops == 44  # 44 FLOPs * 1 element = 44
+        assert counter.flops == 44
         np.testing.assert_allclose(result, np.array([1.04719755]))
 
 
 def test_arccos_broadcasting():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([[0.1, 0.2], [0.3, 0.4]])
         result = np.arccos(a)
@@ -37,15 +37,9 @@ def test_arccos_broadcasting():
 
 
 def test_arccos_empty():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([])
-        _ = np.arccos(a)
+        result = np.arccos(a)
         assert counter.flops == 0
-
-
-if __name__ == "__main__":
-    test_arccos_ufunc_syntax()
-    # test_arccos_scalar()
-    test_arccos_broadcasting()
-    test_arccos_empty()
+        np.testing.assert_allclose(result, np.array([]))
