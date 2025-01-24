@@ -40,6 +40,7 @@ dist_agent_1lm_randrot_noise_10simobj["logging_config"] = EvalEvidenceLMLoggingC
     output_dir=RESULTS_DIR / "dist_agent_1lm_randrot_noise_10simobj",
     run_name="dist_agent_1lm_randrot_noise_10simobj",
     wandb_group="dmc",
+    monty_log_level="SELECTIVE",
 )
 dist_agent_1lm_randrot_noise_10simobj[
     "eval_dataloader_args"
