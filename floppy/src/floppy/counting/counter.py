@@ -209,6 +209,12 @@ class FlopCounter(ContextDecorator):
             "round": RoundOperation(),
             "where": WhereOperation(),
             "clip": ClipOperation(),
+            "sin": SineOperation(),
+            "cos": CosineOperation(),
+            "tan": TangentOperation(),
+            "arctan": ArcTangentOperation(),
+            "arcsin": ArcSineOperation(),
+            "arccos": ArccosOperation(),
         }
         self.patch_targets = {
             "matmul": (np, "matmul"),
@@ -235,6 +241,12 @@ class FlopCounter(ContextDecorator):
             "round": (np, "round"),
             "where": (np, "where"),
             "clip": (np, "clip"),
+            "sin": (np, "sin"),
+            "cos": (np, "cos"),
+            "tan": (np, "tan"),
+            "arctan": (np, "arctan"),
+            "arcsin": (np, "arcsin"),
+            "arccos": (np, "arccos"),
         }
 
     def _tracked_array(self, *args, **kwargs):
