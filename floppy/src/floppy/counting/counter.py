@@ -182,8 +182,6 @@ class FlopCounter(ContextDecorator):
             "arcsin": ArcSineOperation(),
             "arccos": ArccosOperation(),
             "cross": CrossOperation(),
-            "min": MinOperation(),
-            "max": MaxOperation(),
             "isnan": IsnanOperation(),
             "log": LogOperation(),
             "clip": ClipOperation(),
@@ -202,6 +200,8 @@ class FlopCounter(ContextDecorator):
             "var": VarOperation(),
             "average": AverageOperation(),
             "trace": TraceOperation(),
+            "min": MinOperation(),
+            "max": MaxOperation(),
             "argmin": ArgminOperation(),
             "argmax": ArgmaxOperation(),
             "log": LogOperation(),  # Required to intercept operation when input is scalar
@@ -231,6 +231,8 @@ class FlopCounter(ContextDecorator):
             "var": (np, "var"),
             "average": (np, "average"),
             "trace": (np, "trace"),
+            "min": (np, "min"),
+            "max": (np, "max"),
             "argmin": (np, "argmin"),
             "argmax": (np, "argmax"),
             "log": (np, "log"),  # Required to intercept operation when input is scalar
