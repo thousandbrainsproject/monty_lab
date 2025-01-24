@@ -4,10 +4,10 @@ import numpy as np
 
 __all__ = [
     "SineOperation",
-    "ArcSineOperation",
     "CosineOperation",
-    "ArccosOperation",
     "TangentOperation",
+    "ArcSineOperation",
+    "ArccosOperation",
     "ArcTangentOperation",
 ]
 
@@ -52,6 +52,47 @@ class CosineOperation:
         return 20 * np.size(result)
 
 
+class TangentOperation:
+    """FLOP counter for tangent operations."""
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for tangent operation.
+
+        Tangent can be computed using Taylor series:
+        tan(x) = x + x³/3 + 2x⁵/15 + 17x⁷/315 + ...
+
+        Each term requires:
+        - Power calculation (2-3 FLOPs)
+        - Coefficient multiplication/division (1-2 FLOPs)
+        - Addition to sum (1 FLOP)
+
+        With ~7-8 terms for good precision, plus argument reduction,
+        we estimate 20 FLOPs per value for consistency with other trig operations.
+        """
+        return 20 * np.size(result)
+
+
+class ArcSineOperation:
+    """FLOP counter for inverse sine operations."""
+
+    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+        """Count FLOPs for inverse sine operation.
+
+        Arcsine can be computed using arctan:
+        arcsin(x) = arctan(x/sqrt(1-x²))
+
+        This requires:
+        - One multiplication (x²): 1 FLOP
+        - One subtraction (1-x²): 1 FLOP
+        - One square root: 10 FLOPs (using Newton iteration)
+        - One division: 1 FLOP
+        - One arctan: 20 FLOPs
+
+        Total per element: 33 FLOPs
+        """
+        return 33 * np.size(result)
+
+
 class ArccosOperation:
     """FLOP counter for inverse cosine operations."""
 
@@ -76,26 +117,6 @@ class ArccosOperation:
         return 44 * num_elements
 
 
-class TangentOperation:
-    """FLOP counter for tangent operations."""
-
-    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
-        """Count FLOPs for tangent operation.
-
-        Tangent can be computed using Taylor series:
-        tan(x) = x + x³/3 + 2x⁵/15 + 17x⁷/315 + ...
-
-        Each term requires:
-        - Power calculation (2-3 FLOPs)
-        - Coefficient multiplication/division (1-2 FLOPs)
-        - Addition to sum (1 FLOP)
-
-        With ~7-8 terms for good precision, plus argument reduction,
-        we estimate 20 FLOPs per value for consistency with other trig operations.
-        """
-        return 20 * np.size(result)
-
-
 class ArcTangentOperation:
     """FLOP counter for inverse tangent operations."""
 
@@ -113,24 +134,3 @@ class ArcTangentOperation:
         we estimate 20 FLOPs per value for consistency with sine operation.
         """
         return 20 * np.size(result)
-
-
-class ArcSineOperation:
-    """FLOP counter for inverse sine operations."""
-
-    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
-        """Count FLOPs for inverse sine operation.
-
-        Arcsine can be computed using arctan:
-        arcsin(x) = arctan(x/sqrt(1-x²))
-
-        This requires:
-        - One multiplication (x²): 1 FLOP
-        - One subtraction (1-x²): 1 FLOP
-        - One square root: 10 FLOPs (using Newton iteration)
-        - One division: 1 FLOP
-        - One arctan: 20 FLOPs
-
-        Total per element: 33 FLOPs
-        """
-        return 33 * np.size(result)
