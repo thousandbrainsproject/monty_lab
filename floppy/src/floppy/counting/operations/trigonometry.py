@@ -4,12 +4,11 @@ import numpy as np
 
 __all__ = [
     "SineOperation",
+    "ArcSineOperation",
     "CosineOperation",
-    "CrossOperation",
     "ArccosOperation",
     "TangentOperation",
     "ArcTangentOperation",
-    "ArcSineOperation",
 ]
 
 class SineOperation:
@@ -52,23 +51,6 @@ class CosineOperation:
         """
         return 20 * np.size(result)
 
-class CrossOperation:
-    """FLOP counter for vector cross product operations."""
-
-    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
-        """Count FLOPs for cross product operation.
-
-        Note: Cross product is only defined for 3D vectors (and 7D, though rarely used).
-        For 3D vectors, cross product requires:
-        - 6 multiplications
-        - 3 subtractions
-        Total: 9 FLOPs per cross product
-        """
-        # Get number of cross products being computed
-        num_operations = max(
-            1, result.shape[0] if isinstance(result, np.ndarray) else 1
-        )
-        return 9 * num_operations
 
 class ArccosOperation:
     """FLOP counter for inverse cosine operations."""
