@@ -170,6 +170,7 @@ class FlopCounter(ContextDecorator):
             "multiply": Multiplication(),
             "divide": Division(),
             "power": PowerOperation(),
+            "square": PowerOperation(),
             "floor_divide": FloorDivideOperation(),
             "remainder": ModuloOperation(),  # NumPy ufunc for modulo operation is named "remainder"
             "bitwise_and": BitwiseAndOperation(),
