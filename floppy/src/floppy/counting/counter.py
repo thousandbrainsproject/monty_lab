@@ -186,7 +186,6 @@ class FlopCounter(ContextDecorator):
             "where": WhereOperation(),
             "min": MinOperation(),
             "max": MaxOperation(),
-            "round": RoundOperation(),
             "isnan": IsnanOperation(),
             "log": LogOperation(),
         }
@@ -208,6 +207,7 @@ class FlopCounter(ContextDecorator):
             "argmax": ArgmaxOperation(),
             "log": LogOperation(),  # Required to intercept operation when input is scalar
             "isnan": IsnanOperation(),  # Required to intercept operation when input is scalar (e.g., np.nan itself)
+            "round": RoundOperation(),
         }
         self.patch_targets = {
             "matmul": (np, "matmul"),
@@ -231,6 +231,7 @@ class FlopCounter(ContextDecorator):
                 np,
                 "isnan",
             ),  # Required to intercept operation when input is scalar (e.g., np.nan itself)
+            "round": (np, "round"),
         }
 
     def _tracked_array(self, *args, **kwargs):
