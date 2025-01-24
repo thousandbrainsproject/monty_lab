@@ -1,40 +1,37 @@
-"""Run using python tests/test_tangent.py. Do not use pytest."""
-
 import numpy as np
-from floppy.flop_counting.counter import FlopCounter
+import pytest
+
+from floppy.counting.counter import FlopCounter
 
 
 def test_tan_ufunc_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([1, 2, 3])
-        _ = np.tan(a)
-        assert counter.flops == 51  # 17 flops * 3 elements
+        result = np.tan(a)
+        assert counter.flops == 60
+        np.testing.assert_allclose(
+            result, np.array([1.55740772, -2.18503986, -0.14254654])
+        )
 
 
 def test_tan_broadcasting():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = 2
         _ = np.tan(a)
-        assert counter.flops == 17  # 17 flops * 1 element
+        assert counter.flops == 20
 
     counter.flops = 0
     with counter:
         a = np.array([[1, 2], [3, 4]])
         _ = np.tan(a)
-        assert counter.flops == 68  # 17 flops * 4 elements
+        assert counter.flops == 80
 
 
 def test_tan_empty():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([])
         _ = np.tan(a)
         assert counter.flops == 0
-
-
-if __name__ == "__main__":
-    test_tan_ufunc_syntax()
-    test_tan_broadcasting()
-    test_tan_empty()
