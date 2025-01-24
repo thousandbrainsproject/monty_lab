@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 __all__ = [
     "SumOperation",
@@ -28,6 +29,8 @@ class SumOperation:
         Returns:
             int: Number of floating point operations (additions)
         """
+        if np.size(args[0]) == 0:
+            return 0
         return np.size(args[0]) - 1
 
 
