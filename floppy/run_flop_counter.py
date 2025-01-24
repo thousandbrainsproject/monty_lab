@@ -12,16 +12,18 @@ from tbp.monty.frameworks.run_env import setup_env
 setup_env()
 
 # Load all experiment configurations from local project
-from configs import CONFIGS  # noqa: E402
+import sys
 
 # Add monty_lab to Python path
 from pathlib import Path
-import sys
+
+from configs import CONFIGS  # noqa: E402
 
 monty_lab_path = Path("~/tbp/monty_lab").expanduser().resolve()
 sys.path.append(str(monty_lab_path))
 
-from dmc_configs.dmc_configs import CONFIGS as DMC_CONFIGS  # noqa: E402
+from dmc.configs import CONFIGS as DMC_CONFIGS  # noqa: E402
+
 from frameworks.run import flop_main  # noqa: E402
 
 if __name__ == "__main__":
