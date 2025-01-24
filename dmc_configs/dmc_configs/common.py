@@ -13,15 +13,9 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
 )
-from tbp.monty.frameworks.loggers.monty_handlers import (
-    BasicCSVStatsHandler,
-)
-from tbp.monty.frameworks.models.evidence_matching import (
-    EvidenceGraphLM,
-)
-from tbp.monty.frameworks.models.goal_state_generation import (
-    EvidenceGoalStateGenerator,
-)
+from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
+from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
+from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     FeatureChangeSM,
