@@ -1,40 +1,40 @@
-"""Run using python tests/test_arcsine.py. Do not use pytest."""
-
 import numpy as np
-from floppy.flop_counting.counter import FlopCounter
+
+from floppy.counting.counter import FlopCounter
 
 
 def test_arcsin_ufunc_syntax():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
-        a = np.array([1, 2, 3])
-        _ = np.arcsin(a)
-        assert counter.flops == 30  # 10 flops * 3 elements
+        a = np.array([1, 0.5, 0.25])
+        result = np.arcsin(a)
+        assert counter.flops == 99
+        np.testing.assert_allclose(
+            result, np.array([1.57079633, 0.52359878, 0.25268026])
+        )
 
 
 def test_arcsin_broadcasting():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
-        a = 2
-        _ = np.arcsin(a)
-        assert counter.flops == 10  # 10 flops * 1 element
+        a = -0.5
+        result = np.arcsin(a)
+        assert counter.flops == 33
+        np.testing.assert_allclose(result, -0.5235987755982988)
 
     counter.flops = 0
     with counter:
-        a = np.array([[1, 2], [3, 4]])
-        _ = np.arcsin(a)
-        assert counter.flops == 40  # 10 flops * 4 elements
-
+        a = np.array([[1, -1], [0, -0.25]])
+        result = np.arcsin(a)
+        assert counter.flops == 132
+        np.testing.assert_allclose(
+            result, np.array([[1.57079633, -1.57079633], [0, -0.25268026]])
+        )
 
 def test_arcsin_empty():
-    counter = FlopCounter()
+    counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([])
-        _ = np.arcsin(a)
+        result = np.arcsin(a)
         assert counter.flops == 0
-
-
-if __name__ == "__main__":
-    test_arcsin_ufunc_syntax()
-    test_arcsin_broadcasting()
-    test_arcsin_empty()
+        np.testing.assert_allclose(result, np.array([]))
