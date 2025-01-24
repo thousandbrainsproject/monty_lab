@@ -32,6 +32,7 @@ class LogOperation:
         return 20 * np.size(result)
 
 
+# TODO: Update power operation to handle square, reciprocal, cbrt, sqrt
 class PowerOperation:
     """FLOP count for power operation."""
 
@@ -48,8 +49,14 @@ class PowerOperation:
             args: (base, exponent)
             result: Result of the operation
         """
-        base, exponent = args
-        n = np.size(base)
+        if len(args) == 1:  # square case
+            base = args[0]
+            exponent = 2
+        else:  # power case
+            base, exponent = args
+
+        # Get size from either operand, whichever is larger
+        n = max(np.size(base), np.size(exponent))
 
         if np.isscalar(exponent):
             if float(exponent).is_integer():
