@@ -37,7 +37,16 @@ class MontyFlopTracer:
         self._initialize_log_manager(
             detailed_logging, detailed_logger_kwargs, csv_logger_kwargs
         )
-        self.flop_counter = FlopCounter(log_manager=self.log_manager)
+        self.flop_counter = FlopCounter(
+            log_manager=self.log_manager,
+            include_paths=["tbp.monty"],
+            skip_paths=[
+                "site-packages",
+                "numpy",
+                "scipy",
+                "habitat_sim",
+            ],
+        )
 
         self.total_flops = 0
         self.current_episode = 0
@@ -183,7 +192,6 @@ class MontyFlopTracer:
                 self._active_counter = True
                 self.flop_counter.flops = 0
 
-            # Get the actual caller from the call stack
             caller_frame = inspect.currentframe().f_back
             caller_name = caller_frame.f_code.co_name if caller_frame else None
 
@@ -205,9 +213,8 @@ class MontyFlopTracer:
                 self.total_flops += self.flop_counter.flops
 
             # Log the operation
-            frame = inspect.currentframe()
-            filename = frame.f_code.co_filename
-            line_no = frame.f_lineno
+            filename = inspect.getfile(original_method)
+            line_no = inspect.getsourcelines(original_method)[1]
 
             operation = Operation(
                 flops=method_flops,

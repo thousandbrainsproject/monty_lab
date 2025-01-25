@@ -54,9 +54,10 @@ class DetailedLogger(BaseLogger):
     ):
         super().__init__(batch_size)
         self.logger = logger
-        self.log_level = log_level 
-        self.function_counts: Dict[Tuple[str, str], int] = defaultdict(int)
-        self.file_counts: Dict[str, int] = defaultdict(int)
+        self.log_level = log_level
+        self.function_counts = defaultdict(int)
+        self.current_file_flops = defaultdict(int)
+        self.last_file = None
 
     def log_operation(self, operation: Operation) -> None:
         """Add operation to buffer and aggregate counts based on log level"""
@@ -69,7 +70,18 @@ class DetailedLogger(BaseLogger):
 
         # Similarly for FILE level
         elif self.log_level == LogLevel.FILE:
-            self.file_counts[operation.filename] += operation.flops
+            # If we switch to a different file, log the previous file's FLOPs
+            if self.last_file is not None and operation.filename != self.last_file:
+                if self.current_file_flops[self.last_file] > 0:
+                    self.logger.debug(
+                        f"Accumulated FLOPs: {self.current_file_flops[self.last_file]} | "
+                        f"File: {self.last_file}"
+                    )
+                self.current_file_flops[self.last_file] = 0
+
+            # Add FLOPs to current file's count
+            self.current_file_flops[operation.filename] += operation.flops
+            self.last_file = operation.filename
 
         if len(self.buffer) >= self.batch_size:
             self.flush()
@@ -108,11 +120,13 @@ class DetailedLogger(BaseLogger):
 
     def _log_file_counts(self) -> None:
         """Log aggregated counts by file"""
-        items = list(self.file_counts.items())
-
+        items = list(self.current_file_flops.items())
         for filename, count in items:
-            self.logger.debug(f"Accumulated FLOPs: {count} | File: {filename}")
-        self.file_counts.clear()
+            if count > 0:
+                self.logger.debug(f"Accumulated FLOPs: {count} | File: {filename}")
+        self.current_file_flops.clear()
+        self.last_file = None
+
 
 class CSVLogger(BaseLogger):
     def __init__(self, filepath:str, batch_size:int = 1_000):
