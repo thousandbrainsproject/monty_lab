@@ -7,22 +7,25 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-import os
 import logging
+import os
 import time
+from typing import Any, Dict
+
 from tbp.monty.frameworks.run import (
+    config_to_dict,
+    create_cmd_parser,
     merge_args,
     print_config,
     run,
-    create_cmd_parser,
-    config_to_dict,
 )
-from typing import Dict, Any
+
+from floppy.counting.tracer import MontyFlopTracer
 from frameworks.models.evidence_matching import FlopCountingEvidenceGraphLM
 from frameworks.models.goal_state_generation import (
     FlopCountingEvidenceGoalStateGenerator,
 )
-from src.floppy.counting.tracer import MontyFlopTracer
+
 
 def wrap_experiment_with_flops(experiment_cls, run_name):
     """Modifies Monty experiment class to enable FLOP counting.
@@ -56,6 +59,11 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
 
         original_setup(self, modified_config)
 
+        # Get Floppy-specific configs
+        floppy_config = modified_config.get("floppy_config", {})
+        log_dir = floppy_config.get("log_dir", "")
+        detailed_logging = floppy_config.get("detailed_logging", False)
+
         flop_tracer = MontyFlopTracer(
             experiment_name=run_name,
             monty_instance=self.model,
@@ -63,6 +71,8 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
             train_dataloader_instance=self.dataloader,
             eval_dataloader_instance=self.eval_dataloader,
             motor_system_instance=self.model.motor_system,
+            log_dir=log_dir,
+            detailed_logging=detailed_logging,
         )
         one_true_flop_counter = flop_tracer.flop_counter
         for lm in self.model.learning_modules:
@@ -99,6 +109,18 @@ def flop_main(all_configs, experiments=None):
     cmd_args = None
     if not experiments:
         cmd_parser = create_cmd_parser(all_configs=all_configs)
+        # Add Floppy-specific arguments
+        cmd_parser.add_argument(
+            "--log_dir",
+            type=str,
+            default="",
+            help="Directory for FLOP counting logs",
+        )
+        cmd_parser.add_argument(
+            "--detailed_logging",
+            action="store_true",
+            help="Enable detailed FLOP logging",
+        )
         cmd_args = cmd_parser.parse_args()
         experiments = cmd_args.experiments
         if cmd_args.quiet_habitat_logs:
@@ -109,6 +131,12 @@ def flop_main(all_configs, experiments=None):
         exp = all_configs[experiment]
         exp_config = merge_args(exp, cmd_args)
         exp_config = config_to_dict(exp_config)
+
+        # Add Floppy configs to exp_config
+        exp_config["floppy_config"] = {
+            "log_dir": cmd_args.flop_log_dir if cmd_args else "",
+            "detailed_logging": cmd_args.detailed_flop_logging if cmd_args else False,
+        }
 
         # Update run_name and output dir with experiment name
         if not exp_config["logging_config"]["run_name"]:
