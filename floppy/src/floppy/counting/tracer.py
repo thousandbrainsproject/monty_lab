@@ -37,7 +37,7 @@ class MontyFlopTracer:
         self._initialize_log_manager(
             detailed_logging, detailed_logger_kwargs, csv_logger_kwargs
         )
-        self.flop_counter = FlopCounter(logger=self.log_manager)
+        self.flop_counter = FlopCounter(log_manager=self.log_manager)
 
         self.total_flops = 0
         self.current_episode = 0
@@ -79,12 +79,17 @@ class MontyFlopTracer:
         csv_logger = CSVLogger(csv_path, **csv_logger_kwargs)
 
         detailed_logger = None
-        if self.detailed_logging:
+        if detailed_logging:
             log_path = (
                 self.results_dir
                 / f"detailed_flops_{self.experiment_name}_{timestamp}.log"
             )
             logger = logging.getLogger(f"detailed_flops_{self.experiment_name}")
+
+            # Disable output to console
+            logger.propagate = False
+            logger.handlers.clear()
+
             file_handler = logging.FileHandler(str(log_path))
             logger.addHandler(file_handler)
             logger.setLevel(logging.DEBUG)
@@ -212,6 +217,7 @@ class MontyFlopTracer:
                 timestamp=time.time(),
                 parent_method=caller_name,
                 episode=self.current_episode,
+                is_wrapped_method=True,
             )
             self.log_manager.log_operation(operation)
 

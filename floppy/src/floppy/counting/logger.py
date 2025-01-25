@@ -4,8 +4,8 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 
 class LogLevel(Enum):
@@ -25,6 +25,7 @@ class Operation:
     timestamp: float
     episode: Optional[int] = None
     parent_method: Optional[str] = None
+    is_wrapped_method: bool = False
 
 
 class BaseLogger:
@@ -45,12 +46,33 @@ class BaseLogger:
 class DetailedLogger(BaseLogger):
     """Handles logging of FLOP operations with detailed information to .log file"""
 
-    def __init__(self, logger: logging.Logger, batch_size: int = 10_000, log_level: LogLevel.FUNCTION):
+    def __init__(
+        self,
+        logger: logging.Logger,
+        batch_size: int = 10_000,
+        log_level: LogLevel = LogLevel.FUNCTION,
+    ):
         super().__init__(batch_size)
         self.logger = logger
         self.log_level = log_level 
         self.function_counts: Dict[Tuple[str, str], int] = defaultdict(int)
         self.file_counts: Dict[str, int] = defaultdict(int)
+
+    def log_operation(self, operation: Operation) -> None:
+        """Add operation to buffer and aggregate counts based on log level"""
+        self.buffer.append(operation)
+
+        # Aggregate counts for FUNCTION level
+        if self.log_level == LogLevel.FUNCTION:
+            key = (operation.filename, operation.function_name)
+            self.function_counts[key] += operation.flops
+
+        # Similarly for FILE level
+        elif self.log_level == LogLevel.FILE:
+            self.file_counts[operation.filename] += operation.flops
+
+        if len(self.buffer) >= self.batch_size:
+            self.flush()
 
     def flush(self) -> None:
         """Flush buffered operations based on configured log level"""
@@ -122,7 +144,7 @@ class LogManager:
     def log_operation(self, operation: Operation) -> None:
         if self.detailed_logger:
             self.detailed_logger.log_operation(operation)
-        if self.csv_logger:
+        if self.csv_logger and operation.is_wrapped_method:
             self.csv_logger.log_operation(operation)
 
     def flush(self) -> None:
