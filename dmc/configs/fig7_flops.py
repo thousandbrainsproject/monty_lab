@@ -113,6 +113,9 @@ dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all = (
         "all",
     )
 )
+dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all[
+    "logging_config"
+].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all"
 
 CONFIGS = {
     "dist_agent_1lm_randrot_nohyp_x_percent_5p": dist_agent_1lm_randrot_nohyp_x_percent_5p,
