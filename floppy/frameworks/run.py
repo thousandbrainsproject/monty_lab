@@ -62,7 +62,7 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
         # Get Floppy-specific configs
         floppy_config = modified_config.get("floppy_config", {})
         log_dir = floppy_config.get("log_dir", "")
-        detailed_logging = floppy_config.get("detailed_logging", False)
+        log_level = floppy_config.get("log_level", "function")
 
         flop_tracer = MontyFlopTracer(
             experiment_name=run_name,
@@ -72,7 +72,7 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
             eval_dataloader_instance=self.eval_dataloader,
             motor_system_instance=self.model.motor_system,
             log_dir=log_dir,
-            detailed_logging=detailed_logging,
+            log_level=log_level,
         )
         one_true_flop_counter = flop_tracer.flop_counter
         for lm in self.model.learning_modules:
@@ -117,9 +117,10 @@ def flop_main(all_configs, experiments=None):
             help="Directory for FLOP counting logs",
         )
         cmd_parser.add_argument(
-            "--detailed_logging",
-            action="store_true",
-            help="Enable detailed FLOP logging",
+            "--log_level",
+            type=str,
+            default="function",
+            help="Level of FLOP logging: 'file', 'function', 'operation' or 'none'. Note: 'operation' will log every FLOP operation, which can be very slow.",
         )
         cmd_args = cmd_parser.parse_args()
         experiments = cmd_args.experiments
@@ -135,7 +136,7 @@ def flop_main(all_configs, experiments=None):
         # Add Floppy configs to exp_config
         exp_config["floppy_config"] = {
             "log_dir": cmd_args.flop_log_dir if cmd_args else "",
-            "detailed_logging": cmd_args.detailed_flop_logging if cmd_args else False,
+            "log_level": cmd_args.log_level if cmd_args else "function",
         }
 
         # Update run_name and output dir with experiment name
