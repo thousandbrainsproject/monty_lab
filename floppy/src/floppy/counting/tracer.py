@@ -3,22 +3,11 @@ import inspect
 import logging
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional
 
-from src.floppy.counting.counter import FlopCounter
-
-
-@dataclass
-class MethodTrace:
-    """Dataclass for storing method trace information."""
-
-    timestamp: float
-    episode: int
-    method_name: str
-    flops: int
-    parent_method: Optional[str] = None
+from floppy.counting.counter import FlopCounter
+from floppy.counting.logger import CSVLogger, DetailedLogger, LogManager, Operation
 
 
 class MontyFlopTracer:
@@ -32,8 +21,10 @@ class MontyFlopTracer:
         train_dataloader_instance,
         eval_dataloader_instance,
         motor_system_instance,
-        log_level="function",
-        log_dir=None,
+        results_dir: Optional[str] = None,
+        detailed_logging: bool = False,
+        detailed_logger_kwargs: Optional[Dict[str, Any]] = None,
+        csv_logger_kwargs: Optional[Dict[str, Any]] = None,
     ):
         self.experiment_name = experiment_name
         self.monty = monty_instance
@@ -41,56 +32,19 @@ class MontyFlopTracer:
         self.train_dataloader = train_dataloader_instance
         self.eval_dataloader = eval_dataloader_instance
         self.motor_system = motor_system_instance
-        self.log_level = log_level
+        self.results_dir = results_dir
 
-        # Setup logging first
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-
-        self.log_dir = (
-            Path(log_dir or f"~/tbp/monty_lab/floppy/results/counting")
-            .expanduser()
-            .resolve()
+        self._initialize_log_manager(
+            detailed_logging, detailed_logger_kwargs, csv_logger_kwargs
         )
-        if not self.log_dir.parent.exists():
-            self.log_dir.parent.mkdir(parents=True, exist_ok=True)
-        self.log_path = (
-            self.log_dir / f"flop_traces_{self.experiment_name}_{timestamp}.csv"
-        )
-
-        if self.log_level is not None:
-            # Create a logger with a unique name
-            self.logger = logging.getLogger(f"flop_tracer_{timestamp}")
-            self.logger.setLevel(logging.DEBUG)
-            # Prevent propagation to root logger to avoid duplicate logs
-            self.logger.propagate = False
-
-            # Create file handler only (remove console handler)
-            file_handler = logging.FileHandler(
-                self.log_path.parent
-                / f"detailed_flops_{self.experiment_name}_{timestamp}.log"
-            )
-
-            # Create formatter
-            formatter = logging.Formatter("%(asctime)s | %(message)s")
-            file_handler.setFormatter(formatter)
-
-            # Add only file handler to logger
-            self.logger.addHandler(file_handler)
-
-        # Initialize FlopCounter with the logger
-        self.flop_counter = FlopCounter(
-            logger=self.logger if self.log_level is not None else None,
-            log_level=self.log_level,
-        )
+        self.flop_counter = FlopCounter(logger=self.log_manager)
 
         self.total_flops = 0
         self.current_episode = 0
         self._method_stack = []
         self._active_counter = False
         self._current_flops_stack = []
-        self._call_stack = []  # Track actual call stack, not just wrapped methods
 
-        self._initialize_csv()
         self._original_monty_methods = self._collect_monty_methods()
         self._original_experiment_methods = self._collect_experiment_methods()
         if self.train_dataloader is not None:
@@ -105,38 +59,53 @@ class MontyFlopTracer:
             self._original_motor_system_methods = self._collect_motor_system_methods()
         self._wrap_methods()
 
-    def _initialize_csv(self):
-        """Initialize CSV file with headers."""
-        # Create parent directories if they don't exist
-        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+    def _initialize_log_manager(
+        self,
+        detailed_logging: bool,
+        detailed_logger_kwargs: Optional[Dict[str, Any]],
+        csv_logger_kwargs: Optional[Dict[str, Any]],
+    ):
+        """Initialize the log manager."""
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        self.results_dir = (
+            Path(self.results_dir or f"~/tbp/monty_lab/floppy/results/counting")
+            .expanduser()
+            .resolve()
+        )
+        csv_path = (
+            self.results_dir / f"flop_traces_{self.experiment_name}_{timestamp}.csv"
+        )
 
-        # Write headers
-        with open(self.log_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["timestamp", "episode", "method", "flops"])
+        csv_logger = CSVLogger(csv_path, **csv_logger_kwargs)
 
-    def _log_trace(self, trace: MethodTrace):
-        """Log a method trace to the CSV file."""
-        with open(self.log_path, "a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(
-                [
-                    trace.timestamp,
-                    trace.episode,
-                    trace.method_name,
-                    trace.flops,
-                    trace.parent_method,
-                ]
+        detailed_logger = None
+        if self.detailed_logging:
+            log_path = (
+                self.results_dir
+                / f"detailed_flops_{self.experiment_name}_{timestamp}.log"
             )
+            logger = logging.getLogger(f"detailed_flops_{self.experiment_name}")
+            file_handler = logging.FileHandler(str(log_path))
+            logger.addHandler(file_handler)
+            logger.setLevel(logging.DEBUG)
+            detailed_logger = DetailedLogger(logger=logger, **detailed_logger_kwargs)
+
+        self.log_manager = LogManager(
+            detailed_logger=detailed_logger, csv_logger=csv_logger
+        )
 
     def _collect_monty_methods(self):
         """Collect methods that need to be wrapped."""
         return {
-            "step": (self.monty.step, "monty.step"),
+            # "step": (self.monty.step, "monty.step"),
             "_matching_step": (self.monty._matching_step, "monty._matching_step"),
             "_exploratory_step": (
                 self.monty._exploratory_step,
                 "monty._exploratory_step",
+            ),
+            "_step_learning_modules": (
+                self.monty._step_learning_modules,
+                "monty._step_learning_modules",
             ),
         }
 
@@ -149,42 +118,43 @@ class MontyFlopTracer:
             "pre_step": (self.experiment.pre_step, "experiment.pre_step"),
             "post_step": (self.experiment.post_step, "experiment.post_step"),
             "post_episode": (self.experiment.post_episode, "experiment.post_episode"),
+            "run_epoch": (self.experiment.run_epoch, "experiment.run_epoch"),
         }
 
     def _collect_train_dataloader_methods(self):
         return {
-            "pre_episode": (
-                self.train_dataloader.pre_episode,
-                "train_dataloader.pre_episode",
-            ),
+            # "pre_episode": (
+            #     self.train_dataloader.pre_episode,
+            #     "train_dataloader.pre_episode",
+            # ),
         }
 
     def _collect_eval_dataloader_methods(self):
         return {
-            "pre_episode": (
-                self.eval_dataloader.pre_episode,
-                "eval_dataloader.pre_episode",
-            ),
-            "get_good_view_with_patch_refinement": (
-                self.eval_dataloader.get_good_view_with_patch_refinement,
-                "eval_dataloader.get_good_view_with_patch_refinement",
-            ),
-            "get_good_view": (
-                self.eval_dataloader.get_good_view,
-                "eval_dataloader.get_good_view",
-            ),
+            # "pre_episode": (
+            #     self.eval_dataloader.pre_episode,
+            #     "eval_dataloader.pre_episode",
+            # ),
+            # "get_good_view_with_patch_refinement": (
+            #     self.eval_dataloader.get_good_view_with_patch_refinement,
+            #     "eval_dataloader.get_good_view_with_patch_refinement",
+            # ),
+            # "get_good_view": (
+            #     self.eval_dataloader.get_good_view,
+            #     "eval_dataloader.get_good_view",
+            # ),
         }
 
     def _collect_motor_system_methods(self):
         return {
-            "orient_to_object": (
-                self.motor_system.orient_to_object,
-                "motor_system.orient_to_object",
-            ),
-            "move_close_enough": (
-                self.motor_system.move_close_enough,
-                "motor_system.move_close_enough",
-            ),
+            # "orient_to_object": (
+            #     self.motor_system.orient_to_object,
+            #     "motor_system.orient_to_object",
+            # ),
+            # "move_close_enough": (
+            #     self.motor_system.move_close_enough,
+            #     "motor_system.move_close_enough",
+            # ),
         }
 
     @contextmanager
@@ -229,16 +199,21 @@ class MontyFlopTracer:
                 self._active_counter = False
                 self.total_flops += self.flop_counter.flops
 
-            trace = MethodTrace(
-                timestamp=time.time(),
-                episode=self.current_episode,
-                method_name=full_name,  # Use full_name here
+            # Log the operation
+            frame = inspect.currentframe()
+            filename = frame.f_code.co_filename
+            line_no = frame.f_lineno
+
+            operation = Operation(
                 flops=method_flops,
+                filename=filename,
+                line_no=line_no,
+                function_name=full_name,
+                timestamp=time.time(),
                 parent_method=caller_name,
+                episode=self.current_episode,
             )
-            self._log_trace(trace)
-            if self.detailed_logging:
-                logging.debug(f"Logged trace: {trace}")
+            self.log_manager.log_operation(operation)
 
             # Increment episode counter after run_episode completes
             if method_name == "run_episode":
