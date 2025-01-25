@@ -2,7 +2,7 @@ import inspect
 import time
 from contextlib import ContextDecorator
 from pathlib import Path
-from typing import Any, Dict
+from typing import Optional
 
 import numpy as np
 
@@ -155,7 +155,11 @@ class FlopCounter(ContextDecorator):
     3) accumulates FLOPs for each operation
     """
 
-    def __init__(self, test_mode=False, log_manager: Optional[LogManager] = None):
+    def __init__(
+        self,
+        test_mode=False,
+        log_manager: Optional[LogManager] = None,
+    ):
         self.flops = 0
         self._is_active = False
         self.log_manager = log_manager  # Store the logger instance
