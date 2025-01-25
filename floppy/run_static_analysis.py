@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
-from src.floppy.analysis.analyzer import FlopAnalyzer
+
+from floppy.analysis.analyzer import FlopAnalyzer
 
 
 def main(input_dir, output_dir=None):

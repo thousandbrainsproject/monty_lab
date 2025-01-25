@@ -2,7 +2,7 @@ import inspect
 import time
 from contextlib import ContextDecorator
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 
@@ -159,12 +159,15 @@ class FlopCounter(ContextDecorator):
         self,
         test_mode=False,
         log_manager: Optional[LogManager] = None,
+        skip_paths: Optional[List[str]] = None,
+        include_paths: Optional[List[str]] = None,
     ):
         self.flops = 0
         self._is_active = False
         self.log_manager = log_manager  # Store the logger instance
         self.test_mode = test_mode
-
+        self.skip_paths = skip_paths
+        self.include_paths = include_paths
         self._original_array_func = None
         self._original_funcs = {}
 
@@ -357,12 +360,13 @@ class FlopCounter(ContextDecorator):
             return False
         # Check for library calls
         stack_frames = inspect.stack()
+
         for frame in stack_frames:
-            if any(
-                lib in frame.filename
-                for lib in ("site-packages", "numpy", "scipy", "habitat_sim")
-            ):
+            if any(path in frame.filename for path in self.include_paths):
+                return False
+            if any(path in frame.filename for path in self.skip_paths):
                 return True
+
         return False
 
     def add_flops(self, count: int):
