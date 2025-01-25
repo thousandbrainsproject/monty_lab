@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import numpy as np
 
-from .logger import FlopLogger, FlopOperation
+from .logger import LogManager, Operation
 from .operations import *
 
 
@@ -155,13 +155,11 @@ class FlopCounter(ContextDecorator):
     3) accumulates FLOPs for each operation
     """
 
-    def __init__(self, test_mode=False, logger=None, log_level="function"):
+    def __init__(self, test_mode=False, log_manager: Optional[LogManager] = None):
         self.flops = 0
         self._is_active = False
-        self.logger = logger  # Store the logger instance
-        self.log_level = log_level
+        self.log_manager = log_manager  # Store the logger instance
         self.test_mode = test_mode
-        self.flop_logger = FlopLogger(logger, log_level=log_level) if logger else None
 
         self._original_array_func = None
         self._original_funcs = {}
@@ -331,8 +329,8 @@ class FlopCounter(ContextDecorator):
             mod, attr = self.patch_targets[name]
             setattr(mod, attr, original_func)
 
-        if self.flop_logger:
-            self.flop_logger.flush()
+        if self.log_manager:
+            self.log_manager.flush()
 
         return False
 
@@ -367,28 +365,35 @@ class FlopCounter(ContextDecorator):
         """Add to the FLOP count only if counter is active and not in library code."""
         if not self.should_skip_counting():
             self.flops += count
+            if self.log_manager:
+                self._log_operation(count)
 
-            if self.flop_logger:
-                caller_frame = inspect.currentframe().f_back
-                while caller_frame:
-                    filename = caller_frame.f_code.co_filename
-                    file_path = Path(filename)
+    def _log_operation(self, count: int) -> None:
+        """Log the FLOP operation with details about the calling context.
 
-                    # Check if file is within floppy/counting directory
-                    if not str(file_path).startswith(
-                        str(
-                            Path(
-                                "~/tbp/monty_lab/floppy/src/floppy/counting"
-                            ).expanduser()
-                        )
-                    ):
-                        operation = FlopOperation(
-                            flops=count,
-                            filename=filename,
-                            line_no=caller_frame.f_lineno,
-                            function_name=caller_frame.f_code.co_name,
-                            timestamp=time.time(),
-                        )
-                        self.flop_logger.log_operation(operation)
-                        break
-                    caller_frame = caller_frame.f_back
+        This method traverses the call stack to find the first caller outside of the
+        floppy/counting directory and logs the operation with relevant metadata including
+        the file, line number, function name, and timestamp.
+
+        Args:
+            count: The number of FLOPs to log for this operation.
+        """
+        caller_frame = inspect.currentframe().f_back.f_back  # Skip add_flops frame
+        while caller_frame:
+            filename = caller_frame.f_code.co_filename
+            file_path = Path(filename)
+
+            # Check if file is within floppy/counting directory
+            if not str(file_path).startswith(
+                str(Path("~/tbp/monty_lab/floppy/src/floppy/counting").expanduser())
+            ):
+                operation = Operation(
+                    flops=count,
+                    filename=filename,
+                    line_no=caller_frame.f_lineno,
+                    function_name=caller_frame.f_code.co_name,
+                    timestamp=time.time(),
+                )
+                self.log_manager.log_operation(operation)
+                break
+            caller_frame = caller_frame.f_back

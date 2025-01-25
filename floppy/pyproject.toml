@@ -16,6 +16,8 @@ testpaths = [
     "tests"
 ]
 
+
+
 [tool.ruff]
 # Enable isort rules
 select = ["I"]
@@ -23,3 +25,7 @@ select = ["I"]
 [tool.ruff.isort]
 known-first-party = ["floppy"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["floppy"]
