@@ -32,8 +32,8 @@ class MontyFlopTracer:
         train_dataloader_instance,
         eval_dataloader_instance,
         motor_system_instance,
+        log_level="function",
         log_dir=None,
-        detailed_logging=True,
     ):
         self.experiment_name = experiment_name
         self.monty = monty_instance
@@ -41,10 +41,11 @@ class MontyFlopTracer:
         self.train_dataloader = train_dataloader_instance
         self.eval_dataloader = eval_dataloader_instance
         self.motor_system = motor_system_instance
-        self.detailed_logging = detailed_logging
+        self.log_level = log_level
 
         # Setup logging first
         timestamp = time.strftime("%Y%m%d_%H%M%S")
+
         self.log_dir = (
             Path(log_dir or f"~/tbp/monty_lab/floppy/results/counting")
             .expanduser()
@@ -52,12 +53,11 @@ class MontyFlopTracer:
         )
         if not self.log_dir.parent.exists():
             self.log_dir.parent.mkdir(parents=True, exist_ok=True)
-
         self.log_path = (
             self.log_dir / f"flop_traces_{self.experiment_name}_{timestamp}.csv"
         )
 
-        if detailed_logging:
+        if self.log_level is not None:
             # Create a logger with a unique name
             self.logger = logging.getLogger(f"flop_tracer_{timestamp}")
             self.logger.setLevel(logging.DEBUG)
@@ -79,7 +79,8 @@ class MontyFlopTracer:
 
         # Initialize FlopCounter with the logger
         self.flop_counter = FlopCounter(
-            logger=self.logger if detailed_logging else None
+            logger=self.logger if self.log_level is not None else None,
+            log_level=self.log_level,
         )
 
         self.total_flops = 0
