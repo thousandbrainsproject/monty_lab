@@ -1,9 +1,12 @@
 import inspect
+import time
 from contextlib import ContextDecorator
+from pathlib import Path
 from typing import Any, Dict
 
 import numpy as np
 
+from .logger import FlopLogger, FlopOperation
 from .operations import *
 
 
@@ -152,14 +155,13 @@ class FlopCounter(ContextDecorator):
     3) accumulates FLOPs for each operation
     """
 
-    def __init__(self, logger=None, test_mode=False):
+    def __init__(self, test_mode=False, logger=None, log_level="function"):
         self.flops = 0
         self._is_active = False
         self.logger = logger  # Store the logger instance
-        self.detailed_logging = (
-            logger is not None
-        )  # Enable detailed logging if logger is provided
+        self.log_level = log_level
         self.test_mode = test_mode
+        self.flop_logger = FlopLogger(logger, log_level=log_level) if logger else None
 
         self._original_array_func = None
         self._original_funcs = {}
@@ -329,6 +331,9 @@ class FlopCounter(ContextDecorator):
             mod, attr = self.patch_targets[name]
             setattr(mod, attr, original_func)
 
+        if self.flop_logger:
+            self.flop_logger.flush()
+
         return False
 
     def should_skip_counting(self) -> bool:
@@ -361,19 +366,29 @@ class FlopCounter(ContextDecorator):
     def add_flops(self, count: int):
         """Add to the FLOP count only if counter is active and not in library code."""
         if not self.should_skip_counting():
-            if self.detailed_logging and self.logger:
+            self.flops += count
+
+            if self.flop_logger:
                 caller_frame = inspect.currentframe().f_back
                 while caller_frame:
                     filename = caller_frame.f_code.co_filename
-                    # Skip internal frames from our FLOP counting infrastructure
-                    if not any(
-                        x in filename for x in ["counter.py", "monty_flop_tracer.py"]
-                    ):
-                        line_no = caller_frame.f_lineno
-                        function_name = caller_frame.f_code.co_name
-                        self.logger.debug(
-                            f"FLOPs: {count} | File: {filename} | Line: {line_no} | Function: {function_name}"
+                    file_path = Path(filename)
+
+                    # Check if file is within floppy/counting directory
+                    if not str(file_path).startswith(
+                        str(
+                            Path(
+                                "~/tbp/monty_lab/floppy/src/floppy/counting"
+                            ).expanduser()
                         )
+                    ):
+                        operation = FlopOperation(
+                            flops=count,
+                            filename=filename,
+                            line_no=caller_frame.f_lineno,
+                            function_name=caller_frame.f_code.co_name,
+                            timestamp=time.time(),
+                        )
+                        self.flop_logger.log_operation(operation)
                         break
                     caller_frame = caller_frame.f_back
-            self.flops += count
