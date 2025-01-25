@@ -61,9 +61,17 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
 
         # Get Floppy-specific configs
         floppy_config = modified_config.get("floppy_config", {})
-        log_dir = floppy_config.get("log_dir", "")
-        log_level = floppy_config.get("log_level", "function")
+        results_dir = floppy_config.get("results_dir", "")
+        detailed_logging = floppy_config.get("detailed_logging", False)
 
+        # Logger-specific configs
+        detailed_logger_kwargs = {
+            "batch_size": floppy_config.get("detailed_batch_size", 10000),
+            "log_level": floppy_config.get("log_level", "FUNCTION"),
+        }
+        csv_logger_kwargs = {
+            "batch_size": floppy_config.get("csv_batch_size", 1000),
+        }
         flop_tracer = MontyFlopTracer(
             experiment_name=run_name,
             monty_instance=self.model,
@@ -71,8 +79,10 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
             train_dataloader_instance=self.dataloader,
             eval_dataloader_instance=self.eval_dataloader,
             motor_system_instance=self.model.motor_system,
-            log_dir=log_dir,
-            log_level=log_level,
+            results_dir=results_dir,
+            detailed_logging=detailed_logging,
+            detailed_logger_kwargs=detailed_logger_kwargs,
+            csv_logger_kwargs=csv_logger_kwargs,
         )
         one_true_flop_counter = flop_tracer.flop_counter
         for lm in self.model.learning_modules:
@@ -111,16 +121,34 @@ def flop_main(all_configs, experiments=None):
         cmd_parser = create_cmd_parser(all_configs=all_configs)
         # Add Floppy-specific arguments
         cmd_parser.add_argument(
-            "--log_dir",
+            "--results_dir",
             type=str,
             default="",
-            help="Directory for FLOP counting logs",
+            help="Directory for FLOP counting results",
+        )
+        cmd_parser.add_argument(
+            "--detailed_logging",
+            action="store_true",
+            help="Enable detailed logging of FLOP operations",
         )
         cmd_parser.add_argument(
             "--log_level",
             type=str,
-            default="function",
-            help="Level of FLOP logging: 'file', 'function', 'operation' or 'none'. Note: 'operation' will log every FLOP operation, which can be very slow.",
+            choices=["FILE", "FUNCTION", "OPERATION"],
+            default="FUNCTION",
+            help="Level of detail for FLOP logging (if detailed_logging is enabled)",
+        )
+        cmd_parser.add_argument(
+            "--detailed_batch_size",
+            type=int,
+            default=10000,
+            help="Batch size for detailed logger",
+        )
+        cmd_parser.add_argument(
+            "--csv_batch_size",
+            type=int,
+            default=1000,
+            help="Batch size for CSV logger",
         )
         cmd_args = cmd_parser.parse_args()
         experiments = cmd_args.experiments
@@ -135,8 +163,11 @@ def flop_main(all_configs, experiments=None):
 
         # Add Floppy configs to exp_config
         exp_config["floppy_config"] = {
-            "log_dir": cmd_args.flop_log_dir if cmd_args else "",
-            "log_level": cmd_args.log_level if cmd_args else "function",
+            "results_dir": cmd_args.results_dir if cmd_args else None,
+            "detailed_logging": cmd_args.detailed_logging if cmd_args else False,
+            "log_level": cmd_args.log_level if cmd_args else "FUNCTION",
+            "detailed_batch_size": cmd_args.detailed_batch_size if cmd_args else 10000,
+            "csv_batch_size": cmd_args.csv_batch_size if cmd_args else 1000,
         }
 
         # Update run_name and output dir with experiment name
