@@ -9,12 +9,24 @@
 # https://opensource.org/licenses/MIT.
 """Configs for Figure 4: Rapid Inference with Voting.
 
-This module defines the following experiments:
+This module defines the following single-LM config:
  - `dist_agent_1lm_randrot_noise`
- - `dist_agent_2lm_randrot_noise`
- - `dist_agent_4lm_randrot_noise`
- - `dist_agent_8lm_randrot_noise`
- - `dist_agent_16lm_randrot_noise`
+ This is distinct from `dist_agent_1lm_randrot_all_noise` used in figure 3 in that it
+ uses 5 random rotations instead of 14.
+
+This module also defines defines the following multi-LM configs where half the number
+of LMs must match before terminating an episode:
+ - `dist_agent_2lm_half_lms_match_randrot_noise`
+ - `dist_agent_4lm_half_lms_match_randrot_noise`
+ - `dist_agent_8lm_half_lms_match_randrot_noise`
+ - `dist_agent_16lm_half_lms_match_randrot_noise`
+
+ In addition, there are variants where the minimum number of LMs that must match is
+ fixed to 2:
+ - `dist_agent_2lm_fixed_min_lms_match_randrot_noise`
+ - `dist_agent_4lm_fixed_min_lms_match_randrot_noise`
+ - `dist_agent_8lm_fixed_min_lms_match_randrot_noise`
+ - `dist_agent_16lm_fixed_min_lms_match_randrot_noise`
 
 All of these experiments use:
  - 77 objects
@@ -27,7 +39,6 @@ All of these experiments use:
 from copy import deepcopy
 
 from tbp.monty.frameworks.config_utils.config_args import (
-    ParallelEvidenceLMLoggingConfig,
     make_multi_lm_monty_config,
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
@@ -82,16 +93,16 @@ in these configs, but we will use `make_randrot_noise_variant` anyway to handle
 setting run names the way we want.
 """
 
-dist_agent_2lm = dict(
+dist_agent_2lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_2lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=2,
+        min_lms_match=1,
     ),
-    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_2lm"),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_2lm_half_lms_match"),
     monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -109,7 +120,7 @@ dist_agent_2lm = dict(
     ),
 )
 
-dist_agent_4lm = dict(
+dist_agent_4lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_4lm/pretrained"),
@@ -118,7 +129,7 @@ dist_agent_4lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=2,
     ),
-    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_4lm"),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_4lm_half_lms_match"),
     monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -136,7 +147,7 @@ dist_agent_4lm = dict(
     ),
 )
 
-dist_agent_8lm = dict(
+dist_agent_8lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_8lm/pretrained"),
@@ -145,7 +156,7 @@ dist_agent_8lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=2,
     ),
-    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_8lm"),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_8lm_half_lms_match"),
     monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -163,7 +174,7 @@ dist_agent_8lm = dict(
     ),
 )
 
-dist_agent_16lm = dict(
+dist_agent_16lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(PRETRAIN_DIR / "dist_agent_16lm/pretrained"),
@@ -172,7 +183,7 @@ dist_agent_16lm = dict(
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=2,
     ),
-    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_16lm"),
+    logging_config=DMCEvalLoggingConfig(run_name="dist_agent_16lm_half_lms_match"),
     monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,
@@ -190,38 +201,69 @@ dist_agent_16lm = dict(
     ),
 )
 
-# ==== Variants where min_lms_match=int(num_lms/2) ====
+# ==== The single-LM config ====
 dist_agent_1lm_randrot_noise = make_randrot_noise_variant(dist_agent_1lm)
-dist_agent_2lm_half_lms_match_randrot_noise = make_randrot_noise_variant(dist_agent_2lm)
-dist_agent_4lm_half_lms_match_randrot_noise = make_randrot_noise_variant(dist_agent_4lm)
-dist_agent_8lm_half_lms_match_randrot_noise = make_randrot_noise_variant(dist_agent_8lm)
+
+# ==== Variants where min_lms_match=int(num_lms/2) ====
+
+# - 2 LMs
+dist_agent_2lm_half_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_2lm_half_lms_match
+)
+
+# - 4 LMs
+dist_agent_4lm_half_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_4lm_half_lms_match
+)
+
+# - 8 LMs
+dist_agent_8lm_half_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_8lm_half_lms_match
+)
+
+# - 16 LMs
 dist_agent_16lm_half_lms_match_randrot_noise = make_randrot_noise_variant(
-    dist_agent_16lm
+    dist_agent_16lm_half_lms_match
 )
 
 # ==== Variants where min_lms_match=min(num_lms, 2) ====
-dist_agent_2lm_fixed_min_lms_match = deepcopy(dist_agent_2lm)
-dist_agent_2lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
-dist_agent_4lm_fixed_min_lms_match = deepcopy(dist_agent_4lm)
-dist_agent_4lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
-dist_agent_8lm_fixed_min_lms_match = deepcopy(dist_agent_8lm)
-dist_agent_8lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
-dist_agent_16lm_fixed_min_lms_match = deepcopy(dist_agent_16lm)
-dist_agent_16lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
 
-# Make random-noise versions
-dist_agent_2lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
-    dist_agent_2lm_fixed_min_lms_match
+# - 2 LMs
+dist_agent_2lm_fixed_min_lms_match_randrot_noise = deepcopy(
+    dist_agent_2lm_half_lms_match_randrot_noise
 )
-dist_agent_4lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
-    dist_agent_4lm_fixed_min_lms_match
+dist_agent_2lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
+dist_agent_2lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_2lm_fixed_min_lms_match_randrot_noise"
+
+# - 4 LMs
+dist_agent_4lm_fixed_min_lms_match_randrot_noise = deepcopy(
+    dist_agent_4lm_half_lms_match_randrot_noise
 )
-dist_agent_8lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
-    dist_agent_8lm_fixed_min_lms_match
+dist_agent_4lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
+dist_agent_4lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_4lm_fixed_min_lms_match_randrot_noise"
+
+# - 8 LMs
+dist_agent_8lm_fixed_min_lms_match_randrot_noise = deepcopy(
+    dist_agent_8lm_half_lms_match_randrot_noise
 )
-dist_agent_16lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
-    dist_agent_16lm_fixed_min_lms_match
+dist_agent_8lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
+dist_agent_8lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_8lm_fixed_min_lms_match_randrot_noise"
+
+# - 16 LMs
+dist_agent_16lm_fixed_min_lms_match_randrot_noise = deepcopy(
+    dist_agent_16lm_half_lms_match_randrot_noise
 )
+dist_agent_16lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
+dist_agent_16lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_16lm_fixed_min_lms_match_randrot_noise"
+
 
 CONFIGS = {
     "dist_agent_1lm_randrot_noise": dist_agent_1lm_randrot_noise,
