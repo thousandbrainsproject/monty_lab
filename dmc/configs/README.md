@@ -46,10 +46,6 @@ This means performance is evaluated with:
 
 The main output measure is accuracy and rotation error as a function of number of LMs.
 
-**TODO:**
-- Config builders for arbitrary numbers of LMs are not currently included in `dmc_eval_experiments.py`.
-- Comparable configs should be used to generate views for evaluated rotations to pass to ViT model for comparison.
-
 ## Figure 5: Rapid Inference with Model-Based Policies
 
 Consists of 3 experiments:
@@ -70,9 +66,6 @@ This means performance is evaluated with:
 - Varying levels of hypothesis-testing
 
 The main output measure is accuracy and rotation error as a function of hypothesis-testing policy.
-
-**TODO:**
-- These configs need to be specified.
 
 ## Figure 6: Rapid Learning
 
@@ -101,10 +94,6 @@ The main output measure is accuracy and rotation error as a function of training
   1. First 6 rotations = cube faces
   2. Next 8 rotations = cube corners
   3. Remaining = random rotations (as otherwise introduces redundancy)
-
-**TODO:**
-- Configs need to be specified
-- Comparable configs needed for ViT model comparison
 
 ## Figure 7: Computationally Efficient Learning and Inference
 
@@ -143,10 +132,6 @@ The main output measure is accuracy and FLOPs as a function of x-percent thresho
 
 The main output measure is FLOPs as a function of whether the ViT or Monty is training.
 
-**TODO:**
-- Configs need specification (including `dist_agent_77obj_1rot_trained` in `dmc_pretrain_experiments.py`)
-- Comparable config needed to generate views corresponding to the 5 random, evaluated rotations, which can then be passed to the ViT model(s) for comparison.
-
 ## Figure 8: Multi-Modal Transfer
 
 Consists of 4 experiments:
@@ -181,6 +166,3 @@ The main output measure is a dendrogram showing evidence score clustering for th
 **Notes:**
 - Although evaluating on 10 objects, the model is trained on 77 objects.
 - We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
-
-**TODO:**
-- Config needs specification, including training config for similar objects in `dmc_pretrain_experiments.py`.
