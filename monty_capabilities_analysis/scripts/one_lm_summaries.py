@@ -137,7 +137,7 @@ def write_latex_table(
 def init_1lm_plot(
     dataframes: List[pd.DataFrame],
     conditions: List[str],
-    figsize=(4, 2),
+    figsize=(6, 3),
 ) -> matplotlib.figure.Figure:
     """Initialize a plot with violin plots for steps, accuracy, and rotation error.
 
@@ -379,11 +379,106 @@ def plot_multimodal_transfer_base(save: bool = False):
     return fig
 
 
+def plot_fig3():
+    dataframes = [
+        load_eval_stats("dist_agent_1lm"),
+        load_eval_stats("dist_agent_1lm_noise"),
+        load_eval_stats("dist_agent_1lm_randrot_all"),
+        load_eval_stats("dist_agent_1lm_randrot_all_noise"),
+    ]
+    conditions = ["base", "noise", "RR", "noise + RR"]
+    fig = init_1lm_plot(dataframes, conditions)
+
+    fig.suptitle("Fig 3: Robust Sensorimotor Inference")
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig4():
+    dataframes = [
+        load_eval_stats("dist_agent_1lm_randrot_noise"),
+        load_eval_stats("dist_agent_2lm_randrot_noise"),
+        load_eval_stats("dist_agent_4lm_randrot_noise"),
+        load_eval_stats("dist_agent_8lm_randrot_noise"),
+        load_eval_stats("dist_agent_16lm_randrot_noise"),
+    ]
+    conditions = ["1", "2", "4", "8", "16"]
+    fig = init_1lm_plot(dataframes, conditions, figsize=(7, 3))
+
+    fig.suptitle("Fig 4: Voting")
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig5():
+    dataframes = [
+        load_eval_stats("dist_agent_1lm_randrot_noise"),
+        load_eval_stats("dist_agent_1lm_randrot_noise_nohyp"),
+        load_eval_stats("dist_agent_1lm_randrot_noise_moderatehyp"),
+    ]
+    conditions = ["std", "no hyp", "mod hyp"]
+    fig = init_1lm_plot(dataframes, conditions)
+    fig.suptitle("Fig 5: Model-Based Policies")
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig6():
+    dataframes = [
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_1rot_trained"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_2rot_trained"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_4rot_trained"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_8rot_trained"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_16rot_trained"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_32rot_trained"),
+    ]
+    conditions = ["1", "2", "4", "8", "16", "32"]
+    fig = init_1lm_plot(dataframes, conditions, figsize=(7, 3))
+    fig.suptitle("Fig 6: Rapid Learning")
+    fig.tight_layout()
+    return fig
+
+
+def plot_fig8():
+    dataframes = [
+        load_eval_stats("dist_agent_1lm_randrot_noise"),
+        load_eval_stats("touch_agent_1lm_randrot_noise"),
+        load_eval_stats("dist_on_touch_1lm_randrot_noise"),
+        load_eval_stats("touch_on_dist_1lm_randrot_noise"),
+    ]
+    conditions = ["dist", "touch", "dist on touch", "touch on dist"]
+    fig = init_1lm_plot(dataframes, conditions)
+
+    fig.suptitle("Fig 8: Multimodal Transfer")
+    fig.tight_layout()
+    return fig
+
+
 if __name__ == "__main__":
-    plot_1lm_distant_agent(save=True)
-    plot_1lm_distant_agent_nohyp(save=True)
-    plot_1lm_surface_agent(save=True)
-    plot_1lm_touch_agent(save=True)
-    plot_dist_on_touch(save=True)
-    plot_touch_on_dist(save=True)
-    plot_multimodal_transfer_base(save=True)
+    pass
+    # plot_1lm_distant_agent(save=True)
+    # plot_1lm_distant_agent_nohyp(save=True)
+    # plot_1lm_surface_agent(save=True)
+    # plot_1lm_touch_agent(save=True)
+    # plot_dist_on_touch(save=True)
+    # plot_touch_on_dist(save=True)
+    # plot_multimodal_transfer_base(save=True)
+
+    # if save:
+    #     fig.savefig(PNG_DIR / "1lm_surface_agent.png", dpi=300)
+    #     fig.savefig(SVG_DIR / "1lm_surface_agent.svg")
+    #     fig.savefig(PDF_DIR / "1lm_surface_agent.pdf")
+    #     stats = get_summary_stats(dataframes, conditions)
+    #     stats.to_csv(CSV_DIR / "1lm_surface_agent.csv", float_format="%.2f")
+    #     write_latex_table(
+    #         TXT_DIR / "1lm_surface_agent.txt",
+    #         dataframes,
+    #         conditions,
+    #         "Surface Agent Performance",
+    #         "tab:surface-agent-performance",
+    #     )
+    fig3 = plot_fig3()
+    fig4 = plot_fig4()
+    fig5 = plot_fig5()
+    fig6 = plot_fig6()
+    fig8 = plot_fig8()

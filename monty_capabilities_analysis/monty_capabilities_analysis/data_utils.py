@@ -9,11 +9,14 @@ import numpy as np
 import pandas as pd
 
 # Directory containing DMC results.
-RESULTS_DIR = Path(
-    "~/tbp/monty_lab/monty_capabilities_analysis/results/dmc"
-).expanduser()
+# RESULTS_DIR = Path(
+#     "~/tbp/monty_lab/monty_capabilities_analysis/results/dmc"
+# ).expanduser()
+DMC_ROOT = Path("~/tbp/results/dmc").expanduser()
+PRETRAIN_DIR = DMC_ROOT / "pretrained_models"
+RESULTS_DIR = DMC_ROOT / "results"
 
-OUT_DIR = Path("~/tbp/monty_lab/monty_capabilities_analysis/out").expanduser()
+OUT_DIR = Path("~/tbp/dmc_analysis").expanduser()
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
