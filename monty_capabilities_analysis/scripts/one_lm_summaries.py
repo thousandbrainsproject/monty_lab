@@ -189,194 +189,31 @@ def init_1lm_plot(
     return fig
 
 
-def plot_1lm_distant_agent(save: bool = False):
-    dataframes = [
-        load_eval_stats("dist_agent_1lm"),
-        load_eval_stats("dist_agent_1lm_noise"),
-        load_eval_stats("dist_agent_1lm_randrot"),
-        load_eval_stats("dist_agent_1lm_randrot_noise"),
-    ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
-    fig.suptitle("Distant Agent")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "1lm_distant_agent.png", dpi=300)
-        fig.savefig(SVG_DIR / "1lm_distant_agent.svg")
-        fig.savefig(PDF_DIR / "1lm_distant_agent.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "1lm_distant_agent.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "1lm_distant_agent.txt",
-            dataframes,
-            conditions,
-            "Distant Agent Performance",
-            "tab:distant-agent-performance",
-        )
-    return fig
-
-
-def plot_1lm_distant_agent_nohyp(save: bool = False):
-    dataframes = [
-        load_eval_stats("dist_agent_1lm_nohyp"),
-        load_eval_stats("dist_agent_1lm_nohyp_noise"),
-        load_eval_stats("dist_agent_1lm_nohyp_randrot"),
-        load_eval_stats("dist_agent_1lm_nohyp_randrot_noise"),
-    ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
-    fig.suptitle("Distant Agent (No Hyp. Jumps)")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "1lm_distant_agent_nohyp.png", dpi=300)
-        fig.savefig(SVG_DIR / "1lm_distant_agent_nohyp.svg")
-        fig.savefig(PDF_DIR / "1lm_distant_agent_nohyp.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "1lm_distant_agent_nohyp.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "1lm_distant_agent_nohyp.txt",
-            dataframes,
-            conditions,
-            "Distant Agent (No Hyp. Jumps) Performance",
-            "tab:distant-agent-nohyp-performance",
-        )
-    return fig
-
-
-def plot_1lm_surface_agent(save: bool = False):
-    dataframes = [
-        load_eval_stats("surf_agent_1lm"),
-        load_eval_stats("surf_agent_1lm_noise"),
-        load_eval_stats("surf_agent_1lm_randrot"),
-        load_eval_stats("surf_agent_1lm_randrot_noise"),
-    ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
-
-    fig.suptitle("Surface Agent")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "1lm_surface_agent.png", dpi=300)
-        fig.savefig(SVG_DIR / "1lm_surface_agent.svg")
-        fig.savefig(PDF_DIR / "1lm_surface_agent.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "1lm_surface_agent.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "1lm_surface_agent.txt",
-            dataframes,
-            conditions,
-            "Surface Agent Performance",
-            "tab:surface-agent-performance",
-        )
-    return fig
-
-
-def plot_1lm_touch_agent(save: bool = False):
-    dataframes = [
-        load_eval_stats("touch_agent_1lm"),
-        load_eval_stats("touch_agent_1lm_noise"),
-        load_eval_stats("touch_agent_1lm_randrot"),
-        load_eval_stats("touch_agent_1lm_randrot_noise"),
-    ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
-    fig.suptitle("Touch Agent")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "1lm_touch_agent.png", dpi=300)
-        fig.savefig(SVG_DIR / "1lm_touch_agent.svg")
-        fig.savefig(PDF_DIR / "1lm_touch_agent.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "1lm_touch_agent.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "1lm_touch_agent.txt",
-            dataframes,
-            conditions,
-            "Touch Agent Performance",
-            "tab:touch-agent-performance",
-        )
-    return fig
-
-
-def plot_dist_on_touch(save: bool = False):
-    dataframes = [
-        load_eval_stats("dist_on_touch"),
-        load_eval_stats("dist_on_touch_noise"),
-        load_eval_stats("dist_on_touch_randrot"),
-        load_eval_stats("dist_on_touch_randrot_noise"),
-    ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
-    fig.suptitle("Distant Agent on Touch Model")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "1lm_dist_on_touch.png", dpi=300)
-        fig.savefig(SVG_DIR / "1lm_dist_on_touch.svg")
-        fig.savefig(PDF_DIR / "1lm_dist_on_touch.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "1lm_dist_on_touch.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "1lm_dist_on_touch.txt",
-            dataframes,
-            conditions,
-            "Distant Agent on Touch Model Performance",
-            "tab:dist-on-touch-performance",
-        )
-    return fig
-
-
-def plot_touch_on_dist(save: bool = False):
-    dataframes = [
-        load_eval_stats("touch_on_dist"),
-        load_eval_stats("touch_on_dist_noise"),
-        load_eval_stats("touch_on_dist_randrot"),
-        load_eval_stats("touch_on_dist_randrot_noise"),
-    ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
-    fig.suptitle("Touch Agent on Distant Model")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "1lm_touch_on_dist.png", dpi=300)
-        fig.savefig(SVG_DIR / "1lm_touch_on_dist.svg")
-        fig.savefig(PDF_DIR / "1lm_touch_on_dist.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "1lm_touch_on_dist.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "1lm_touch_on_dist.txt",
-            dataframes,
-            conditions,
-            "Touch Agent on Distant Model Performance",
-            "tab:touch-on-dist-performance",
-        )
-    return fig
-
-
-def plot_multimodal_transfer_base(save: bool = False):
-    dataframes = [
-        load_eval_stats("dist_agent_1lm"),
-        load_eval_stats("dist_on_touch"),
-        load_eval_stats("touch_agent_1lm"),
-        load_eval_stats("touch_on_dist"),
-    ]
-    conditions = ["dist on dist", "dist on touch", "touch on touch", "touch on dist"]
-    fig = init_1lm_plot(dataframes, conditions, figsize=(4, 2.15))
-    fig.suptitle("Multimodal Transfer")
-    fig.tight_layout()
-    if save:
-        fig.savefig(PNG_DIR / "multimodal_transfer_base.png", dpi=300)
-        fig.savefig(SVG_DIR / "multimodal_transfer_base.svg")
-        fig.savefig(PDF_DIR / "multimodal_transfer_base.pdf")
-        stats = get_summary_stats(dataframes, conditions)
-        stats.to_csv(CSV_DIR / "multimodal_transfer_base.csv", float_format="%.2f")
-        write_latex_table(
-            TXT_DIR / "multimodal_transfer_base.txt",
-            dataframes,
-            conditions,
-            "Multimodal Transfer Performance",
-            "tab:multimodal-transfer-performance",
-        )
-    return fig
+# def plot_multimodal_transfer_base(save: bool = False):
+#     dataframes = [
+#         load_eval_stats("dist_agent_1lm"),
+#         load_eval_stats("dist_on_touch"),
+#         load_eval_stats("touch_agent_1lm"),
+#         load_eval_stats("touch_on_dist"),
+#     ]
+#     conditions = ["dist on dist", "dist on touch", "touch on touch", "touch on dist"]
+#     fig = init_1lm_plot(dataframes, conditions, figsize=(4, 2.15))
+#     fig.suptitle("Multimodal Transfer")
+#     fig.tight_layout()
+#     if save:
+#         fig.savefig(PNG_DIR / "multimodal_transfer_base.png", dpi=300)
+#         fig.savefig(SVG_DIR / "multimodal_transfer_base.svg")
+#         fig.savefig(PDF_DIR / "multimodal_transfer_base.pdf")
+#         stats = get_summary_stats(dataframes, conditions)
+#         stats.to_csv(CSV_DIR / "multimodal_transfer_base.csv", float_format="%.2f")
+#         write_latex_table(
+#             TXT_DIR / "multimodal_transfer_base.txt",
+#             dataframes,
+#             conditions,
+#             "Multimodal Transfer Performance",
+#             "tab:multimodal-transfer-performance",
+#         )
+#     return fig
 
 
 def plot_fig3():
@@ -439,6 +276,21 @@ def plot_fig6():
     return fig
 
 
+def plot_fig7():
+    dataframes = [
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_5p"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_10p"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_20p"),
+        load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_30p"),
+        # load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all"),
+    ]
+    conditions = ["5%", "10%", "20%", "30%"]
+    fig = init_1lm_plot(dataframes, conditions, figsize=(7, 3))
+    fig.suptitle("Fig 7: Flops Comparison")
+    fig.axes[0].set_xlabel("x_percent_threshold")
+    fig.tight_layout()
+
+
 def plot_fig8():
     dataframes = [
         load_eval_stats("dist_agent_1lm_randrot_noise"),
@@ -481,4 +333,5 @@ if __name__ == "__main__":
     fig4 = plot_fig4()
     fig5 = plot_fig5()
     fig6 = plot_fig6()
+    fig7 = plot_fig7()
     fig8 = plot_fig8()
