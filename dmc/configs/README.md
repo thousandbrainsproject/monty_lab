@@ -38,41 +38,34 @@ Consists of 5 experiments:
 - `dist_agent_8lm_randrot_noise`
 - `dist_agent_16lm_randrot_noise`
 
+With two variations, either
+- Half the number of LMs must match; this will tend to increase accuracy, but with a smaller improvement in convergence as a function of matching steps.
+  - `min_lms_match=int(num_lms/2)`
+- Or, the minimum number of LMs that must match is 2; this will tend to increase convergence very quickly, but with a smaller/minimal improvement in accuracy.
+  - `min_lms_match=min(num_lms, 2)`
+
 This means performance is evaluated with:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
 - Sensor noise and 5 random rotations
 - Voting over 1, 2, 4, 8, or 16 LMs
 
-The main output measure is accuracy and rotation error as a function of number of LMs.
+The main output measure is accuracy and rotation error as a function of number of LMs. The two variations show that accuracy and convergence speed can be traded off against each other.
 
-**TODO:**
-- Config builders for arbitrary numbers of LMs are not currently included in `dmc_eval_experiments.py`.
-- Comparable configs should be used to generate views for evaluated rotations to pass to ViT model for comparison.
-
-## Figure 5: Rapid Inference with Model-Based Policies
+## Figure 5: Rapid Inference with Model-Free and Model-Based Policies
 
 Consists of 3 experiments:
-- `dist_agent_1lm_randrot_noise_nohyp` - No hypothesis-testing
-- `dist_agent_1lm_randrot_noise_moderatehyp` - Occasional hypothesis-testing
-  - Should specify:
-    - elapsed_steps_factor=20
-    - min_post_goal_success_steps=10
-- `dist_agent_1lm_randrot_noise` - Default, frequent hypothesis-testing
-  - Should specify:
-    - elapsed_steps_factor=10
-    - min_post_goal_success_steps=5
+- `dist_agent_1lm_randrot_noise_nohyp` - No hypothesis-testing, and random-walk policy
+- `surf_agent_1lm_randrot_noise_nohyp` - Model-free policy to explore surface
+- `surf_agent_1lm_randrot_noise` - Default, i.e. model-free and model-based policies
 
 This means performance is evaluated with:
 - 77 objects
 - Sensor noise and 5 random rotations
 - No voting
-- Varying levels of hypothesis-testing
+- Varying policies; the surface agent (i.e. with color etc) gets the same kind of sensory information as the distant agent, and so differs only in its model-free policy that encourages rapid exploration of the surface of the object. We can make it clear in the paper that there is nothing preventing the distant agent from also having model-free and model-based policies.
 
-The main output measure is accuracy and rotation error as a function of hypothesis-testing policy.
-
-**TODO:**
-- These configs need to be specified.
+The main output measure is accuracy and rotation error as a function of the policy used.
 
 ## Figure 6: Rapid Learning
 
@@ -101,10 +94,6 @@ The main output measure is accuracy and rotation error as a function of training
   1. First 6 rotations = cube faces
   2. Next 8 rotations = cube corners
   3. Remaining = random rotations (as otherwise introduces redundancy)
-
-**TODO:**
-- Configs need to be specified
-- Comparable configs needed for ViT model comparison
 
 ## Figure 7: Computationally Efficient Learning and Inference
 
@@ -143,10 +132,6 @@ The main output measure is accuracy and FLOPs as a function of x-percent thresho
 
 The main output measure is FLOPs as a function of whether the ViT or Monty is training.
 
-**TODO:**
-- Configs need specification (including `dist_agent_77obj_1rot_trained` in `dmc_pretrain_experiments.py`)
-- Comparable config needed to generate views corresponding to the 5 random, evaluated rotations, which can then be passed to the ViT model(s) for comparison.
-
 ## Figure 8: Multi-Modal Transfer
 
 Consists of 4 experiments:
@@ -181,6 +166,3 @@ The main output measure is a dendrogram showing evidence score clustering for th
 **Notes:**
 - Although evaluating on 10 objects, the model is trained on 77 objects.
 - We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
-
-**TODO:**
-- Config needs specification, including training config for similar objects in `dmc_pretrain_experiments.py`.
