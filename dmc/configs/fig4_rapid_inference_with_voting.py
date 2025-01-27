@@ -24,6 +24,8 @@ All of these experiments use:
 
 """
 
+from copy import deepcopy
+
 from tbp.monty.frameworks.config_utils.config_args import (
     ParallelEvidenceLMLoggingConfig,
     make_multi_lm_monty_config,
@@ -187,16 +189,48 @@ dist_agent_16lm = dict(
         object_init_sampler=PredefinedObjectInitializer(),
     ),
 )
+
+# ==== Variants where min_lms_match=int(num_lms/2) ====
 dist_agent_1lm_randrot_noise = make_randrot_noise_variant(dist_agent_1lm)
-dist_agent_2lm_randrot_noise = make_randrot_noise_variant(dist_agent_2lm)
-dist_agent_4lm_randrot_noise = make_randrot_noise_variant(dist_agent_4lm)
-dist_agent_8lm_randrot_noise = make_randrot_noise_variant(dist_agent_8lm)
-dist_agent_16lm_randrot_noise = make_randrot_noise_variant(dist_agent_16lm)
+dist_agent_2lm_half_lms_match_randrot_noise = make_randrot_noise_variant(dist_agent_2lm)
+dist_agent_4lm_half_lms_match_randrot_noise = make_randrot_noise_variant(dist_agent_4lm)
+dist_agent_8lm_half_lms_match_randrot_noise = make_randrot_noise_variant(dist_agent_8lm)
+dist_agent_16lm_half_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_16lm
+)
+
+# ==== Variants where min_lms_match=min(num_lms, 2) ====
+dist_agent_2lm_fixed_min_lms_match = deepcopy(dist_agent_2lm)
+dist_agent_2lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
+dist_agent_4lm_fixed_min_lms_match = deepcopy(dist_agent_4lm)
+dist_agent_4lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
+dist_agent_8lm_fixed_min_lms_match = deepcopy(dist_agent_8lm)
+dist_agent_8lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
+dist_agent_16lm_fixed_min_lms_match = deepcopy(dist_agent_16lm)
+dist_agent_16lm_fixed_min_lms_match["experiment_args"].min_lms_match = 2
+
+# Make random-noise versions
+dist_agent_2lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_2lm_fixed_min_lms_match
+)
+dist_agent_4lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_4lm_fixed_min_lms_match
+)
+dist_agent_8lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_8lm_fixed_min_lms_match
+)
+dist_agent_16lm_fixed_min_lms_match_randrot_noise = make_randrot_noise_variant(
+    dist_agent_16lm_fixed_min_lms_match
+)
 
 CONFIGS = {
     "dist_agent_1lm_randrot_noise": dist_agent_1lm_randrot_noise,
-    "dist_agent_2lm_randrot_noise": dist_agent_2lm_randrot_noise,
-    "dist_agent_4lm_randrot_noise": dist_agent_4lm_randrot_noise,
-    "dist_agent_8lm_randrot_noise": dist_agent_8lm_randrot_noise,
-    "dist_agent_16lm_randrot_noise": dist_agent_16lm_randrot_noise,
+    "dist_agent_2lm_half_lms_match_randrot_noise": dist_agent_2lm_half_lms_match_randrot_noise,
+    "dist_agent_4lm_half_lms_match_randrot_noise": dist_agent_4lm_half_lms_match_randrot_noise,
+    "dist_agent_8lm_half_lms_match_randrot_noise": dist_agent_8lm_half_lms_match_randrot_noise,
+    "dist_agent_16lm_half_lms_match_randrot_noise": dist_agent_16lm_half_lms_match_randrot_noise,
+    "dist_agent_2lm_fixed_min_lms_match_randrot_noise": dist_agent_2lm_fixed_min_lms_match_randrot_noise,
+    "dist_agent_4lm_fixed_min_lms_match_randrot_noise": dist_agent_4lm_fixed_min_lms_match_randrot_noise,
+    "dist_agent_8lm_fixed_min_lms_match_randrot_noise": dist_agent_8lm_fixed_min_lms_match_randrot_noise,
+    "dist_agent_16lm_fixed_min_lms_match_randrot_noise": dist_agent_16lm_fixed_min_lms_match_randrot_noise,
 }
