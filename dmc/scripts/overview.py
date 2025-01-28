@@ -398,8 +398,8 @@ if __name__ == "__main__":
     save = True
     fig3 = plot_fig3(save=save)
     fig4_half_lms_match = plot_fig4_half_lms_match(save=save)
-    # fig4_fixed_min_lms_match = plot_fig4_fixed_min_lms_match()
-    # fig5 = plot_fig5()
-    # fig6 = plot_fig6()
-    # fig7 = plot_fig7()
-    # fig8 = plot_fig8()
+    fig4_fixed_min_lms_match = plot_fig4_fixed_min_lms_match()
+    fig5 = plot_fig5()
+    fig6 = plot_fig6()
+    fig7 = plot_fig7()
+    fig8 = plot_fig8()
