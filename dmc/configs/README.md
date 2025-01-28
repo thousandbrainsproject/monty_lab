@@ -56,7 +56,7 @@ The main output measure is accuracy and rotation error as a function of number o
 
 ## Figure 5: Rapid Inference with Model-Free and Model-Based Policies
 
-Consists of 5 experiments:
+Consists of 3 experiments:
 - `dist_agent_1lm_randrot_noise_nohyp` - No hypothesis-testing, and random-walk policy
 - `surf_agent_1lm_randrot_noise_nohyp` - Model-free policy to explore surface
 - `surf_agent_1lm_randrot_noise` - Default, i.e. model-free and model-based policies
