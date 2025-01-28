@@ -1,4 +1,13 @@
-"""Get summary plots for DMC experiments.
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+"""Get overview plots for DMC experiments.
 
 This script generates basic figures for each set of experiments displaying number
 of monty matching steps, accuracy, and rotation error. If functions are called with
