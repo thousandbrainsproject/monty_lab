@@ -1,4 +1,9 @@
-"""Get summary plots for DMC experiments."""
+"""Get summary plots for DMC experiments.
+
+This script generates basic figures for each set of experiments displaying number
+of monty matching steps, accuracy, and rotation error. If functions are called with
+`save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
+"""
 
 import os
 from typing import List
@@ -27,8 +32,6 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # Additional output directories depending on format.
 PNG_DIR = OUT_DIR / "png"
 PNG_DIR.mkdir(parents=True, exist_ok=True)
-SVG_DIR = OUT_DIR / "svg"
-SVG_DIR.mkdir(parents=True, exist_ok=True)
 PDF_DIR = OUT_DIR / "pdf"
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 CSV_DIR = OUT_DIR / "csv"
@@ -202,7 +205,6 @@ def plot_fig3(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig3.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig3.svg")
         fig.savefig(PDF_DIR / "fig3.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig3.csv", float_format="%.2f")
@@ -232,7 +234,6 @@ def plot_fig4_half_lms_match(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig4_half_lms_match.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig4_half_lms_match.svg")
         fig.savefig(PDF_DIR / "fig4_half_lms_match.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig4_half_lms_match.csv", float_format="%.2f")
@@ -262,7 +263,6 @@ def plot_fig4_fixed_min_lms_match(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig4_fixed_min_lms_match.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig4_fixed_min_lms_match.svg")
         fig.savefig(PDF_DIR / "fig4_fixed_min_lms_match.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig4_fixed_min_lms_match.csv", float_format="%.2f")
@@ -289,7 +289,6 @@ def plot_fig5(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig5.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig5.svg")
         fig.savefig(PDF_DIR / "fig5.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig5.csv", float_format="%.2f")
@@ -319,7 +318,6 @@ def plot_fig6(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig6.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig6.svg")
         fig.savefig(PDF_DIR / "fig6.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig6.csv", float_format="%.2f")
@@ -348,7 +346,6 @@ def plot_fig7(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig7.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig7.svg")
         fig.savefig(PDF_DIR / "fig7.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig7.csv", float_format="%.2f")
@@ -375,7 +372,6 @@ def plot_fig8(save: bool = False):
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig8.png", dpi=300)
-        fig.savefig(SVG_DIR / "fig8.svg")
         fig.savefig(PDF_DIR / "fig8.pdf")
         stats = get_summary_stats(dataframes, conditions)
         stats.to_csv(CSV_DIR / "fig8.csv", float_format="%.2f")
@@ -392,7 +388,7 @@ def plot_fig8(save: bool = False):
 if __name__ == "__main__":
     save = True
     fig3 = plot_fig3(save=save)
-    # fig4_half_lms_match = plot_fig4_half_lms_match()
+    fig4_half_lms_match = plot_fig4_half_lms_match(save=save)
     # fig4_fixed_min_lms_match = plot_fig4_fixed_min_lms_match()
     # fig5 = plot_fig5()
     # fig6 = plot_fig6()
