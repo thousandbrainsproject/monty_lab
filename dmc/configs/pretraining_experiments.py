@@ -77,10 +77,7 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
-    SurfaceViewFinderMountHabitatDatasetArgs,
-    make_multi_sensor_habitat_dataset_args,
 )
 from tbp.monty.frameworks.config_utils.policy_setup_utils import (
     make_naive_scan_policy_config,
@@ -96,6 +93,11 @@ from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     HabitatDistantPatchSM,
     HabitatSurfacePatchSM,
+)
+from tbp.monty.simulators.habitat.configs import (
+    PatchViewFinderMountHabitatDatasetArgs,
+    SurfaceViewFinderMountHabitatDatasetArgs,
+    make_multi_sensor_habitat_dataset_args,
 )
 
 from .common import DMC_PRETRAIN_DIR

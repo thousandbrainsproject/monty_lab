@@ -24,7 +24,7 @@ Three configs are defined:
 All use 77 objects.
 
 To visualize the images, run the script
-`monty_lab/dmc_config/scripts/render_view_finder_images.py`.
+`monty_lab/dmc/scripts/render_view_finder_images.py`.
 """
 
 import copy
@@ -51,7 +51,6 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
 )
@@ -66,6 +65,9 @@ from tbp.monty.frameworks.models.buffer import BufferEncoder
 from tbp.monty.frameworks.models.motor_policies import (
     InformedPolicy,
     get_perc_on_obj_semantic,
+)
+from tbp.monty.simulators.habitat.configs import (
+    PatchViewFinderMountHabitatDatasetArgs,
 )
 
 from .common import DMC_PRETRAIN_DIR, DMC_ROOT_DIR, RANDOM_ROTATIONS_5

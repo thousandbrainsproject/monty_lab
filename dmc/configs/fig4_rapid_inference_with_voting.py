@@ -43,12 +43,14 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
     PredefinedObjectInitializer,
-    make_multi_sensor_habitat_dataset_args,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
 from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
 from tbp.monty.frameworks.models.evidence_matching import MontyForEvidenceGraphMatching
+from tbp.monty.simulators.habitat.configs import (
+    make_multi_sensor_habitat_dataset_args,
+)
 
 from .common import (
     DMC_PRETRAIN_DIR,
