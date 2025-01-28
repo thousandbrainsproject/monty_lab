@@ -20,11 +20,13 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataLoaderPerObjectEvalArgs,
     EnvironmentDataLoaderPerObjectTrainArgs,
     ExperimentArgs,
-    SimpleMountHabitatDatasetArgs,
-    SinglePTZHabitatDatasetArgs,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
 from tbp.monty.frameworks.experiments import MontyExperiment
+from tbp.monty.simulators.habitat.configs import (
+    SimpleMountHabitatDatasetArgs,
+    SinglePTZHabitatDatasetArgs,
+)
 
 experiment_args = ExperimentArgs()
 debug_experiment_args = DebugExperimentArgs()

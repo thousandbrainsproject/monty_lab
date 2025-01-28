@@ -25,11 +25,7 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    NoisyPatchViewFinderMountHabitatDatasetArgs,
-    NoisySurfaceViewFinderMountHabitatDatasetArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
-    SurfaceViewFinderMountHabitatDatasetArgs,
     get_env_dataloader_per_object_by_idx,
     get_object_names_by_idx,
 )
@@ -43,6 +39,12 @@ from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     FeatureChangeSM,
     HabitatDistantPatchSM,
+)
+from tbp.monty.simulators.habitat.configs import (
+    NoisyPatchViewFinderMountHabitatDatasetArgs,
+    NoisySurfaceViewFinderMountHabitatDatasetArgs,
+    PatchViewFinderMountHabitatDatasetArgs,
+    SurfaceViewFinderMountHabitatDatasetArgs,
 )
 
 """

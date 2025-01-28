@@ -24,12 +24,8 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    FiveLMMountHabitatDatasetArgs,
-    NoisyPatchViewFinderMountHabitatDatasetArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
-    SurfaceViewFinderMountHabitatDatasetArgs,
     get_env_dataloader_per_object_by_idx,
     get_object_names_by_idx,
 )
@@ -43,6 +39,12 @@ from tbp.monty.frameworks.models.feature_location_matching import FeatureGraphLM
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     HabitatDistantPatchSM,
+)
+from tbp.monty.simulators.habitat.configs import (
+    FiveLMMountHabitatDatasetArgs,
+    NoisyPatchViewFinderMountHabitatDatasetArgs,
+    PatchViewFinderMountHabitatDatasetArgs,
+    SurfaceViewFinderMountHabitatDatasetArgs,
 )
 
 tested_degrees = np.linspace(0, 360, 5)[:-1]  # gives 32 combinations
