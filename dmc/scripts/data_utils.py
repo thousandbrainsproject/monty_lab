@@ -8,24 +8,23 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Directory containing DMC results.
-# RESULTS_DIR = Path(
-#     "~/tbp/monty_lab/monty_capabilities_analysis/results/dmc"
-# ).expanduser()
-DMC_ROOT = Path("~/tbp/results/dmc").expanduser()
-PRETRAIN_DIR = DMC_ROOT / "pretrained_models"
-RESULTS_DIR = DMC_ROOT / "results"
-
-OUT_DIR = Path("~/tbp/dmc_analysis").expanduser()
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+DMC_ROOT_DIR = Path(os.environ.get("DMC_ROOT_DIR", "~/tbp/results/dmc")).expanduser()
+DMC_PRETRAIN_DIR = DMC_ROOT_DIR / "pretrained_models"
+DMC_RESULTS_DIR = DMC_ROOT_DIR / "results"
+DMC_ANALYSIS_DIR = Path(
+    os.environ.get("DMC_ANALYSIS_DIR", "~/tbp/results/dmc_analysis")
+).expanduser()
+DMC_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     """Load `eval_stats.csv`
 
+    Convenience function for loading `eval_stats.csv` from a DMC experiment name.
+
     Args:
-        exp (os.PathLike): Path to a csv-file or a directory containing
-        `eval_stats.csv`.
+        exp (os.PathLike): Name of a DMC experiment, a directory containing
+        `eval_stats.csv`, or a complete path to `eval_stats.csv`.
 
     Returns:
         pd.DataFrame: The loaded dataframe. Includes generated columns `episode` and
@@ -38,14 +37,14 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
         # Case 1: Given a path to a csv file.
         if path.suffix.lower() == ".csv":
             df = pd.read_csv(exp, index_col=0)
-        # Case 2: Given a path to an experiment directory containing eval_stats.csv.
+        # Case 2: Given a path to a directory containing eval_stats.csv.
         elif (path / "eval_stats.csv").exists():
             df = pd.read_csv(path / "eval_stats.csv", index_col=0)
         else:
             raise FileNotFoundError(f"No eval_stats.csv found for {exp}")
     else:
         # Given a run name. Look in DMC folder.
-        df = pd.read_csv(RESULTS_DIR / path / "eval_stats.csv", index_col=0)
+        df = pd.read_csv(DMC_RESULTS_DIR / path / "eval_stats.csv", index_col=0)
 
     # Collect basic info, like number of LMs, objects, number of episodes, etc.
     n_lms = len(np.unique(df["lm_id"]))

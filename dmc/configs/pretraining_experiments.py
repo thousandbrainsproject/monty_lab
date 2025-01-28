@@ -12,15 +12,20 @@
 This module defines a suite of supervised pretraining experiments. The core models
 that experiments produce are:
  - `dist_agent_1lm`
+ - `dist_agent_1lm_10distinctobj`
  - `surf_agent_1lm`
+ - `surf_agent_1lm_10distinctobj`
  - `touch_agent_1lm`
+ - `touch_agent_1lm_10distinctobj`
  - `dist_agent_2lm`
  - `dist_agent_4lm`
  - `dist_agent_8lm`
  - `dist_agent_16lm`
 
 All of these models are trained on 77 YCB objects with 14 rotations each (cube face
-and corners). The `touch` model is a surface agent without access to color information.
+and corners) except those with the `10distinctobj` suffix which are trained on the
+10-distinct object dataset. The `touch` model is a surface agent without access to
+color information.
 
 This module performs some config finalization which does a few useful things:
  - Adds required (but unused) `eval_dataloader_class` and `eval_dataloader_args`.
@@ -93,7 +98,7 @@ from tbp.monty.frameworks.models.sensor_modules import (
     HabitatSurfacePatchSM,
 )
 
-from .common import PRETRAIN_DIR
+from .common import DMC_PRETRAIN_DIR
 
 # Specify default here
 # - Experiment args
@@ -439,6 +444,17 @@ pretrain_touch_agent_1lm = dict(
     ),
 )
 
+# Make 10distinctobj variants
+pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_dist_agent_1lm
+)
+pretrain_surf_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_surf_agent_1lm
+)
+pretrain_touch_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_touch_agent_1lm
+)
+
 """
 Setup for Multi-LM Experiments
 --------------------------------------------------------------------------------
@@ -565,6 +581,9 @@ CONFIGS = {
     "pretrain_dist_agent_1lm": pretrain_dist_agent_1lm,
     "pretrain_surf_agent_1lm": pretrain_surf_agent_1lm,
     "pretrain_touch_agent_1lm": pretrain_touch_agent_1lm,
+    "pretrain_dist_agent_1lm_10distinctobj": pretrain_dist_agent_1lm_10distinctobj,
+    "pretrain_surf_agent_1lm_10distinctobj": pretrain_surf_agent_1lm_10distinctobj,
+    "pretrain_touch_agent_1lm_10distinctobj": pretrain_touch_agent_1lm_10distinctobj,
     "pretrain_dist_agent_2lm": pretrain_dist_agent_2lm,
     "pretrain_dist_agent_4lm": pretrain_dist_agent_4lm,
     "pretrain_dist_agent_8lm": pretrain_dist_agent_8lm,
@@ -581,7 +600,7 @@ for exp in CONFIGS.values():
         object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
     )
     # Configure output directory..
-    exp["logging_config"].output_dir = str(PRETRAIN_DIR)
+    exp["logging_config"].output_dir = str(DMC_PRETRAIN_DIR)
 
     # Make sure eval is disabled.
     exp["experiment_args"].do_eval = False

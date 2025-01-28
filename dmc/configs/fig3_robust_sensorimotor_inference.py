@@ -46,10 +46,10 @@ from tbp.monty.frameworks.models.evidence_matching import (
 )
 
 from .common import (
+    DMC_PRETRAIN_DIR,
     MAX_EVAL_STEPS,
     MAX_TOTAL_STEPS,
     MIN_EVAL_STEPS,
-    PRETRAIN_DIR,
     DMCEvalLoggingConfig,
     get_dist_lm_config,
     get_dist_motor_config,
@@ -67,7 +67,7 @@ TEST_ROTATIONS = get_cube_face_and_corner_views_rotations()
 dist_agent_1lm = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
