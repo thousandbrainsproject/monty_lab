@@ -2,8 +2,6 @@
 
 Below is a summary of configs that correspond to figures in the Demonstrating Monty Capabilities paper, with descriptions motivating the choice of config parameters.
 
-**Note:** In all experiments, `use_semantic_sensor=False` should be specified. This should be the case once PR #116 is merged, updating the values for PatchViewFinderMountHabitatDatasetArgs etc to be False by default.
-
 ## Figure 1 & 2: Diagramatic Figures With No Experiments
 
 ## Figure 3: Robust Sensorimotor Inference
@@ -11,8 +9,8 @@ Below is a summary of configs that correspond to figures in the Demonstrating Mo
 Consists of 4 experiments:
 - `dist_agent_1lm` (i.e. no noise)
 - `dist_agent_1lm_noise` - Sensor noise
-- `dist_agent_1lm_randrot` - 5 random rotations (5 rather than e.g. 14 or 32 due to the long time to run the experiments)
-- `dist_agent_1lm_randrot_noise`
+- `dist_agent_1lm_randrot_all` - 14 random rotations.
+- `dist_agent_1lm_randrot_all_noise` - Sensor noise and 14 random rotations.
 
 Here we are showing the performance of the "standard" version of Monty, using:
 - 77 objects
@@ -31,17 +29,21 @@ This captures core model performance in a realistic setting.
 
 ## Figure 4: Rapid Inference with Voting
 
-Consists of 5 experiments:
+Consists of 9 experiments:
 - `dist_agent_1lm_randrot_noise`
-- `dist_agent_2lm_randrot_noise`
-- `dist_agent_4lm_randrot_noise`
-- `dist_agent_8lm_randrot_noise`
-- `dist_agent_16lm_randrot_noise`
+- `dist_agent_2lm_half_lms_match_randrot_noise`
+- `dist_agent_4lm_half_lms_match_randrot_noise`
+- `dist_agent_8lm_half_lms_match_randrot_noise`
+- `dist_agent_16lm_half_lms_match_randrot_noise`
+- `dist_agent_2lm_fixed_min_lms_match_randrot_noise`
+- `dist_agent_4lm_fixed_min_lms_match_randrot_noise`
+- `dist_agent_8lm_fixed_min_lms_match_randrot_noise`
+- `dist_agent_16lm_fixed_min_lms_match_randrot_noise`
 
-With two variations, either
-- Half the number of LMs must match; this will tend to increase accuracy, but with a smaller improvement in convergence as a function of matching steps.
+There are two variations, either
+- `half_lms_match`: Half the number of LMs must match; this will tend to increase accuracy, but with a smaller improvement in convergence as a function of matching steps.
   - `min_lms_match=int(num_lms/2)`
-- Or, the minimum number of LMs that must match is 2; this will tend to increase convergence very quickly, but with a smaller/minimal improvement in accuracy.
+- `fixed_min_lms_match`: The minimum number of LMs that must match is 2; this will tend to increase convergence very quickly, but with a smaller/minimal improvement in accuracy.
   - `min_lms_match=min(num_lms, 2)`
 
 This means performance is evaluated with:
@@ -54,7 +56,7 @@ The main output measure is accuracy and rotation error as a function of number o
 
 ## Figure 5: Rapid Inference with Model-Free and Model-Based Policies
 
-Consists of 3 experiments:
+Consists of 5 experiments:
 - `dist_agent_1lm_randrot_noise_nohyp` - No hypothesis-testing, and random-walk policy
 - `surf_agent_1lm_randrot_noise_nohyp` - Model-free policy to explore surface
 - `surf_agent_1lm_randrot_noise` - Default, i.e. model-free and model-based policies
@@ -135,13 +137,13 @@ The main output measure is FLOPs as a function of whether the ViT or Monty is tr
 ## Figure 8: Multi-Modal Transfer
 
 Consists of 4 experiments:
-- `dist_agent_1lm_randrot_noise` - "Standard" Monty ("dist_on_dist")
-- `dist_on_touch_1lm_randrot_noise` - "dist_on_touch"
-- `touch_agent_1lm_randrot_noise` - "touch_on_touch" baseline
-- `touch_on_dist_1lm_randrot_noise` - "touch_on_dist"
+- `dist_agent_1lm_randrot_noise_10distinctobj` - "Standard" Monty ("dist_on_dist")
+- `touch_agent_1lm_randrot_noise_10distinctobj` - "touch_on_touch" baseline
+- `dist_on_touch_1lm_randrot_noise_10distinctobj` - "dist_on_touch"
+- `touch_on_dist_1lm_randrot_noise_10distinctobj` - "touch_on_dist"
 
 This means performance is evaluated with:
-- 77 objects
+- 10 distinct objects
 - 5 random rotations
 - Sensor noise
 - Hypothesis-testing policy active
