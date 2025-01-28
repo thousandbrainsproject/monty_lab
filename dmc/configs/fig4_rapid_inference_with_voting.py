@@ -38,9 +38,7 @@ All of these experiments use:
 
 from copy import deepcopy
 
-from tbp.monty.frameworks.config_utils.config_args import (
-    make_multi_lm_monty_config,
-)
+from tbp.monty.frameworks.config_utils.config_args import make_multi_lm_monty_config
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
@@ -50,9 +48,7 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
 from tbp.monty.frameworks.environments import embodied_data as ED
 from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
-from tbp.monty.frameworks.models.evidence_matching import (
-    MontyForEvidenceGraphMatching,
-)
+from tbp.monty.frameworks.models.evidence_matching import MontyForEvidenceGraphMatching
 
 from .common import (
     MAX_EVAL_STEPS,
@@ -233,36 +229,36 @@ dist_agent_2lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_2lm_half_lms_match_randrot_noise
 )
 dist_agent_2lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_2lm_fixed_min_lms_match_randrot_noise[
-    "logging_config"
-].run_name = "dist_agent_2lm_fixed_min_lms_match_randrot_noise"
+dist_agent_2lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
+    "dist_agent_2lm_fixed_min_lms_match_randrot_noise"
+)
 
 # - 4 LMs
 dist_agent_4lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_4lm_half_lms_match_randrot_noise
 )
 dist_agent_4lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_4lm_fixed_min_lms_match_randrot_noise[
-    "logging_config"
-].run_name = "dist_agent_4lm_fixed_min_lms_match_randrot_noise"
+dist_agent_4lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
+    "dist_agent_4lm_fixed_min_lms_match_randrot_noise"
+)
 
 # - 8 LMs
 dist_agent_8lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_8lm_half_lms_match_randrot_noise
 )
 dist_agent_8lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_8lm_fixed_min_lms_match_randrot_noise[
-    "logging_config"
-].run_name = "dist_agent_8lm_fixed_min_lms_match_randrot_noise"
+dist_agent_8lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
+    "dist_agent_8lm_fixed_min_lms_match_randrot_noise"
+)
 
 # - 16 LMs
 dist_agent_16lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_16lm_half_lms_match_randrot_noise
 )
 dist_agent_16lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_16lm_fixed_min_lms_match_randrot_noise[
-    "logging_config"
-].run_name = "dist_agent_16lm_fixed_min_lms_match_randrot_noise"
+dist_agent_16lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
+    "dist_agent_16lm_fixed_min_lms_match_randrot_noise"
+)
 
 
 CONFIGS = {
