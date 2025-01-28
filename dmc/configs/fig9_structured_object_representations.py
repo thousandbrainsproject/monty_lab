@@ -26,7 +26,6 @@ import copy
 
 from tbp.monty.frameworks.config_utils.config_args import (
     DetailedEvidenceLMLoggingConfig,
-    EvalEvidenceLMLoggingConfig,
 )
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 
