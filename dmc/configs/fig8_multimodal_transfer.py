@@ -96,7 +96,7 @@ touch_agent_1lm_10distinctobj = dict(
     ),
 )
 
-# Distant agent.
+# Distant agent
 dist_agent_1lm_randrot_noise_10distinctobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10distinctobj[
     "logging_config"
@@ -105,7 +105,8 @@ dist_agent_1lm_randrot_noise_10distinctobj[
     "eval_dataloader_args"
 ].object_names = DISTINCT_OBJECTS
 
-# - Touch agent.
+
+# Touch agent
 touch_agent_1lm_randrot_noise_10distinctobj = make_randrot_noise_variant(
     touch_agent_1lm_10distinctobj
 )
@@ -113,7 +114,8 @@ touch_agent_1lm_randrot_noise_10distinctobj[
     "logging_config"
 ].run_name = "touch_agent_1lm_randrot_noise_10distinctobj"
 
-# Distant agent w/ touch pretrained model.
+
+# Distant agent w/ touch pretrained model
 dist_on_touch_1lm_randrot_noise_10distinctobj = deepcopy(
     dist_agent_1lm_randrot_noise_10distinctobj
 )
@@ -135,7 +137,7 @@ lm_args["tolerances"]["patch"].pop("hsv")
 lm_args["feature_weights"]["patch"].pop("hsv")
 
 
-# Touch agent w/ distant agent pretrained model.
+# Touch agent w/ distant agent pretrained model
 touch_on_dist_1lm_randrot_noise_10distinctobj = deepcopy(
     touch_agent_1lm_randrot_noise_10distinctobj
 )
