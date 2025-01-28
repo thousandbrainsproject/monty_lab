@@ -93,7 +93,7 @@ from tbp.monty.frameworks.models.sensor_modules import (
     HabitatSurfacePatchSM,
 )
 
-from .common import PRETRAIN_DIR
+from .common import DMC_PRETRAIN_DIR
 
 # Specify default here
 # - Experiment args
@@ -581,7 +581,7 @@ for exp in CONFIGS.values():
         object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
     )
     # Configure output directory..
-    exp["logging_config"].output_dir = str(PRETRAIN_DIR)
+    exp["logging_config"].output_dir = str(DMC_PRETRAIN_DIR)
 
     # Make sure eval is disabled.
     exp["experiment_args"].do_eval = False

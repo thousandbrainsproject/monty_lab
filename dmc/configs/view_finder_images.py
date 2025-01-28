@@ -68,12 +68,12 @@ from tbp.monty.frameworks.models.motor_policies import (
     get_perc_on_obj_semantic,
 )
 
-from .common import DMC_ROOT, PRETRAIN_DIR, RANDOM_ROTATIONS_5
+from .common import DMC_PRETRAIN_DIR, DMC_ROOT_DIR, RANDOM_ROTATIONS_5
 from .fig6_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
 
 # All view-finder image experiments will be stored under 'view_finder_images',
 # a directory at the same level as the results directory.
-VIEW_FINDER_DIR = DMC_ROOT / "view_finder_images"
+VIEW_FINDER_DIR = DMC_ROOT_DIR / "view_finder_images"
 
 
 class ViewFinderRGBDHandler(MontyHandler):
@@ -316,7 +316,7 @@ view_finder_base = dict(
     # Set up experiment
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
         n_eval_epochs=len(train_rotations),
         max_eval_steps=1,
         max_total_steps=1,

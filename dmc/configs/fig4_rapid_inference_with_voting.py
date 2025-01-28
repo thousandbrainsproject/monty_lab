@@ -51,10 +51,10 @@ from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
 from tbp.monty.frameworks.models.evidence_matching import MontyForEvidenceGraphMatching
 
 from .common import (
+    DMC_PRETRAIN_DIR,
     MAX_EVAL_STEPS,
     MAX_TOTAL_STEPS,
     MIN_EVAL_STEPS,
-    PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
     DMCEvalLoggingConfig,
     get_dist_lm_config,
@@ -92,7 +92,7 @@ setting run names the way we want.
 dist_agent_2lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_2lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_2lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
@@ -119,7 +119,7 @@ dist_agent_2lm_half_lms_match = dict(
 dist_agent_4lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_4lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_4lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
@@ -146,7 +146,7 @@ dist_agent_4lm_half_lms_match = dict(
 dist_agent_8lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_8lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_8lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
@@ -173,7 +173,7 @@ dist_agent_8lm_half_lms_match = dict(
 dist_agent_16lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_16lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_16lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,

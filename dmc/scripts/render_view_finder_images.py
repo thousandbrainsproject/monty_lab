@@ -39,7 +39,8 @@ import numpy as np
 import tqdm
 
 # The path to the directory where all view_finder_images experiments are stored.
-VIEW_FINDER_DIR = Path("~/tbp/results/dmc").expanduser() / "view_finder_images"
+DMC_ROOT_DIR = Path(os.environ.get("DMC_ROOT_DIR", "~/tbp/results/dmc")).expanduser()
+VIEW_FINDER_DIR = DMC_ROOT_DIR / "view_finder_images"
 
 # Settings for each experiment.
 figure_settings = {

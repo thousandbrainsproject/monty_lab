@@ -42,10 +42,10 @@ from tbp.monty.frameworks.models.evidence_matching import (
 )
 
 from .common import (
+    DMC_PRETRAIN_DIR,
     MAX_EVAL_STEPS,
     MAX_TOTAL_STEPS,
     MIN_EVAL_STEPS,
-    PRETRAIN_DIR,
     RANDOM_ROTATIONS_5,
     DMCEvalLoggingConfig,
     get_surf_lm_config,
@@ -60,7 +60,7 @@ from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 touch_agent_1lm = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "touch_agent_1lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "touch_agent_1lm/pretrained"),
         n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
@@ -108,7 +108,7 @@ dist_on_touch_1lm_randrot_noise[
 
 # - Set the model path to the touch agent's pretrained model.
 dist_on_touch_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
-    PRETRAIN_DIR / "touch_agent_1lm/pretrained"
+    DMC_PRETRAIN_DIR / "touch_agent_1lm/pretrained"
 )
 # - Tell the LM not to try and use the sensor's color data for graph matching
 #   since the model has no color data stored.
@@ -129,7 +129,7 @@ touch_on_dist_1lm_randrot_noise[
 
 # - Set the model path to the distant agent's pretrained model.
 touch_on_dist_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
-    PRETRAIN_DIR / "dist_agent_1lm/pretrained"
+    DMC_PRETRAIN_DIR / "dist_agent_1lm/pretrained"
 )
 
 
