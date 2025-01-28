@@ -64,9 +64,6 @@ from .common import (
 )
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
 
-TEST_ROTATIONS = RANDOM_ROTATIONS_5
-
-
 # - Set up arguments for `make_multi_lm_monty_config`. The following arguments
 # are used for all multi-LM configs.
 mlm_learning_module_config = get_dist_lm_config()
@@ -93,7 +90,7 @@ dist_agent_2lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_2lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
+        n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=1,
@@ -106,7 +103,7 @@ dist_agent_2lm_half_lms_match = dict(
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+        object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
@@ -120,7 +117,7 @@ dist_agent_4lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_4lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
+        n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
         min_lms_match=2,
@@ -133,7 +130,7 @@ dist_agent_4lm_half_lms_match = dict(
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+        object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
@@ -147,10 +144,10 @@ dist_agent_8lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_8lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
+        n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=2,
+        min_lms_match=4,
     ),
     logging_config=DMCEvalLoggingConfig(run_name="dist_agent_8lm_half_lms_match"),
     monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
@@ -160,7 +157,7 @@ dist_agent_8lm_half_lms_match = dict(
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+        object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
@@ -174,10 +171,10 @@ dist_agent_16lm_half_lms_match = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
         model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_16lm/pretrained"),
-        n_eval_epochs=len(TEST_ROTATIONS),
+        n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
-        min_lms_match=2,
+        min_lms_match=8,
     ),
     logging_config=DMCEvalLoggingConfig(run_name="dist_agent_16lm_half_lms_match"),
     monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
@@ -187,7 +184,7 @@ dist_agent_16lm_half_lms_match = dict(
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
+        object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
