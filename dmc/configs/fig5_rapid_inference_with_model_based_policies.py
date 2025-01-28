@@ -130,9 +130,9 @@ gsg_args["elapsed_steps_factor"] = 20
 gsg_args["min_post_goal_success_steps"] = 10
 
 CONFIGS = {
+    "dist_agent_1lm_randrot_noise_nohyp": dist_agent_1lm_randrot_noise_nohyp,
     "surf_agent_1lm_randrot_noise": surf_agent_1lm_randrot_noise,
     "surf_agent_1lm_randrot_noise_nohyp": surf_agent_1lm_randrot_noise_nohyp,
-    "dist_agent_1lm_randrot_noise_nohyp": dist_agent_1lm_randrot_noise_nohyp,
-    "dist_agent_1lm_randrot_noise_moderatehyp": dist_agent_1lm_randrot_noise_moderatehyp,
+    # "dist_agent_1lm_randrot_noise_moderatehyp": dist_agent_1lm_randrot_noise_moderatehyp,
 }
 
