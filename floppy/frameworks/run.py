@@ -142,13 +142,13 @@ def flop_main(all_configs, experiments=None):
         cmd_parser.add_argument(
             "--detailed_batch_size",
             type=int,
-            default=10000,
+            default=100000,
             help="Batch size for detailed logger",
         )
         cmd_parser.add_argument(
             "--csv_batch_size",
             type=int,
-            default=1000,
+            default=10000,
             help="Batch size for CSV logger",
         )
         cmd_args = cmd_parser.parse_args()

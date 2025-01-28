@@ -1,13 +1,11 @@
-from scipy.spatial import KDTree
-import numpy as np
 import logging
 from collections import defaultdict
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+from scipy.spatial import KDTree
 from tbp.monty.frameworks.models.evidence_matching import (
     EvidenceGraphLM,
-)
-from frameworks.models.goal_state_generation import (
-    FlopCountingEvidenceGoalStateGenerator,
 )
 from tbp.monty.frameworks.utils.graph_matching_utils import (
     add_pose_features_to_tolerances,
@@ -22,6 +20,10 @@ from tbp.monty.frameworks.utils.spatial_arithmetics import (
     get_angles_for_all_hypotheses,
     get_more_directions_in_plane,
     rotate_pose_dependent_features,
+)
+
+from frameworks.models.goal_state_generation import (
+    FlopCountingEvidenceGoalStateGenerator,
 )
 
 
@@ -85,6 +87,7 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             **kwargs,
         )
         self.flop_counter = None
+        self.use_multithreading = False
 
     def _update_evidence_with_vote(self, state_votes, graph_id):
         """Count FLOPs for KDTree operations during vote processing."""
