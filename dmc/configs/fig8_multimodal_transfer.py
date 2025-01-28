@@ -11,18 +11,19 @@
 """Configs for Figure 8: Multi-Modal Transfer
 
 This module defines the following experiments:
- - `touch_agent_1lm_randrot_noise`
- - `dist_on_touch_1lm_randrot_noise`
- - `touch_on_dist_1lm_randrot_noise`
+ - `dist_agent_1lm_randrot_noise_10distinctobj`
+ - `touch_agent_1lm_randrot_noise_10distinctobj`
+ - `dist_on_touch_1lm_randrot_noise_10distinctobj`
+ - `touch_on_dist_1lm_randrot_noise_10distinctobj`
 
  Experiments use:
- - 77 objects
+ - 10 distinct objects
  - 5 random rotations
  - Sensor noise
  - No voting
 """
 
-import copy
+from copy import deepcopy
 
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
@@ -35,7 +36,7 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     SurfaceViewFinderMountHabitatDatasetArgs,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
-from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
+from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS
 from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
 from tbp.monty.frameworks.models.evidence_matching import (
     MontyForEvidenceGraphMatching,
@@ -56,16 +57,18 @@ from .common import (
 )
 from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
-# `touch_agent_1lm`: a morphology-only model.
-touch_agent_1lm = dict(
+# `touch_agent_1lm_10distinctobj`: a morphology-only model.
+touch_agent_1lm_10distinctobj = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(DMC_PRETRAIN_DIR / "touch_agent_1lm/pretrained"),
+        model_name_or_path=str(
+            DMC_PRETRAIN_DIR / "touch_agent_1lm_10distinctobj/pretrained"
+        ),
         n_eval_epochs=len(RANDOM_ROTATIONS_5),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,
     ),
-    logging_config=DMCEvalLoggingConfig(run_name="touch_agent_1lm"),
+    logging_config=DMCEvalLoggingConfig(run_name="touch_agent_1lm_10distinctobj"),
     monty_config=SurfaceAndViewMontyConfig(
         monty_class=MontyForEvidenceGraphMatching,
         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
@@ -82,7 +85,7 @@ touch_agent_1lm = dict(
     dataset_args=SurfaceViewFinderMountHabitatDatasetArgs(),
     eval_dataloader_class=ED.InformedEnvironmentDataLoader,
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
+        object_names=DISTINCT_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
     # Configure dummy train dataloader. Required but not used.
@@ -93,48 +96,60 @@ touch_agent_1lm = dict(
     ),
 )
 
-# - Add noise and use 5 random rotations.
-touch_agent_1lm_randrot_noise = make_randrot_noise_variant(touch_agent_1lm)
-
-
-# `dist_on_touch_1lm_randrot_noise`: a distant agent using the touch agent's
-# pretrained model.
-dist_on_touch_1lm_randrot_noise = copy.deepcopy(dist_agent_1lm_randrot_noise)
-
-# - Update the run name.
-dist_on_touch_1lm_randrot_noise[
+# Distant agent.
+dist_agent_1lm_randrot_noise_10distinctobj = deepcopy(dist_agent_1lm_randrot_noise)
+dist_agent_1lm_randrot_noise_10distinctobj[
     "logging_config"
-].run_name = "dist_on_touch_1lm_randrot_noise"
+].run_name = "dist_agent_1lm_randrot_noise_10distinctobj"
+dist_agent_1lm_randrot_noise_10distinctobj[
+    "eval_dataloader_args"
+].object_names = DISTINCT_OBJECTS
 
-# - Set the model path to the touch agent's pretrained model.
-dist_on_touch_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
-    DMC_PRETRAIN_DIR / "touch_agent_1lm/pretrained"
+# - Touch agent.
+touch_agent_1lm_randrot_noise_10distinctobj = make_randrot_noise_variant(
+    touch_agent_1lm_10distinctobj
 )
-# - Tell the LM not to try and use the sensor's color data for graph matching
+touch_agent_1lm_randrot_noise_10distinctobj[
+    "logging_config"
+].run_name = "touch_agent_1lm_randrot_noise_10distinctobj"
+
+# Distant agent w/ touch pretrained model.
+dist_on_touch_1lm_randrot_noise_10distinctobj = deepcopy(
+    dist_agent_1lm_randrot_noise_10distinctobj
+)
+dist_on_touch_1lm_randrot_noise_10distinctobj[
+    "logging_config"
+].run_name = "dist_on_touch_1lm_randrot_noise_10distinctobj"
+dist_on_touch_1lm_randrot_noise_10distinctobj[
+    "experiment_args"
+].model_name_or_path = str(
+    DMC_PRETRAIN_DIR / "touch_agent_1lm_10distinctobj/pretrained"
+)
+# - Tell the LM not to use the sensor's color data for graph matching
 #   since the model has no color data stored.
-lm_configs = dist_on_touch_1lm_randrot_noise["monty_config"].learning_module_configs
+lm_configs = dist_on_touch_1lm_randrot_noise_10distinctobj[
+    "monty_config"
+].learning_module_configs
 lm_args = lm_configs["learning_module_0"]["learning_module_args"]
 lm_args["tolerances"]["patch"].pop("hsv")
 lm_args["feature_weights"]["patch"].pop("hsv")
 
 
-# `touch_on_dist_1lm_randrot_noise`: a touch agent using the distant agent's
-# pretrained model.
-touch_on_dist_1lm_randrot_noise = copy.deepcopy(touch_agent_1lm_randrot_noise)
-
-# - Update the run name.
-touch_on_dist_1lm_randrot_noise[
-    "logging_config"
-].run_name = "touch_on_dist_1lm_randrot_noise"
-
-# - Set the model path to the distant agent's pretrained model.
-touch_on_dist_1lm_randrot_noise["experiment_args"].model_name_or_path = str(
-    DMC_PRETRAIN_DIR / "dist_agent_1lm/pretrained"
+# Touch agent w/ distant agent pretrained model.
+touch_on_dist_1lm_randrot_noise_10distinctobj = deepcopy(
+    touch_agent_1lm_randrot_noise_10distinctobj
 )
+touch_on_dist_1lm_randrot_noise_10distinctobj[
+    "logging_config"
+].run_name = "touch_on_dist_1lm_randrot_noise_10distinctobj"
+touch_on_dist_1lm_randrot_noise_10distinctobj[
+    "experiment_args"
+].model_name_or_path = str(DMC_PRETRAIN_DIR / "dist_agent_1lm_10distinctobj/pretrained")
 
 
 CONFIGS = {
-    "touch_agent_1lm_randrot_noise": touch_agent_1lm_randrot_noise,
-    "dist_on_touch_1lm_randrot_noise": dist_on_touch_1lm_randrot_noise,
-    "touch_on_dist_1lm_randrot_noise": touch_on_dist_1lm_randrot_noise,
+    "dist_agent_1lm_randrot_noise_10distinctobj": dist_agent_1lm_randrot_noise_10distinctobj,
+    "touch_agent_1lm_randrot_noise_10distinctobj": touch_agent_1lm_randrot_noise_10distinctobj,
+    "dist_on_touch_1lm_randrot_noise_10distinctobj": dist_on_touch_1lm_randrot_noise_10distinctobj,
+    "touch_on_dist_1lm_randrot_noise_10distinctobj": touch_on_dist_1lm_randrot_noise_10distinctobj,
 }
