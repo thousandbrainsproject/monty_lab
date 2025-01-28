@@ -439,6 +439,17 @@ pretrain_touch_agent_1lm = dict(
     ),
 )
 
+# Make 10distinctobj variants
+pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_dist_agent_1lm
+)
+pretrain_surf_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_surf_agent_1lm
+)
+pretrain_touch_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_touch_agent_1lm
+)
+
 """
 Setup for Multi-LM Experiments
 --------------------------------------------------------------------------------
@@ -565,6 +576,9 @@ CONFIGS = {
     "pretrain_dist_agent_1lm": pretrain_dist_agent_1lm,
     "pretrain_surf_agent_1lm": pretrain_surf_agent_1lm,
     "pretrain_touch_agent_1lm": pretrain_touch_agent_1lm,
+    "pretrain_dist_agent_1lm_10distinctobj": pretrain_dist_agent_1lm_10distinctobj,
+    "pretrain_surf_agent_1lm_10distinctobj": pretrain_surf_agent_1lm_10distinctobj,
+    "pretrain_touch_agent_1lm_10distinctobj": pretrain_touch_agent_1lm_10distinctobj,
     "pretrain_dist_agent_2lm": pretrain_dist_agent_2lm,
     "pretrain_dist_agent_4lm": pretrain_dist_agent_4lm,
     "pretrain_dist_agent_8lm": pretrain_dist_agent_8lm,
