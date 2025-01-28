@@ -14,7 +14,7 @@ This module defines the following experiments:
  - `surf_agent_1lm_randrot_noise`
  - `surf_agent_1lm_randrot_noise_nohyp`
  - `dist_agent_1lm_randrot_noise_nohyp`
- - `dist_agent_1lm_randrot_noise_moderatehyp`
+ - `dist_agent_1lm_randrot_noise_moderatehyp` # still using?
 
  Experiments use:
  - 77 objects
