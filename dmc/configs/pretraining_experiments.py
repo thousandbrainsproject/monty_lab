@@ -12,15 +12,20 @@
 This module defines a suite of supervised pretraining experiments. The core models
 that experiments produce are:
  - `dist_agent_1lm`
+ - `dist_agent_1lm_10distinctobj`
  - `surf_agent_1lm`
+ - `surf_agent_1lm_10distinctobj`
  - `touch_agent_1lm`
+ - `touch_agent_1lm_10distinctobj`
  - `dist_agent_2lm`
  - `dist_agent_4lm`
  - `dist_agent_8lm`
  - `dist_agent_16lm`
 
 All of these models are trained on 77 YCB objects with 14 rotations each (cube face
-and corners). The `touch` model is a surface agent without access to color information.
+and corners) except those with the `10distinctobj` suffix which are trained on the
+10-distinct object dataset. The `touch` model is a surface agent without access to
+color information.
 
 This module performs some config finalization which does a few useful things:
  - Adds required (but unused) `eval_dataloader_class` and `eval_dataloader_args`.
