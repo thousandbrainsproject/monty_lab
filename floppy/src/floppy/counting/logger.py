@@ -129,25 +129,39 @@ class DetailedLogger(BaseLogger):
 
 
 class CSVLogger(BaseLogger):
-    def __init__(self, filepath:str, batch_size:int = 1_000):
+    def __init__(self, filepath: str, batch_size: int = 10_000, max_rows: int = 10_000):
+        self.base_filepath = filepath
+        self.max_rows = max_rows
+        self.total_rows = 0
+        self.current_file_number = 0
+        self.current_filepath = self._get_filepath()
         super().__init__(batch_size)
-        self.filepath = filepath
         self._initialize_csv()
 
+    def _get_filepath(self):
+        path = Path(self.base_filepath)
+        return str(path.parent / f"{path.stem}_{self.current_file_number}{path.suffix}")
+
     def _initialize_csv(self) -> None:
-        Path(self.filepath).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.filepath, "w", newline="") as f:
+        Path(self.current_filepath).parent.mkdir(parents=True, exist_ok=True)
+        with open(self.current_filepath, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["timestamp", "episode", "method", "flops", "filename", "line_no", "parent_method"])
 
     def flush(self) -> None:
         if not self.buffer:
             return
-        
-        with open(self.filepath, "a", newline="") as f:
+
+        with open(self.current_filepath, "a", newline="") as f:
             writer = csv.writer(f)
             for op in self.buffer:
                 writer.writerow([op.timestamp, op.episode, op.function_name, op.flops, op.filename, op.line_no, op.parent_method])
+        self.total_rows += len(self.buffer)
+        if self.total_rows >= self.max_rows:
+            self.current_file_number += 1
+            self.total_rows = 0
+            self.current_filepath = self._get_filepath()
+            self._initialize_csv()
         self.buffer.clear()
 
 class LogManager:
