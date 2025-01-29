@@ -10,10 +10,12 @@
 
 import importlib.util
 import os
+import sys
 
 
 def import_config_from_monty(config_file, config_name):
     full_path = os.path.expanduser(f"~/tbp/tbp.monty/benchmarks/configs/{config_file}")
+    sys.path.insert(0, os.path.expanduser("~/tbp/tbp.monty"))
     spec = importlib.util.spec_from_file_location(
         os.path.basename(config_file), full_path
     )
