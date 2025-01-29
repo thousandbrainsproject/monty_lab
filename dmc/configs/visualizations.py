@@ -9,7 +9,7 @@ from .fig4_rapid_inference_with_voting import dist_agent_8lm_half_lms_match
 VISUALIZATIONS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
 
 config = deepcopy(dist_agent_8lm_half_lms_match)
-config["logging_config"].run_name = "test"
+config["logging_config"].run_name = "visualize_8lm_patches"
 config["logging_config"].output_dir = VISUALIZATIONS_DIR
 config["logging_config"].monty_handlers.append(DetailedJSONHandler)
 config["experiment_args"].n_eval_epochs = 1
@@ -24,4 +24,6 @@ resolutions = [[64, 64]] * 9
 resolutions[-1] = [256, 256]
 dataset_args.env_init_args["agents"][0].agent_args["resolutions"] = resolutions
 dataset_args.__post_init__()
-CONFIGS = {"test": config}
+
+
+CONFIGS = {"visualize_8lm_patches": config}
