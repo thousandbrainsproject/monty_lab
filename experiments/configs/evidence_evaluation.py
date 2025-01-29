@@ -23,10 +23,7 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    FiveLMMountHabitatDatasetArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
-    SurfaceViewFinderMountHabitatDatasetArgs,
     get_env_dataloader_per_object_by_idx,
     get_object_names_by_idx,
 )
@@ -39,6 +36,11 @@ from tbp.monty.frameworks.experiments import (
 from tbp.monty.frameworks.models.evidence_matching import (
     EvidenceGraphLM,
     MontyForEvidenceGraphMatching,
+)
+from tbp.monty.simulators.habitat.configs import (
+    FiveLMMountHabitatDatasetArgs,
+    PatchViewFinderMountHabitatDatasetArgs,
+    SurfaceViewFinderMountHabitatDatasetArgs,
 )
 
 # FOR SUPERVISED PRETRAINING

@@ -23,7 +23,6 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     DebugExperimentArgs,
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     get_env_dataloader_per_object_by_idx,
     get_object_names_by_idx,
@@ -34,6 +33,7 @@ from tbp.monty.frameworks.experiments import (
 )
 from tbp.monty.frameworks.models.displacement_matching import DisplacementGraphLM
 from tbp.monty.frameworks.models.feature_location_matching import FeatureGraphLM
+from tbp.monty.simulators.habitat.configs import PatchViewFinderMountHabitatDatasetArgs
 
 from .graph_experiments import debug_camera_patch_multi_object
 

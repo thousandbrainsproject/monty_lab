@@ -33,15 +33,9 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     DebugExperimentArgs,
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
-    FiveLMMountHabitatDatasetArgs,
-    MultiLMMountHabitatDatasetArgs,
     OmniglotDataloaderArgs,
     OmniglotDatasetArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
-    PatchViewFinderShapenetMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
-    TwoLMStackedDistantMountHabitatDatasetArgs,
-    TwoLMStackedSurfaceMountHabitatDatasetArgs,
     WorldImageDataloaderArgs,
     WorldImageDatasetArgs,
     get_env_dataloader_per_object_by_idx,
@@ -65,6 +59,14 @@ from tbp.monty.frameworks.models.sensor_modules import (
     HabitatDistantPatchSM,
 )
 from tbp.monty.frameworks.utils.logging_utils import get_reverse_rotation
+from tbp.monty.simulators.habitat.configs import (
+    FiveLMMountHabitatDatasetArgs,
+    MultiLMMountHabitatDatasetArgs,
+    PatchViewFinderMountHabitatDatasetArgs,
+    PatchViewFinderShapenetMountHabitatDatasetArgs,
+    TwoLMStackedDistantMountHabitatDatasetArgs,
+    TwoLMStackedSurfaceMountHabitatDatasetArgs,
+)
 
 camera_patch_multi_object = dict(
     experiment_class=MontyObjectRecognitionExperiment,

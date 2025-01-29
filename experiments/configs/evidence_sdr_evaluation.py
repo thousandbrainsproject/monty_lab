@@ -28,12 +28,8 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     DebugExperimentArgs,
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    FiveLMMountHabitatDatasetArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
-    SurfaceViewFinderMountHabitatDatasetArgs,
-    TwoLMStackedDistantMountHabitatDatasetArgs,
     get_env_dataloader_per_object_by_idx,
     get_object_names_by_idx,
 )
@@ -51,6 +47,12 @@ from tbp.monty.frameworks.models.goal_state_generation import (
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     FeatureChangeSM,
+)
+from tbp.monty.simulators.habitat.configs import (
+    FiveLMMountHabitatDatasetArgs,
+    PatchViewFinderMountHabitatDatasetArgs,
+    SurfaceViewFinderMountHabitatDatasetArgs,
+    TwoLMStackedDistantMountHabitatDatasetArgs,
 )
 
 """

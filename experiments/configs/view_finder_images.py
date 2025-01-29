@@ -36,7 +36,6 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
 )
@@ -52,6 +51,7 @@ from tbp.monty.frameworks.models.motor_policies import (
     InformedPolicy,
     get_perc_on_obj_semantic,
 )
+from tbp.monty.simulators.habitat.configs import PatchViewFinderMountHabitatDatasetArgs
 
 
 class ViewFinderRGBDHandler(MontyHandler):
