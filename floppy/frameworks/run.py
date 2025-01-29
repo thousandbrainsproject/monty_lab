@@ -120,13 +120,6 @@ def flop_main(all_configs, experiments=None):
     cmd_args = None
     if not experiments:
         cmd_parser = create_cmd_parser(all_configs=all_configs)
-        # Add Floppy-specific arguments
-        cmd_parser.add_argument(
-            "--results_dir",
-            type=str,
-            default="",
-            help="Directory for FLOP counting results",
-        )
         cmd_parser.add_argument(
             "--detailed_logging",
             action="store_true",
@@ -162,15 +155,6 @@ def flop_main(all_configs, experiments=None):
         exp_config = merge_args(exp, cmd_args)
         exp_config = config_to_dict(exp_config)
 
-        # Add Floppy configs to exp_config
-        exp_config["floppy_config"] = {
-            "results_dir": cmd_args.results_dir if cmd_args else None,
-            "detailed_logging": cmd_args.detailed_logging if cmd_args else False,
-            "log_level": cmd_args.log_level.upper() if cmd_args else "FUNCTION",
-            "detailed_batch_size": cmd_args.detailed_batch_size if cmd_args else 10000,
-            "csv_batch_size": cmd_args.csv_batch_size if cmd_args else 100,
-        }
-
         # Update run_name and output dir with experiment name
         if not exp_config["logging_config"]["run_name"]:
             exp_config["logging_config"]["run_name"] = experiment
@@ -179,6 +163,16 @@ def flop_main(all_configs, experiments=None):
             exp_config["logging_config"]["run_name"],
         )
 
+        # Add Floppy configs to exp_config
+        exp_config["floppy_config"] = {
+            "results_dir": exp_config["logging_config"][
+                "output_dir"
+            ],  # Use same output as Monty
+            "detailed_logging": cmd_args.detailed_logging if cmd_args else False,
+            "log_level": cmd_args.log_level.upper() if cmd_args else "FUNCTION",
+            "detailed_batch_size": cmd_args.detailed_batch_size if cmd_args else 10000,
+            "csv_batch_size": cmd_args.csv_batch_size if cmd_args else 100,
+        }
         # If we are not running in parallel, this should always be False
         exp_config["logging_config"]["log_parallel_wandb"] = False
 
