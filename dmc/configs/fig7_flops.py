@@ -26,6 +26,8 @@ Experiments use:
  The main output measure is accuracy and FLOPs as a function of x-percent threshold.
 """
 
+# TODO test
+
 import copy
 
 from .fig5_rapid_inference_with_model_based_policies import (
