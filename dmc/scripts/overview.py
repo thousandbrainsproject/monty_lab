@@ -15,6 +15,7 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 """
 
 import os
+from numbers import Number
 from typing import List
 
 import matplotlib
@@ -149,6 +150,7 @@ def init_overview_plot(
     dataframes: List[pd.DataFrame],
     conditions: List[str],
     figsize=(6, 3),
+    tick_label_rotation: Number = 0,
 ) -> matplotlib.figure.Figure:
     """Initialize a plot with violin plots for steps, accuracy, and rotation error.
 
@@ -169,7 +171,13 @@ def init_overview_plot(
     # Plot distribution of num_steps
     ax = axes[0]
     num_steps = [df.num_steps for df in dataframes]
-    violinplot(ax, num_steps, conditions, rotation=45, color=TBP_COLORS["green"])
+    violinplot(
+        ax,
+        num_steps,
+        conditions,
+        rotation=tick_label_rotation,
+        color=TBP_COLORS["green"],
+    )
     ax.set_ylabel("Steps")
     ax.set_ylim(0, 500)
     ax.set_yticks([0, 100, 200, 300, 400, 500])
@@ -183,7 +191,7 @@ def init_overview_plot(
         color=TBP_COLORS["blue"],
     )
     ax.set_xticks(xticks)
-    ax.set_xticklabels(conditions, rotation=45, ha="right")
+    ax.set_xticklabels(conditions, rotation=tick_label_rotation, ha="right")
     ax.set_ylabel("% Correct")
     ax.set_ylim(0, 100)
     ax.set_title("Accuracy")
@@ -191,7 +199,13 @@ def init_overview_plot(
     # Plot rotation error
     ax = axes[2]
     rotation_errors = [np.rad2deg(df.rotation_error.dropna()) for df in dataframes]
-    violinplot(ax, rotation_errors, conditions, rotation=45, color=TBP_COLORS["pink"])
+    violinplot(
+        ax,
+        rotation_errors,
+        conditions,
+        rotation=tick_label_rotation,
+        color=TBP_COLORS["pink"],
+    )
     ax.set_yticks([0, 45, 90, 135, 180])
     ax.set_ylim(0, 180)
     ax.set_ylabel("Error (degrees)")
@@ -208,7 +222,7 @@ def plot_fig3(save: bool = False):
         load_eval_stats("dist_agent_1lm_randrot_all_noise"),
     ]
     conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_overview_plot(dataframes, conditions)
+    fig = init_overview_plot(dataframes, conditions, tick_label_rotation=45)
 
     fig.suptitle("Fig 3: Robust Sensorimotor Inference")
     fig.tight_layout()
@@ -238,7 +252,9 @@ def plot_fig4_half_lms_match(save: bool = False):
     conditions = ["1", "2", "4", "8", "16"]
     fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
     fig.axes[0].set_ylim(0, 250)
-    fig.axes[0].set_ylabel("num. LMs")
+    for ax in fig.axes:
+        ax.set_xlabel("num. LMs")
+
     fig.suptitle("Fig 4: Voting - Half LMs Match")
     fig.tight_layout()
     if save:
@@ -267,7 +283,8 @@ def plot_fig4_fixed_min_lms_match(save: bool = False):
     conditions = ["1", "2", "4", "8", "16"]
     fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
     fig.axes[0].set_ylim(0, 250)
-    fig.axes[0].set_ylabel("num. LMs")
+    for ax in fig.axes:
+        ax.set_xlabel("num. LMs")
     fig.suptitle("Fig 4: Voting - Fixed Min LMs Match")
     fig.tight_layout()
     if save:
@@ -293,7 +310,7 @@ def plot_fig5(save: bool = False):
         load_eval_stats("surf_agent_1lm_randrot_noise_nohyp"),
     ]
     conditions = ["dist", "dist no hyp", "surf", "surf no hyp"]
-    fig = init_overview_plot(dataframes, conditions)
+    fig = init_overview_plot(dataframes, conditions, tick_label_rotation=45)
     fig.suptitle("Fig 5: Model-Based Policies")
     fig.tight_layout()
     if save:
@@ -324,6 +341,8 @@ def plot_fig6(save: bool = False):
     fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
     fig.axes[0].set_ylabel("num. training rotations")
     fig.suptitle("Fig 6: Rapid Learning")
+    for ax in fig.axes:
+        ax.set_xlabel("num. training episodes")
     fig.tight_layout()
     if save:
         fig.savefig(PNG_DIR / "fig6.png", dpi=300)
@@ -350,7 +369,8 @@ def plot_fig7(save: bool = False):
     ]
     conditions = ["5%", "10%", "20%", "30%"]
     fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
-    fig.axes[0].set_xlabel("x_percent_threshold")
+    for ax in fig.axes:
+        ax.set_xlabel("x_percent_threshold")
     fig.suptitle("Fig 7: Flops Comparison")
     fig.tight_layout()
     if save:
@@ -376,7 +396,7 @@ def plot_fig8(save: bool = False):
         load_eval_stats("touch_on_dist_1lm_randrot_noise_10distinctobj"),
     ]
     conditions = ["dist", "touch", "dist on touch", "touch on dist"]
-    fig = init_overview_plot(dataframes, conditions)
+    fig = init_overview_plot(dataframes, conditions, tick_label_rotation=45)
     fig.suptitle("Fig 8: Multimodal Transfer")
     fig.tight_layout()
     if save:
@@ -398,8 +418,8 @@ if __name__ == "__main__":
     save = True
     fig3 = plot_fig3(save=save)
     fig4_half_lms_match = plot_fig4_half_lms_match(save=save)
-    fig4_fixed_min_lms_match = plot_fig4_fixed_min_lms_match()
-    fig5 = plot_fig5()
-    fig6 = plot_fig6()
-    fig7 = plot_fig7()
-    fig8 = plot_fig8()
+    fig4_fixed_min_lms_match = plot_fig4_fixed_min_lms_match(save=save)
+    fig5 = plot_fig5(save=save)
+    fig6 = plot_fig6(save=save)
+    fig7 = plot_fig7(save=save)
+    fig8 = plot_fig8(save=save)
