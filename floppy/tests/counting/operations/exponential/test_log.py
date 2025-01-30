@@ -1,0 +1,40 @@
+import numpy as np
+import pytest
+
+from floppy.counting.counter import FlopCounter
+
+
+def test_log_basic():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        result = np.log(a)
+        assert counter.flops == 60
+        np.testing.assert_allclose(result, np.array([0.0, 0.69314718, 1.09861229]))
+
+
+def test_log_broadcasting():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = 2
+        result = np.log(a)
+        assert counter.flops == 20
+        np.testing.assert_allclose(result, 0.69314718)
+
+    counter.flops = 0
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+        result = np.log(a)
+        assert counter.flops == 80
+        np.testing.assert_allclose(
+            result, np.array([[0.0, 0.69314718], [1.09861229, 1.38629436]])
+        )
+
+
+def test_log_empty():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([])
+        result = np.log(a)
+        assert counter.flops == 0
+        np.testing.assert_allclose(result, np.array([]))
