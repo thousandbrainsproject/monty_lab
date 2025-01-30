@@ -359,13 +359,17 @@ class FlopCounter(ContextDecorator):
         if self.test_mode:
             return False
         # Check for library calls
-        stack_frames = inspect.stack()
-
-        for frame in stack_frames:
-            if any(path in frame.filename for path in self.include_paths):
-                return False
-            if any(path in frame.filename for path in self.skip_paths):
-                return True
+        frame = inspect.currentframe()
+        try:
+            while frame:
+                filename = frame.f_code.co_filename
+                if any(path in filename for path in self.include_paths):
+                    return False
+                if any(path in filename for path in self.skip_paths):
+                    return True
+                frame = frame.f_back
+        finally:
+            del frame
 
         return False
 
