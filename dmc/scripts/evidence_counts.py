@@ -3,10 +3,6 @@ import os
 from pathlib import Path
 from typing import Mapping
 
-try:
-    import h5py
-except ImportError:
-    h5py = None
 import numpy as np
 from data_utils import (
     DMC_RESULTS_DIR,
