@@ -138,6 +138,7 @@ class EvidenceLoggingMontyObjectRecognitionExperiment(MontyObjectRecognitionExpe
                 if handler.log_level() == "DETAILED":
                     has_detailed_logger = True
 
+        # Only upgrade to DETAILED if the logging level is "less than" SELECTIVE.
         if has_detailed_logger and self.monty_log_level not in (
             "SELECTIVE",
             "DETAILED",
