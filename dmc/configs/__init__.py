@@ -7,6 +7,7 @@ from .fig8_multimodal_transfer import CONFIGS as FIG_8_CONFIGS
 from .fig9_structured_object_representations import CONFIGS as FIG_9_CONFIGS
 from .pretraining_experiments import CONFIGS as PRETRAINING_CONFIGS
 from .view_finder_images import CONFIGS as VIEW_FINDER_CONFIGS
+from .visualizations import CONFIGS as VISUALIZATION_CONFIGS
 
 CONFIGS = dict()
 CONFIGS.update(PRETRAINING_CONFIGS)
@@ -18,3 +19,4 @@ CONFIGS.update(FIG_7_CONFIGS)
 CONFIGS.update(FIG_8_CONFIGS)
 CONFIGS.update(FIG_9_CONFIGS)
 CONFIGS.update(VIEW_FINDER_CONFIGS)
+CONFIGS.update(VISUALIZATION_CONFIGS)

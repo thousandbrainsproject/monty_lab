@@ -1,4 +1,14 @@
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
 import copy
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -22,9 +32,9 @@ from tbp.monty.frameworks.models.sensor_modules import (
 )
 
 # - Path Settings
-DMC_ROOT = Path("~/tbp/results/dmc").expanduser()
-PRETRAIN_DIR = DMC_ROOT / "pretrained_models"
-RESULTS_DIR = DMC_ROOT / "results"
+DMC_ROOT_DIR = Path(os.environ.get("DMC_ROOT_DIR", "~/tbp/results/dmc")).expanduser()
+DMC_PRETRAIN_DIR = DMC_ROOT_DIR / "pretrained_models"
+DMC_RESULTS_DIR = DMC_ROOT_DIR / "results"
 
 # - Common Parameters
 MAX_TOTAL_STEPS = 10_000
@@ -52,7 +62,8 @@ class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
     This config also drops the reproduce episode handler which is included
     as a default handler in `ParallelEvidenceLMLoggingConfig`.
     """
-    output_dir: str = str(RESULTS_DIR)
+
+    output_dir: str = str(DMC_RESULTS_DIR)
     wandb_group: str = "dmc"
     monty_handlers: List = field(
         default_factory=lambda: [
