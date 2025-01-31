@@ -1,4 +1,5 @@
 import inspect
+import threading
 import time
 from contextlib import ContextDecorator
 from pathlib import Path
@@ -170,6 +171,8 @@ class FlopCounter(ContextDecorator):
         self.include_paths = include_paths
         self._original_array_func = None
         self._original_funcs = {}
+
+        self._flops_lock = threading.Lock()
 
         self.ufunc_operations = {
             "add": Addition(),
@@ -376,7 +379,8 @@ class FlopCounter(ContextDecorator):
     def add_flops(self, count: int):
         """Add to the FLOP count only if counter is active and not in library code."""
         if not self.should_skip_counting():
-            self.flops += count
+            with self._flops_lock:
+                self.flops += count
             if self.log_manager:
                 self._log_operation(count)
 
