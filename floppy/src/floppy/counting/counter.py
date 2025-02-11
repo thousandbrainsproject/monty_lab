@@ -194,6 +194,7 @@ class FlopCounter(ContextDecorator):
             "isnan": IsnanOperation(),
             "log": LogOperation(),
             "clip": ClipOperation(),
+            "matmul": MatmulOperation(),
         }
 
         self.function_operations = {
