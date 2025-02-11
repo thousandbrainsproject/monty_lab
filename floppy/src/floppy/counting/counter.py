@@ -191,7 +191,6 @@ class FlopCounter(ContextDecorator):
             "arctan": ArcTangentOperation(),
             "arcsin": ArcSineOperation(),
             "arccos": ArccosOperation(),
-            "cross": CrossOperation(),
             "isnan": IsnanOperation(),
             "log": LogOperation(),
             "clip": ClipOperation(),
@@ -225,6 +224,7 @@ class FlopCounter(ContextDecorator):
             "arctan": ArcTangentOperation(),
             "arcsin": ArcSineOperation(),
             "arccos": ArccosOperation(),
+            "cross": CrossOperation(),
         }
         self.patch_targets = {
             "matmul": (np, "matmul"),
@@ -259,6 +259,7 @@ class FlopCounter(ContextDecorator):
             "arctan": (np, "arctan"),
             "arcsin": (np, "arcsin"),
             "arccos": (np, "arccos"),
+            "cross": (np, "cross"),
         }
 
     def _tracked_array(self, *args, **kwargs):

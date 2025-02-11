@@ -26,7 +26,10 @@ class CrossOperation:
         """
         # Get number of cross products being computed
         num_operations = max(
-            1, result.shape[0] if isinstance(result, np.ndarray) else 1
+            1,
+            result.shape[0]
+            if (isinstance(result, np.ndarray) and len(result.shape) > 1)
+            else 1,
         )
         return 9 * num_operations
 
