@@ -87,7 +87,6 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             **kwargs,
         )
         self.flop_counter = None
-        self.use_multithreading = False
 
     def _update_evidence_with_vote(self, state_votes, graph_id):
         """Count FLOPs for KDTree operations during vote processing."""
