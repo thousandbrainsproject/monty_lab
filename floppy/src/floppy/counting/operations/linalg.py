@@ -122,8 +122,25 @@ class TraceOperation:
         Trace is the sum of diagonal elements, requiring (n-1) additions
         where n is the number of diagonal elements.
         """
-        n = min(args[0].shape)  # Get the minimum dimension (for non-square matrices)
-        return n - 1
+        arr = args[0]
+        if len(arr.shape) < 2:
+            raise ValueError("Input array must be at least 2D")
+
+        # Get last two dimensions which define the matrices
+        matrix_shape = arr.shape[-2:]
+        if 0 in matrix_shape:
+            return 0
+
+        # Calculate FLOPs for one matrix
+        n = min(matrix_shape)
+        flops_per_matrix = max(0, n - 1)
+
+        # If more than 2D, multiply by number of matrices
+        if len(arr.shape) > 2:
+            num_matrices = np.prod(arr.shape[:-2])
+            return flops_per_matrix * num_matrices
+
+        return flops_per_matrix
 
 
 class NormOperation:
