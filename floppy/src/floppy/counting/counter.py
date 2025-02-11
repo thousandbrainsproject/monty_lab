@@ -299,7 +299,7 @@ class FlopCounter(ContextDecorator):
             # If recognized, count FLOPs via self._function_operations
             if func_name in self.function_operations and self._is_active:
                 flops = self.function_operations[func_name].count_flops(
-                    *clean_args, result=result
+                    *clean_args, **clean_kwargs, result=result
                 )
                 if flops is not None:
                     self.add_flops(flops)
