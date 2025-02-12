@@ -67,10 +67,10 @@ Actual behavior:
   infers that the actual `monty_log_level` is `"DETAILED"`, and uses 
   `DetailedGraphMatchingLogger` instead of `SelectiveEvidenceLogger`.
 
-To get around this, the following class overrides `init_loggers` which considers
-does everything a detailed log level would require (i.e., telling sensor modules and
-learning modules to store detailed data) without upgrading to "DETAILED". This patch
-could be applied to tbp.monty.
+To get around this, the following class overrides `init_loggers` which does everything
+a detailed log level would require (i.e., telling sensor modules and learning modules
+to store detailed data) without upgrading to "DETAILED". This patch could be applied
+to tbp.monty.
 """
 
 
