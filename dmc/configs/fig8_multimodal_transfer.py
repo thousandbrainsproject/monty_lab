@@ -17,7 +17,7 @@ This module defines the following experiments:
  - `touch_on_dist_1lm_randrot_noise_10distinctobj`
 
  Experiments use:
- - 10 distinct objects
+ - Test on 10 distinct objects, trained on 10 distinct objects.
  - 5 random rotations
  - Sensor noise
  - No voting
