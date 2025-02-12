@@ -14,7 +14,6 @@ This module defines the following experiments:
  - `surf_agent_1lm_randrot_noise`
  - `surf_agent_1lm_randrot_noise_nohyp`
  - `dist_agent_1lm_randrot_noise_nohyp`
- - `dist_agent_1lm_randrot_noise_moderatehyp` # still using?
 
  Experiments use:
  - 77 objects
@@ -119,22 +118,9 @@ dist_agent_1lm_randrot_noise_nohyp[
     "monty_config"
 ].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
 
-# Distant agent: Moderate hypothesis-testing
-dist_agent_1lm_randrot_noise_moderatehyp = deepcopy(dist_agent_1lm_randrot_noise)
-dist_agent_1lm_randrot_noise_moderatehyp[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_noise_moderatehyp"
-lm_config = dist_agent_1lm_randrot_noise_moderatehyp[
-    "monty_config"
-].learning_module_configs["learning_module_0"]
-gsg_args = lm_config["learning_module_args"]["gsg_args"]
-gsg_args["elapsed_steps_factor"] = 20
-gsg_args["min_post_goal_success_steps"] = 10
-
 CONFIGS = {
     "dist_agent_1lm_randrot_noise_nohyp": dist_agent_1lm_randrot_noise_nohyp,
     "surf_agent_1lm_randrot_noise": surf_agent_1lm_randrot_noise,
     "surf_agent_1lm_randrot_noise_nohyp": surf_agent_1lm_randrot_noise_nohyp,
-    # "dist_agent_1lm_randrot_noise_moderatehyp": dist_agent_1lm_randrot_noise_moderatehyp,
 }
 
