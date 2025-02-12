@@ -103,6 +103,9 @@ dist_agent_1lm_randrot_noise_10distinctobj = deepcopy(dist_agent_1lm_randrot_noi
 dist_agent_1lm_randrot_noise_10distinctobj[
     "logging_config"
 ].run_name = "dist_agent_1lm_randrot_noise_10distinctobj"
+dist_agent_1lm_randrot_noise_10distinctobj["experiment_args"].model_name_or_path = str(
+    DMC_PRETRAIN_DIR / "dist_agent_1lm_10distinctobj/pretrained"
+)
 dist_agent_1lm_randrot_noise_10distinctobj[
     "eval_dataloader_args"
 ].object_names = DISTINCT_OBJECTS
