@@ -1,15 +1,17 @@
 import json
 import os
-from copy import deepcopy
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+from data_utils import (
+    DMC_ANALYSIS_DIR,
+)
 
 DMC_ROOT_DIR = Path(os.environ.get("DMC_ROOT_DIR", "~/tbp/results/dmc")).expanduser()
 VISUALIZATIONS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
-OUT_DIR = os.path.join(VISUALIZATIONS_DIR, "visualize_8lm_patches")
+OUT_DIR = DMC_ANALYSIS_DIR / "multilm_patches"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 json_path = os.path.join(
     VISUALIZATIONS_DIR, "visualize_8lm_patches", "detailed_run_stats.json"
@@ -25,10 +27,10 @@ obs = SM["raw_observations"][0]
 rgba = np.array(obs["rgba"])
 semantic_3d = np.array(obs["semantic_3d"])
 
-fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-ax.imshow(rgba)
-ax.set_title(f"{sensor_module_id}")
-plt.show()
+# fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+# ax.imshow(rgba)
+# ax.set_title(f"{sensor_module_id}")
+# plt.show()
 
 # %%
 
@@ -58,12 +60,22 @@ ax.view_init(elev=0, azim=0, roll=0, vertical_axis="y")
 
 # view finder
 x, y, z, c = pull(8)
-scatter = ax.scatter(x, y, z, c=c, marker="o", alpha=0.1)
+scatter = ax.scatter(x, y, z, c=c, marker="o", alpha=0.05)
 
+width = 0.0003952849842607975
+
+mat = np.zeros((64, 64), dtype=bool)
+mat[0, :] = True
+mat[:, 0] = True
+mat[-1, :] = True
+mat[:, -1] = True
+border = mat.flatten()
 
 # patches
 for i in range(8):
     x, y, z, c = pull(i)
+    # c[border] = np.array([0, 0, 1, 1])
+    # c[border] = np.array([0, 0, 1, 1])
     scatter = ax.scatter(x, y, z, c=c, marker="o")
 
 
@@ -81,5 +93,7 @@ ax.set_ylim(1.44, 1.44 + 0.12)
 ax.set_zlim(-0.06, 0.06)
 ax.axis("off")
 plt.show()
+fig.savefig(os.path.join(OUT_DIR, "multilm_patches.png"), dpi=300)
+fig.savefig(os.path.join(OUT_DIR, "multilm_patches.pdf"))
 
 # %%
