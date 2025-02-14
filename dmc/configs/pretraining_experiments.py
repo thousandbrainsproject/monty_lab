@@ -332,11 +332,9 @@ Functions used for generating experiment variants.
 def make_10distinctobj_variant(template: dict) -> dict:
     """Make a 10-distinct object variant of a config.
 
-    NOTE: We aren't likely to use any 10distinctobj variants in the DMC paper,
-    so this will be removed soon. For the time being, it can be useful to
-    sometimes train 10distinctobj models for debugging purposes.
-
-    TODO: Remove this function when bringing this code into a publishable state.
+    The config returned is a copy of `template` with the following changes:
+    - The `object_names` in the `train_dataloader_args` is set to `DISTINCT_OBJECTS`.
+    - The logging config's `run_name` is appended with "_10distinctobj".
 
     Returns:
         dict: Copy of `template` config that trains on DISTINCT_OBJECTS dataset.
