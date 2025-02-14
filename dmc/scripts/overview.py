@@ -1,19 +1,33 @@
-"""Contains functions for generating summaries of single-LM results."""
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+"""Get overview plots for DMC experiments.
+
+This script generates basic figures for each set of experiments displaying number
+of monty matching steps, accuracy, and rotation error. If functions are called with
+`save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
+"""
 
 import os
+from numbers import Number
 from typing import List
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-from monty_capabilities_analysis.data_utils import (
-    OUT_DIR,
+from data_utils import (
+    DMC_ANALYSIS_DIR,
     get_percent_correct,
     load_eval_stats,
 )
-from monty_capabilities_analysis.plot_utils import (
+from plot_utils import (
     TBP_COLORS,
     violinplot,
 )
@@ -22,14 +36,12 @@ plt.rcParams["font.size"] = 8
 
 
 # Directories to save plots and tables to.
-OUT_DIR = OUT_DIR / "one_lm_summaries"
+OUT_DIR = DMC_ANALYSIS_DIR / "overview"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Additional output directories depending on format.
 PNG_DIR = OUT_DIR / "png"
 PNG_DIR.mkdir(parents=True, exist_ok=True)
-SVG_DIR = OUT_DIR / "svg"
-SVG_DIR.mkdir(parents=True, exist_ok=True)
 PDF_DIR = OUT_DIR / "pdf"
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 CSV_DIR = OUT_DIR / "csv"
@@ -134,10 +146,11 @@ def write_latex_table(
         f.write("\n".join(lines))
 
 
-def init_1lm_plot(
+def init_overview_plot(
     dataframes: List[pd.DataFrame],
     conditions: List[str],
     figsize=(6, 3),
+    tick_label_rotation: Number = 0,
 ) -> matplotlib.figure.Figure:
     """Initialize a plot with violin plots for steps, accuracy, and rotation error.
 
@@ -147,10 +160,10 @@ def init_1lm_plot(
         dataframes (List[pd.DataFrame]): Dataframes for different conditions.
             Typically base, noise, RR, and noise + RR.
         conditions (List[str]): Conditions/labels associated with each dataframe.
-        figsize (tuple, optional): Figure size. Defaults to (4, 2).
+        figsize (tuple, optional): Figure size. Defaults to (6, 3).
 
     Returns:
-        matplotlib.figure.Figure: _description_
+        matplotlib.figure.Figure: Summary plot.
     """
 
     fig, axes = plt.subplots(1, 3, figsize=figsize)
@@ -158,7 +171,13 @@ def init_1lm_plot(
     # Plot distribution of num_steps
     ax = axes[0]
     num_steps = [df.num_steps for df in dataframes]
-    violinplot(ax, num_steps, conditions, rotation=45)
+    violinplot(
+        ax,
+        num_steps,
+        conditions,
+        rotation=tick_label_rotation,
+        color=TBP_COLORS["green"],
+    )
     ax.set_ylabel("Steps")
     ax.set_ylim(0, 500)
     ax.set_yticks([0, 100, 200, 300, 400, 500])
@@ -172,7 +191,7 @@ def init_1lm_plot(
         color=TBP_COLORS["blue"],
     )
     ax.set_xticks(xticks)
-    ax.set_xticklabels(conditions, rotation=45, ha="right")
+    ax.set_xticklabels(conditions, rotation=tick_label_rotation, ha="right")
     ax.set_ylabel("% Correct")
     ax.set_ylim(0, 100)
     ax.set_title("Accuracy")
@@ -180,7 +199,13 @@ def init_1lm_plot(
     # Plot rotation error
     ax = axes[2]
     rotation_errors = [np.rad2deg(df.rotation_error.dropna()) for df in dataframes]
-    violinplot(ax, rotation_errors, conditions, rotation=45)
+    violinplot(
+        ax,
+        rotation_errors,
+        conditions,
+        rotation=tick_label_rotation,
+        color=TBP_COLORS["pink"],
+    )
     ax.set_yticks([0, 45, 90, 135, 180])
     ax.set_ylim(0, 180)
     ax.set_ylabel("Error (degrees)")
@@ -189,34 +214,7 @@ def init_1lm_plot(
     return fig
 
 
-# def plot_multimodal_transfer_base(save: bool = False):
-#     dataframes = [
-#         load_eval_stats("dist_agent_1lm"),
-#         load_eval_stats("dist_on_touch"),
-#         load_eval_stats("touch_agent_1lm"),
-#         load_eval_stats("touch_on_dist"),
-#     ]
-#     conditions = ["dist on dist", "dist on touch", "touch on touch", "touch on dist"]
-#     fig = init_1lm_plot(dataframes, conditions, figsize=(4, 2.15))
-#     fig.suptitle("Multimodal Transfer")
-#     fig.tight_layout()
-#     if save:
-#         fig.savefig(PNG_DIR / "multimodal_transfer_base.png", dpi=300)
-#         fig.savefig(SVG_DIR / "multimodal_transfer_base.svg")
-#         fig.savefig(PDF_DIR / "multimodal_transfer_base.pdf")
-#         stats = get_summary_stats(dataframes, conditions)
-#         stats.to_csv(CSV_DIR / "multimodal_transfer_base.csv", float_format="%.2f")
-#         write_latex_table(
-#             TXT_DIR / "multimodal_transfer_base.txt",
-#             dataframes,
-#             conditions,
-#             "Multimodal Transfer Performance",
-#             "tab:multimodal-transfer-performance",
-#         )
-#     return fig
-
-
-def plot_fig3():
+def plot_fig3(save: bool = False):
     dataframes = [
         load_eval_stats("dist_agent_1lm"),
         load_eval_stats("dist_agent_1lm_noise"),
@@ -224,43 +222,113 @@ def plot_fig3():
         load_eval_stats("dist_agent_1lm_randrot_all_noise"),
     ]
     conditions = ["base", "noise", "RR", "noise + RR"]
-    fig = init_1lm_plot(dataframes, conditions)
+    fig = init_overview_plot(dataframes, conditions, tick_label_rotation=45)
 
     fig.suptitle("Fig 3: Robust Sensorimotor Inference")
     fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig3.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig3.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig3.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig3.txt",
+            dataframes,
+            conditions,
+            "Fig 3: Robust Sensorimotor Inference",
+            "tab:fig3",
+        )
     return fig
 
 
-def plot_fig4():
+def plot_fig4_half_lms_match(save: bool = False):
     dataframes = [
         load_eval_stats("dist_agent_1lm_randrot_noise"),
-        load_eval_stats("dist_agent_2lm_randrot_noise"),
-        load_eval_stats("dist_agent_4lm_randrot_noise"),
-        load_eval_stats("dist_agent_8lm_randrot_noise"),
-        load_eval_stats("dist_agent_16lm_randrot_noise"),
+        load_eval_stats("dist_agent_2lm_half_lms_match_randrot_noise"),
+        load_eval_stats("dist_agent_4lm_half_lms_match_randrot_noise"),
+        load_eval_stats("dist_agent_8lm_half_lms_match_randrot_noise"),
+        load_eval_stats("dist_agent_16lm_half_lms_match_randrot_noise"),
     ]
     conditions = ["1", "2", "4", "8", "16"]
-    fig = init_1lm_plot(dataframes, conditions, figsize=(7, 3))
+    fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
+    fig.axes[0].set_ylim(0, 250)
+    for ax in fig.axes:
+        ax.set_xlabel("num. LMs")
 
-    fig.suptitle("Fig 4: Voting")
+    fig.suptitle("Fig 4: Voting - Half LMs Match")
     fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig4_half_lms_match.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig4_half_lms_match.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig4_half_lms_match.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig4_half_lms_match.txt",
+            dataframes,
+            conditions,
+            "Fig 4: Voting - Half LMs Match",
+            "tab:fig4-half-lms-match",
+        )
     return fig
 
 
-def plot_fig5():
+def plot_fig4_fixed_min_lms_match(save: bool = False):
+    dataframes = [
+        load_eval_stats("dist_agent_1lm_randrot_noise"),
+        load_eval_stats("dist_agent_2lm_fixed_min_lms_match_randrot_noise"),
+        load_eval_stats("dist_agent_4lm_fixed_min_lms_match_randrot_noise"),
+        load_eval_stats("dist_agent_8lm_fixed_min_lms_match_randrot_noise"),
+        load_eval_stats("dist_agent_16lm_fixed_min_lms_match_randrot_noise"),
+    ]
+    conditions = ["1", "2", "4", "8", "16"]
+    fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
+    fig.axes[0].set_ylim(0, 250)
+    for ax in fig.axes:
+        ax.set_xlabel("num. LMs")
+    fig.suptitle("Fig 4: Voting - Fixed Min LMs Match")
+    fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig4_fixed_min_lms_match.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig4_fixed_min_lms_match.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig4_fixed_min_lms_match.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig4_fixed_min_lms_match.txt",
+            dataframes,
+            conditions,
+            "Fig 4: Voting - Fixed Min LMs Match",
+            "tab:fig4-fixed-min-lms-match",
+        )
+    return fig
+
+
+def plot_fig5(save: bool = False):
     dataframes = [
         load_eval_stats("dist_agent_1lm_randrot_noise"),
         load_eval_stats("dist_agent_1lm_randrot_noise_nohyp"),
-        load_eval_stats("dist_agent_1lm_randrot_noise_moderatehyp"),
+        load_eval_stats("surf_agent_1lm_randrot_noise"),
+        load_eval_stats("surf_agent_1lm_randrot_noise_nohyp"),
     ]
-    conditions = ["std", "no hyp", "mod hyp"]
-    fig = init_1lm_plot(dataframes, conditions)
+    conditions = ["dist", "dist no hyp", "surf", "surf no hyp"]
+    fig = init_overview_plot(dataframes, conditions, tick_label_rotation=45)
     fig.suptitle("Fig 5: Model-Based Policies")
     fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig5.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig5.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig5.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig5.txt",
+            dataframes,
+            conditions,
+            "Fig 5: Model-Based Policies",
+            "tab:fig5",
+        )
     return fig
 
 
-def plot_fig6():
+def plot_fig6(save: bool = False):
     dataframes = [
         load_eval_stats("dist_agent_1lm_randrot_nohyp_1rot_trained"),
         load_eval_stats("dist_agent_1lm_randrot_nohyp_2rot_trained"),
@@ -270,13 +338,28 @@ def plot_fig6():
         load_eval_stats("dist_agent_1lm_randrot_nohyp_32rot_trained"),
     ]
     conditions = ["1", "2", "4", "8", "16", "32"]
-    fig = init_1lm_plot(dataframes, conditions, figsize=(7, 3))
+    fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
+    fig.axes[0].set_ylabel("num. training rotations")
     fig.suptitle("Fig 6: Rapid Learning")
+    for ax in fig.axes:
+        ax.set_xlabel("num. training episodes")
     fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig6.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig6.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig6.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig6.txt",
+            dataframes,
+            conditions,
+            "Fig 6: Rapid Learning",
+            "tab:fig6",
+        )
     return fig
 
 
-def plot_fig7():
+def plot_fig7(save: bool = False):
     dataframes = [
         load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_5p"),
         load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_10p"),
@@ -285,53 +368,58 @@ def plot_fig7():
         # load_eval_stats("dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all"),
     ]
     conditions = ["5%", "10%", "20%", "30%"]
-    fig = init_1lm_plot(dataframes, conditions, figsize=(7, 3))
+    fig = init_overview_plot(dataframes, conditions, figsize=(7, 3))
+    for ax in fig.axes:
+        ax.set_xlabel("x_percent_threshold")
     fig.suptitle("Fig 7: Flops Comparison")
-    fig.axes[0].set_xlabel("x_percent_threshold")
     fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig7.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig7.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig7.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig7.txt",
+            dataframes,
+            conditions,
+            "Fig 7: Flops Comparison",
+            "tab:fig7",
+        )
+    return fig
 
 
-def plot_fig8():
+def plot_fig8(save: bool = False):
     dataframes = [
-        load_eval_stats("dist_agent_1lm_randrot_noise"),
-        load_eval_stats("touch_agent_1lm_randrot_noise"),
-        load_eval_stats("dist_on_touch_1lm_randrot_noise"),
-        load_eval_stats("touch_on_dist_1lm_randrot_noise"),
+        load_eval_stats("dist_agent_1lm_randrot_noise_10distinctobj"),
+        load_eval_stats("touch_agent_1lm_randrot_noise_10distinctobj"),
+        load_eval_stats("dist_on_touch_1lm_randrot_noise_10distinctobj"),
+        load_eval_stats("touch_on_dist_1lm_randrot_noise_10distinctobj"),
     ]
     conditions = ["dist", "touch", "dist on touch", "touch on dist"]
-    fig = init_1lm_plot(dataframes, conditions)
-
+    fig = init_overview_plot(dataframes, conditions, tick_label_rotation=45)
     fig.suptitle("Fig 8: Multimodal Transfer")
     fig.tight_layout()
+    if save:
+        fig.savefig(PNG_DIR / "fig8.png", dpi=300)
+        fig.savefig(PDF_DIR / "fig8.pdf")
+        stats = get_summary_stats(dataframes, conditions)
+        stats.to_csv(CSV_DIR / "fig8.csv", float_format="%.2f")
+        write_latex_table(
+            TXT_DIR / "fig8.txt",
+            dataframes,
+            conditions,
+            "Fig 8: Multimodal Transfer",
+            "tab:fig8",
+        )
     return fig
 
 
 if __name__ == "__main__":
-    pass
-    # plot_1lm_distant_agent(save=True)
-    # plot_1lm_distant_agent_nohyp(save=True)
-    # plot_1lm_surface_agent(save=True)
-    # plot_1lm_touch_agent(save=True)
-    # plot_dist_on_touch(save=True)
-    # plot_touch_on_dist(save=True)
-    # plot_multimodal_transfer_base(save=True)
-
-    # if save:
-    #     fig.savefig(PNG_DIR / "1lm_surface_agent.png", dpi=300)
-    #     fig.savefig(SVG_DIR / "1lm_surface_agent.svg")
-    #     fig.savefig(PDF_DIR / "1lm_surface_agent.pdf")
-    #     stats = get_summary_stats(dataframes, conditions)
-    #     stats.to_csv(CSV_DIR / "1lm_surface_agent.csv", float_format="%.2f")
-    #     write_latex_table(
-    #         TXT_DIR / "1lm_surface_agent.txt",
-    #         dataframes,
-    #         conditions,
-    #         "Surface Agent Performance",
-    #         "tab:surface-agent-performance",
-    #     )
-    fig3 = plot_fig3()
-    fig4 = plot_fig4()
-    fig5 = plot_fig5()
-    fig6 = plot_fig6()
-    fig7 = plot_fig7()
-    fig8 = plot_fig8()
+    save = True
+    fig3 = plot_fig3(save=save)
+    fig4_half_lms_match = plot_fig4_half_lms_match(save=save)
+    fig4_fixed_min_lms_match = plot_fig4_fixed_min_lms_match(save=save)
+    fig5 = plot_fig5(save=save)
+    fig6 = plot_fig6(save=save)
+    fig7 = plot_fig7(save=save)
+    fig8 = plot_fig8(save=save)

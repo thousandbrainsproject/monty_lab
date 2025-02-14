@@ -9,7 +9,8 @@
 # https://opensource.org/licenses/MIT.
 """Figure 6: Rapid Learning
 
-Consists of 6 experiments:
+Consists of one pretraining experiment and 6 evaluation experiments:
+- pretrain_dist_agent_1lm_checkpoints
 - dist_agent_1lm_randrot_nohyp_1rot_trained
 - dist_agent_1lm_randrot_nohyp_2rot_trained
 - dist_agent_1lm_randrot_nohyp_4rot_trained
@@ -46,7 +47,7 @@ from tbp.monty.frameworks.experiments.pretraining_experiments import (
     MontySupervisedObjectPretrainingExperiment,
 )
 
-from .common import PRETRAIN_DIR, make_randrot_variant
+from .common import DMC_PRETRAIN_DIR, make_randrot_variant
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
 from .pretraining_experiments import pretrain_dist_agent_1lm
 
@@ -136,7 +137,7 @@ pretrain_dist_agent_1lm_checkpoints.update(
             do_eval=False,
         ),
         logging_config=PretrainLoggingConfig(
-            output_dir=str(PRETRAIN_DIR),
+            output_dir=str(DMC_PRETRAIN_DIR),
             run_name="dist_agent_1lm_checkpoints",
         ),
         train_dataloader_class=ED.InformedEnvironmentDataLoader,
@@ -167,7 +168,7 @@ def make_partially_trained_eval_config(n_rot: int) -> dict:
 
     # Change model loading path
     config["experiment_args"].model_name_or_path = str(
-        PRETRAIN_DIR
+        DMC_PRETRAIN_DIR
         / f"dist_agent_1lm_checkpoints/pretrained/checkpoints/{n_rot}/model.pt"
     )
 

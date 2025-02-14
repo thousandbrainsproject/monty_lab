@@ -35,7 +35,6 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
@@ -44,12 +43,15 @@ from tbp.monty.frameworks.experiments import MontyObjectRecognitionExperiment
 from tbp.monty.frameworks.models.evidence_matching import (
     MontyForEvidenceGraphMatching,
 )
+from tbp.monty.simulators.habitat.configs import (
+    PatchViewFinderMountHabitatDatasetArgs,
+)
 
 from .common import (
+    DMC_PRETRAIN_DIR,
     MAX_EVAL_STEPS,
     MAX_TOTAL_STEPS,
     MIN_EVAL_STEPS,
-    PRETRAIN_DIR,
     DMCEvalLoggingConfig,
     get_dist_lm_config,
     get_dist_motor_config,
@@ -67,7 +69,7 @@ TEST_ROTATIONS = get_cube_face_and_corner_views_rotations()
 dist_agent_1lm = dict(
     experiment_class=MontyObjectRecognitionExperiment,
     experiment_args=EvalExperimentArgs(
-        model_name_or_path=str(PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
+        model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
         n_eval_epochs=len(TEST_ROTATIONS),
         max_total_steps=MAX_TOTAL_STEPS,
         max_eval_steps=MAX_EVAL_STEPS,

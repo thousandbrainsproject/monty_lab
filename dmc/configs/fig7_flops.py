@@ -25,6 +25,13 @@ Experiments use:
 
  The main output measure is accuracy and FLOPs as a function of x-percent threshold.
 """
+# TODO: Set use_multithreading to False for thread-safety
+# TODO: Turn off Monty logging in Monty Configs
+# TODO: Turn off Python logging in Monty Configs
+# TODO: Add tests *with hypothesis testing*
+# TODO: Add pretraining experiment with 77 objects and 1 rotation
+
+# TODO test
 
 import copy
 
@@ -113,6 +120,9 @@ dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all = (
         "all",
     )
 )
+dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all[
+    "logging_config"
+].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all"
 
 CONFIGS = {
     "dist_agent_1lm_randrot_nohyp_x_percent_5p": dist_agent_1lm_randrot_nohyp_x_percent_5p,

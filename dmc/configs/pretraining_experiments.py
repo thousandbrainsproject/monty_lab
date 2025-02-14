@@ -12,15 +12,20 @@
 This module defines a suite of supervised pretraining experiments. The core models
 that experiments produce are:
  - `dist_agent_1lm`
+ - `dist_agent_1lm_10distinctobj`
  - `surf_agent_1lm`
+ - `surf_agent_1lm_10distinctobj`
  - `touch_agent_1lm`
+ - `touch_agent_1lm_10distinctobj`
  - `dist_agent_2lm`
  - `dist_agent_4lm`
  - `dist_agent_8lm`
  - `dist_agent_16lm`
 
 All of these models are trained on 77 YCB objects with 14 rotations each (cube face
-and corners). The `touch` model is a surface agent without access to color information.
+and corners) except those with the `10distinctobj` suffix which are trained on the
+10-distinct object dataset. The `touch` model is a surface agent without access to
+color information.
 
 This module performs some config finalization which does a few useful things:
  - Adds required (but unused) `eval_dataloader_class` and `eval_dataloader_args`.
@@ -72,10 +77,7 @@ from tbp.monty.frameworks.config_utils.config_args import (
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
-    PatchViewFinderMountHabitatDatasetArgs,
     PredefinedObjectInitializer,
-    SurfaceViewFinderMountHabitatDatasetArgs,
-    make_multi_sensor_habitat_dataset_args,
 )
 from tbp.monty.frameworks.config_utils.policy_setup_utils import (
     make_naive_scan_policy_config,
@@ -92,8 +94,13 @@ from tbp.monty.frameworks.models.sensor_modules import (
     HabitatDistantPatchSM,
     HabitatSurfacePatchSM,
 )
+from tbp.monty.simulators.habitat.configs import (
+    PatchViewFinderMountHabitatDatasetArgs,
+    SurfaceViewFinderMountHabitatDatasetArgs,
+    make_multi_sensor_habitat_dataset_args,
+)
 
-from .common import PRETRAIN_DIR
+from .common import DMC_PRETRAIN_DIR
 
 # Specify default here
 # - Experiment args
@@ -325,11 +332,9 @@ Functions used for generating experiment variants.
 def make_10distinctobj_variant(template: dict) -> dict:
     """Make a 10-distinct object variant of a config.
 
-    NOTE: We aren't likely to use any 10distinctobj variants in the DMC paper,
-    so this will be removed soon. For the time being, it can be useful to
-    sometimes train 10distinctobj models for debugging purposes.
-
-    TODO: Remove this function when bringing this code into a publishable state.
+    The config returned is a copy of `template` with the following changes:
+    - The `object_names` in the `train_dataloader_args` is set to `DISTINCT_OBJECTS`.
+    - The logging config's `run_name` is appended with "_10distinctobj".
 
     Returns:
         dict: Copy of `template` config that trains on DISTINCT_OBJECTS dataset.
@@ -437,6 +442,17 @@ pretrain_touch_agent_1lm = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
     ),
+)
+
+# Make 10distinctobj variants
+pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_dist_agent_1lm
+)
+pretrain_surf_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_surf_agent_1lm
+)
+pretrain_touch_agent_1lm_10distinctobj = make_10distinctobj_variant(
+    pretrain_touch_agent_1lm
 )
 
 """
@@ -565,6 +581,9 @@ CONFIGS = {
     "pretrain_dist_agent_1lm": pretrain_dist_agent_1lm,
     "pretrain_surf_agent_1lm": pretrain_surf_agent_1lm,
     "pretrain_touch_agent_1lm": pretrain_touch_agent_1lm,
+    "pretrain_dist_agent_1lm_10distinctobj": pretrain_dist_agent_1lm_10distinctobj,
+    "pretrain_surf_agent_1lm_10distinctobj": pretrain_surf_agent_1lm_10distinctobj,
+    "pretrain_touch_agent_1lm_10distinctobj": pretrain_touch_agent_1lm_10distinctobj,
     "pretrain_dist_agent_2lm": pretrain_dist_agent_2lm,
     "pretrain_dist_agent_4lm": pretrain_dist_agent_4lm,
     "pretrain_dist_agent_8lm": pretrain_dist_agent_8lm,
@@ -581,7 +600,7 @@ for exp in CONFIGS.values():
         object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
     )
     # Configure output directory..
-    exp["logging_config"].output_dir = str(PRETRAIN_DIR)
+    exp["logging_config"].output_dir = str(DMC_PRETRAIN_DIR)
 
     # Make sure eval is disabled.
     exp["experiment_args"].do_eval = False
