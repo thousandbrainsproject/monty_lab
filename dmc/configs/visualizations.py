@@ -12,7 +12,7 @@
 This file contains configs defined solely for making visualizations that go into
 paper figures. The configs defined are:
 
-- `visualize_8lm_patches`: An experiment that used to save patch view of an object
+- `visualize_8lm_patches`: An experiment that is used to save patch view of an object
 for the 8-patch distant agent model. Only runs one episode (using the mug). The
 output is read and plotted by `scripts/visualize_multilm_patches.py`.
 
