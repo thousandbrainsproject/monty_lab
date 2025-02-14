@@ -31,7 +31,7 @@ def describe_dict(data: Mapping, level: int = 0):
 
 
 class DetailedJSONStatsInterface:
-    """ "Convenience interface to detailed JSON stats.
+    """Convenience interface to detailed JSON stats.
 
     This class is a dict-like interface to detailed JSON stats files that loads
     episodes one at a time. An episode can be loaded via `stats[episode_num]`
