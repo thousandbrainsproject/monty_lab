@@ -117,7 +117,6 @@ def render_figures(experiment: str) -> None:
     # Iterate through all objects, making a figure for each.
     unique_objects = list(sorted(set([episode[1] for episode in episodes])))
     fig_params = figure_settings[experiment]
-    print(fig_params)
     for object_name in tqdm.tqdm(unique_objects):
         object_episodes = _get_episodes_for_object(object_name, episodes)
         fig = _plot_all_rotations_for_object(object_episodes, fig_params, data_dir)
