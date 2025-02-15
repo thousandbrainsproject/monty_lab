@@ -140,7 +140,7 @@ def plot_potted_meat_can_views():
         plt.show()
 
 
-def blend_rgba_images(img1, img2):
+def blend_rgba_images(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
     """
     Blends two RGBA image arrays using alpha compositing.
 
