@@ -12,6 +12,8 @@ This module defines functions used to generate images for figure 2.
 
 - `plot_potted_meat_can_object_models`: Plots the potted meat can (i.e., Spam)
 object models for the distant and touch agents.
+- `plot_potted_meat_can_views`: Plots the view finder images of the potted meat can
+at 14 training rotations.
 
 
 
@@ -42,7 +44,10 @@ def plot_potted_meat_can_object_models():
     by the distant agent, and one without color as learned by the touch agent.
     """
 
-    # Plot the distant agent's object model.
+    out_dir = OUT_DIR / "object_models"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Plot the distant agent's object model using stored colors.
     obj = load_object_model("dist_agent_1lm_10distinctobj", "potted_meat_can")
     obj -= obj.translation
     obj = obj.rotated(90, 260, 0)
@@ -54,23 +59,85 @@ def plot_potted_meat_can_object_models():
     ax.view_init(elev=10, azim=10, roll=0)
     fig.tight_layout()
     plt.show()
-    fig.savefig(OUT_DIR / "potted_meat_can_dist_agent.png", dpi=300)
-    fig.savefig(OUT_DIR / "potted_meat_can_dist_agent.svg")
+    fig.savefig(
+        out_dir / "potted_meat_can_dist_agent.png", bbox_inches="tight", dpi=300
+    )
+    fig.savefig(out_dir / "potted_meat_can_dist_agent.svg", pad_inches=0)
 
-    # Plot the touch agent's object model.
+    # Plot the touch agent's object model. Generate colors.
     obj = load_object_model("touch_agent_1lm", "potted_meat_can")
     obj -= obj.translation
     obj = obj.rotated(90, 260, 0)
 
     fig = plt.figure(figsize=(2, 2))
     ax = fig.add_subplot(projection="3d")
-    ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, marker="o", s=10, alpha=1)
+    # Generate colors. Use the middle third of the colormap, otherwise its
+    # pretty busy.
+    values = obj.z
+    norm = plt.Normalize(vmin=values.min(), vmax=values.max())
+    cmap = plt.cm.magma
+    rgba = cmap(norm(values) * 0.33 + 0.33)
+    ax.scatter(obj.x, obj.y, obj.z, c=rgba, marker="o", s=10, alpha=1)
     axes3d_clean(ax)
     ax.view_init(elev=10, azim=10, roll=0)
     fig.tight_layout()
     plt.show()
-    fig.savefig(OUT_DIR / "potted_meat_can_touch_agent.png", dpi=300)
-    fig.savefig(OUT_DIR / "potted_meat_can_touch_agent.svg")
+    fig.savefig(
+        out_dir / "potted_meat_can_touch_agent.png", bbox_inches="tight", dpi=300
+    )
+    fig.savefig(out_dir / "potted_meat_can_touch_agent.svg", pad_inches=0)
+
+
+def plot_potted_meat_can_views():
+    """
+    Loads view finder images of the potted meat can at 14 training rotations,
+    and saves them as individual PNG and SVG files.
+    """
+
+    # Initialize input and output paths.
+    data_dir = VIEW_FINDER_DIR / "view_finder_base/view_finder_rgbd"
+    png_dir = OUT_DIR / "potted_meat_can_views/png"
+    svg_dir = OUT_DIR / "potted_meat_can_views/svg"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load 'episodes.jsonl' to get info about potted_meat_can episodes.
+    episodes = []
+    with open(os.path.join(data_dir, "episodes.jsonl"), "r") as f:
+        for line in f:
+            episode = json.loads(line)
+            episode_num = episode["episode"]
+            object_name = episode["object"]
+            if object_name != "potted_meat_can":
+                continue
+            rotation = episode["rotation"]
+            episodes.append((episode_num, object_name, rotation))
+
+    # Plot each image as its own figure.
+    for i, episode in enumerate(episodes):
+        episode_number = episode[0]
+
+        # Load the rgbd image, and alpha mask out any pixels that have a depth
+        # greater than 0.9. We do this because we want to place the objects over
+        # a neater (gray) background to match other plots in the figure.
+        rgbd = np.load(os.path.join(data_dir, f"arrays/{episode_number}.npy"))
+        depth = rgbd[:, :, 3]
+        rgba = rgbd.copy()
+        rgba[:, :, 3] = 1
+        masked = np.argwhere(depth > 0.9)
+        rgba[masked[:, 0], masked[:, 1], 3] = 0
+
+        # Put the image on the gray background, and plot it.
+        image = put_image_on_gray_background(rgba)
+        fig, ax = plt.subplots(figsize=(1, 1))
+        ax.imshow(image)
+        ax.axis("off")
+        fig.tight_layout()
+
+        fig.savefig(png_dir / f"{i}.png", bbox_inches="tight", dpi=300)
+        fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
+
+        plt.show()
 
 
 def blend_rgba_images(img1, img2):
@@ -136,102 +203,3 @@ def put_image_on_gray_background(image: np.ndarray) -> np.ndarray:
     return blended
 
 
-def plot_potted_meat_can_views():
-    """
-    Loads view finder images of the potted meat can at 14 training rotations,
-    and saves them as individual PNG and SVG files.
-    """
-
-    # Initialize input and output paths.
-    data_dir = VIEW_FINDER_DIR / "view_finder_base/view_finder_rgbd"
-    png_dir = OUT_DIR / "potted_meat_can_views/png"
-    svg_dir = OUT_DIR / "potted_meat_can_views/svg"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    svg_dir.mkdir(parents=True, exist_ok=True)
-
-    # Load 'episodes.jsonl' to get info about potted_meat_can episodes.
-    episodes = []
-    with open(os.path.join(data_dir, "episodes.jsonl"), "r") as f:
-        for line in f:
-            episode = json.loads(line)
-            episode_num = episode["episode"]
-            object_name = episode["object"]
-            if object_name != "potted_meat_can":
-                continue
-            rotation = episode["rotation"]
-            episodes.append((episode_num, object_name, rotation))
-
-    # Plot each image as its own figure.
-    for i, episode in enumerate(episodes):
-        episode_number = episode[0]
-
-        # Load the rgbd image, and alpha mask out any pixels that have a depth
-        # greater than 0.9. We do this because we want to place the objects over
-        # a neater (gray) background to match other plots in the figure.
-        rgbd = np.load(os.path.join(data_dir, f"arrays/{episode_number}.npy"))
-        depth = rgbd[:, :, 3]
-        rgba = rgbd.copy()
-        rgba[:, :, 3] = 1
-        masked = np.argwhere(depth > 0.9)
-        rgba[masked[:, 0], masked[:, 1], 3] = 0
-
-        # Put the image on the gray background, and plot it.
-        image = put_image_on_gray_background(rgba)
-        fig, ax = plt.subplots(figsize=(1, 1))
-        ax.imshow(image)
-        ax.axis("off")
-        fig.tight_layout()
-
-        fig.savefig(png_dir / f"{i}.png", bbox_inches="tight", dpi=300)
-        fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
-
-        plt.show()
-
-
-if __name__ == "__main__":
-    # plot_potted_meat_can_object_models()
-    # plot_potted_meat_can_views()
-    # Plot the distant agent's object model.
-
-    out_dir = OUT_DIR / "object_models"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # Plot the distant agent's object model using stored colors.
-    obj = load_object_model("dist_agent_1lm_10distinctobj", "potted_meat_can")
-    obj -= obj.translation
-    obj = obj.rotated(90, 260, 0)
-
-    fig = plt.figure(figsize=(2, 2))
-    ax = fig.add_subplot(projection="3d")
-    ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, marker="o", s=10, alpha=1)
-    axes3d_clean(ax)
-    ax.view_init(elev=10, azim=10, roll=0)
-    fig.tight_layout()
-    plt.show()
-    fig.savefig(
-        out_dir / "potted_meat_can_dist_agent.png", bbox_inches="tight", dpi=300
-    )
-    fig.savefig(out_dir / "potted_meat_can_dist_agent.svg", pad_inches=0)
-
-    # Plot the touch agent's object model. Generate colors.
-    obj = load_object_model("touch_agent_1lm", "potted_meat_can")
-    obj -= obj.translation
-    obj = obj.rotated(90, 260, 0)
-
-    fig = plt.figure(figsize=(2, 2))
-    ax = fig.add_subplot(projection="3d")
-    # Generate colors. Use the middle third of the colormap, otherwise its
-    # pretty busy.
-    values = obj.z
-    norm = plt.Normalize(vmin=values.min(), vmax=values.max())
-    cmap = plt.cm.magma
-    rgba = cmap(norm(values) * 0.33 + 0.33)
-    ax.scatter(obj.x, obj.y, obj.z, c=rgba, marker="o", s=10, alpha=1)
-    axes3d_clean(ax)
-    ax.view_init(elev=10, azim=10, roll=0)
-    fig.tight_layout()
-    plt.show()
-    fig.savefig(
-        out_dir / "potted_meat_can_touch_agent.png", bbox_inches="tight", dpi=300
-    )
-    fig.savefig(out_dir / "potted_meat_can_touch_agent.svg", pad_inches=0)
