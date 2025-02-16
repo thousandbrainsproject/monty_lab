@@ -17,7 +17,8 @@ def read_flop_traces(df: pd.DataFrame) -> float:
     """
     # Get average of flops for experiment.run_episode in method column
     run_episode_df = df[df["method"] == "experiment.run_episode"]
-    return run_episode_df["flops"].mean()
+    # Return as a list
+    return run_episode_df["flops"].tolist()
 
 
 def compute_accuracy(df: pd.DataFrame) -> float:
@@ -44,34 +45,66 @@ def main(experiments: List[str], save_dir: str):
     save_dir = os.path.expanduser(save_dir)
     os.makedirs(save_dir, exist_ok=True)
 
-    results = pd.DataFrame()
+    # Initialize results DataFrame
+    results = pd.DataFrame(
+        columns=[
+            "experiment",
+            "accuracy_mean",
+            "accuracy_std",
+            "rotation_error_mean",
+            "rotation_error_std",
+            "flops_mean",
+            "flops_std",
+        ]
+    )
+
     for experiment in experiments:
+        # First collect all flops data
+        experiment_flops = []
         # Read all csv files that start with "flop_traces" in results_dir/experiment
         files = os.listdir(os.path.join(data_dir, experiment))
         for file in files:
             if file.startswith("flop_traces"):
                 flops_df = pd.read_csv(os.path.join(data_dir, experiment, file))
                 flops = read_flop_traces(flops_df)
-            if file.startswith("eval_stats.csv"):
-                eval_df = pd.read_csv(os.path.join(data_dir, experiment, file))
-                accuracy = compute_accuracy(eval_df)
-                quaternion_error_deg = compute_quaternion_error(eval_df)
+                experiment_flops.extend(flops)
 
-                results = pd.concat(
-                    [
-                        results,
-                        pd.DataFrame(
-                            {
-                                "experiment": [experiment],
-                                "accuracy_mean": [accuracy],
-                                "accuracy_std": [np.nan],
-                                "rotation_error_mean": [quaternion_error_deg],
-                                "rotation_error_std": [np.nan],
-                                "flops": [flops],
-                            }
-                        ),
-                    ]
-                )
+        # Calculate flops statistics
+        flops_mean = np.mean(experiment_flops) if experiment_flops else np.nan
+        flops_std = np.std(experiment_flops) if experiment_flops else np.nan
+
+        # Now collect all eval stats
+        accuracies = []
+        rotation_errors = []
+        for file in files:
+            if file.startswith("eval_stats"):
+                eval_df = pd.read_csv(os.path.join(data_dir, experiment, file))
+                accuracies.append(compute_accuracy(eval_df))
+                rotation_errors.append(compute_quaternion_error(eval_df))
+
+        # Calculate statistics
+        accuracy_mean = np.mean(accuracies) if accuracies else np.nan
+        accuracy_std = np.std(accuracies) if accuracies else np.nan
+        rotation_error_mean = np.mean(rotation_errors) if rotation_errors else np.nan
+        rotation_error_std = np.std(rotation_errors) if rotation_errors else np.nan
+
+        # Add to results
+        results = pd.concat(
+            [
+                results,
+                pd.DataFrame(
+                    {
+                        "experiment": [experiment],
+                        "accuracy_mean": [accuracy_mean],
+                        "accuracy_std": [accuracy_std],
+                        "rotation_error_mean": [rotation_error_mean],
+                        "rotation_error_std": [rotation_error_std],
+                        "flops_mean": [flops_mean],
+                        "flops_std": [flops_std],
+                    }
+                ),
+            ]
+        )
 
     results.to_csv(
         os.path.join(save_dir, "flops_accuracy_rotation_error.csv"), index=False
@@ -83,13 +116,13 @@ if __name__ == "__main__":
         "dist_agent_1lm_randrot_nohyp_x_percent_5p",
         "dist_agent_1lm_randrot_nohyp_x_percent_10p",
         "dist_agent_1lm_randrot_nohyp_x_percent_20p",
-        "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all",
+        "dist_agent_1lm_randrot_nohyp_x_percent_30p",
     ]
     hyp_experiments = [
         "dist_agent_1lm_randrot_x_percent_5p",
         "dist_agent_1lm_randrot_x_percent_10p",
         "dist_agent_1lm_randrot_x_percent_20p",
-        "dist_agent_1lm_randrot_x_percent_30p_evidence_update_all",
+        "dist_agent_1lm_randrot_x_percent_30p",
     ]
     save_dir = "~/tbp/results/dmc/results/floppy"
 
