@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Any
+
+import numpy as np
 
 __all__ = [
     "MeanOperation",
@@ -12,7 +13,7 @@ __all__ = [
 class MeanOperation:
     """FLOP count for mean operation."""
 
-    def count_flops(self, *args: Any, result: Any) -> int:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for mean operation.
 
         Mean requires:
