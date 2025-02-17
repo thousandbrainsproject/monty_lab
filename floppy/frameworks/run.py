@@ -119,7 +119,7 @@ def flop_main(all_configs, experiments=None):
     """Main function that runs experiments with FLOP counting enabled."""
     cmd_args = None
     if not experiments:
-        cmd_parser = create_cmd_parser(all_configs=all_configs)
+        cmd_parser = create_cmd_parser(experiments=all_configs.keys())
         cmd_parser.add_argument(
             "--detailed_logging",
             action="store_true",
