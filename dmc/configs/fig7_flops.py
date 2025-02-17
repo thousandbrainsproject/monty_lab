@@ -15,6 +15,11 @@ This module defines the following experiments:
  - `dist_agent_1lm_randrot_nohyp_x_percent_20p`
  - `dist_agent_1lm_randrot_nohyp_x_percent_30p`
  - `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
+ - `dist_agent_1lm_randrot_x_percent_5p`
+ - `dist_agent_1lm_randrot_x_percent_10p`
+ - `dist_agent_1lm_randrot_x_percent_20p`
+ - `dist_agent_1lm_randrot_x_percent_30p`
+ - `dist_agent_1lm_randrot_x_percent_30p_evidence_update_all`
 
 Experiments use:
  - 77 objects
@@ -23,27 +28,17 @@ Experiments use:
  - No hypothesis testing*
  - No voting
 
- The main output measure is accuracy and FLOPs as a function of x-percent threshold.
-
-Additionally, this module defines one pretraining experiment:
-- `dist_agent_1lm`
-
-The main output measure is FLOPs as a function of whether the ViT or Monty is training.
+The main output measure is accuracy and FLOPs as a function of x-percent threshold.
 """
 
 import copy
 
-import numpy as np
-
-from .common import get_dist_lm_config
 from .fig4_rapid_inference_with_voting import (
     dist_agent_1lm_randrot_noise,  # With hypothesis testing
 )
 from .fig5_rapid_inference_with_model_based_policies import (
     dist_agent_1lm_randrot_noise_nohyp,
 )  # No hypothesis testing
-from .fig6_rapid_learning import TRAIN_ROTATIONS
-from .pretraining_experiments import pretrain_dist_agent_1lm
 
 
 def update_x_percent_threshold_in_config(
@@ -64,7 +59,6 @@ def update_x_percent_threshold_in_config(
         dict: The updated config.
     """
 
-
     # Update the x_percent_threshold
     lm_config_dict = config["monty_config"].learning_module_configs
     lm_config_dict["learning_module_0"]["learning_module_args"][
@@ -77,9 +71,27 @@ def update_x_percent_threshold_in_config(
     ] = evidence_update_threshold
     return config
 
+
 ################
 # Base Configs #
 ################
+"""Creates two base configurations:
+
+1. dist_agent_1lm_randrot_nohyp:
+   - Based on dist_agent_1lm_randrot_noise_nohyp
+   - Disables sensor noise
+   - No hypothesis testing
+   
+2. dist_agent_1lm_randrot:
+   - Based on dist_agent_1lm_randrot_noise
+   - Disables sensor noise
+   - Includes hypothesis testing
+
+Both configurations serve as templates for the various x-percent threshold experiments
+that follow. The main difference between them is the presence/absence of hypothesis
+testing functionality.
+"""
+
 dist_agent_1lm_randrot_nohyp = copy.deepcopy(dist_agent_1lm_randrot_noise_nohyp)
 for sm_dict in dist_agent_1lm_randrot_nohyp[
     "monty_config"
@@ -97,6 +109,7 @@ for sm_dict in dist_agent_1lm_randrot["monty_config"].sensor_module_configs.valu
         continue
     sm_args["noise_params"] = {}  # Set noise_param to empty dictionary to remove noise
 dist_agent_1lm_randrot["logging_config"].run_name = "dist_agent_1lm_randrot"
+
 #####################################################################
 # No Hypothesis Testing Configs with different x percent thresholds #
 #####################################################################
@@ -203,30 +216,6 @@ dist_agent_1lm_randrot_x_percent_30p_evidence_update_all[
     "logging_config"
 ].run_name = "dist_agent_1lm_randrot_x_percent_30p_evidence_update_all"
 
-########################################################
-# Pretraining Config                                  #
-########################################################
-
-pretrain_dist_agent_1lm_1rot = copy.deepcopy(pretrain_dist_agent_1lm)
-pretrain_dist_agent_1lm_1rot["experiment_args"].n_train_epochs = len(TRAIN_ROTATIONS)
-pretrain_dist_agent_1lm_1rot["logging_config"].run_name = "pretrain_dist_agent_1lm_1rot"
-pretrain_dist_agent_1lm_1rot["monty_config"].learning_module_configs[
-    "learning_module_0"
-] = get_dist_lm_config()
-
-# monty_config = (
-#     PatchAndViewMontyConfig(
-#         monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
-#         learning_module_configs=dict(
-#             learning_module_0=get_dist_lm_config(),
-#         ),
-#         sensor_module_configs=dict(
-#             sensor_module_0=get_dist_patch_config(),
-#             sensor_module_1=get_view_finder_config(),
-#         ),
-#         motor_system_config=get_dist_motor_config(),
-#     ),
-# )
 
 CONFIGS = {
     "dist_agent_1lm_randrot_nohyp_x_percent_5p": dist_agent_1lm_randrot_nohyp_x_percent_5p,
@@ -239,5 +228,4 @@ CONFIGS = {
     "dist_agent_1lm_randrot_x_percent_20p": dist_agent_1lm_randrot_x_percent_20p,
     "dist_agent_1lm_randrot_x_percent_30p": dist_agent_1lm_randrot_x_percent_30p,
     "dist_agent_1lm_randrot_x_percent_30p_evidence_update_all": dist_agent_1lm_randrot_x_percent_30p_evidence_update_all,
-    "pretrain_dist_agent_1lm_1rot": pretrain_dist_agent_1lm_1rot,
 }
