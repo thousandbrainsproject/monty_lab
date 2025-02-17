@@ -1,4 +1,17 @@
-import os
+# Copyright 2025 Thousand Brains Project
+# Copyright 2023 Numenta Inc.
+#
+# Copyright may exist in Contributors' modifications
+# and/or contributions to the work.
+#
+# Use of this source code is governed by the MIT
+# license that can be found in the LICENSE file or at
+# https://opensource.org/licenses/MIT.
+
+"""
+Makes Bubble plots of FLOPs vs. accuracy and FLOPs vs. rotation error for Monty and ViT.
+"""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
