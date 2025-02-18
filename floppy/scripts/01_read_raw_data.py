@@ -53,7 +53,7 @@ def main(experiments: List[str], save_dir: str):
             "accuracy_std",
             "rotation_error_mean",
             "rotation_error_std",
-            "flops_mean",
+            "flops_sum",
             "flops_std",
         ]
     )
@@ -70,14 +70,14 @@ def main(experiments: List[str], save_dir: str):
                 experiment_flops.extend(flops)
 
         # Calculate flops statistics
-        flops_mean = np.mean(experiment_flops) if experiment_flops else np.nan
+        flops_sum = np.sum(experiment_flops) if experiment_flops else np.nan
         flops_std = np.std(experiment_flops) if experiment_flops else np.nan
 
         # Now collect all eval stats
         accuracies = []
         rotation_errors = []
         for file in files:
-            if file.startswith("eval_stats"):
+            if file.startswith("eval_stats.csv"):
                 eval_df = pd.read_csv(os.path.join(data_dir, experiment, file))
                 accuracies.append(compute_accuracy(eval_df))
                 rotation_errors.append(compute_quaternion_error(eval_df))
@@ -99,7 +99,7 @@ def main(experiments: List[str], save_dir: str):
                         "accuracy_std": [accuracy_std],
                         "rotation_error_mean": [rotation_error_mean],
                         "rotation_error_std": [rotation_error_std],
-                        "flops_mean": [flops_mean],
+                        "flops_sum": [flops_sum],
                         "flops_std": [flops_std],
                     }
                 ),
@@ -117,14 +117,16 @@ if __name__ == "__main__":
         "dist_agent_1lm_randrot_nohyp_x_percent_10p",
         "dist_agent_1lm_randrot_nohyp_x_percent_20p",
         "dist_agent_1lm_randrot_nohyp_x_percent_30p",
+        # "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all",
     ]
     hyp_experiments = [
-        "dist_agent_1lm_randrot_x_percent_5p",
-        "dist_agent_1lm_randrot_x_percent_10p",
-        "dist_agent_1lm_randrot_x_percent_20p",
-        "dist_agent_1lm_randrot_x_percent_30p",
+        "dist_agent_1lm_randrot_x_percent_5p_perf",
+        "dist_agent_1lm_randrot_x_percent_10p_perf",
+        "dist_agent_1lm_randrot_x_percent_20p_perf",
+        "dist_agent_1lm_randrot_x_percent_30p_perf",
+        "dist_agent_1lm_randrot_x_percent_30p_evidence_update_all",
     ]
     save_dir = "~/tbp/results/dmc/results/floppy"
 
     main(nohyp_experiments, os.path.join(save_dir, "nohyp"))
-    main(hyp_experiments, os.path.join(save_dir, "hyp"))
+    # main(hyp_experiments, os.path.join(save_dir, "hyp"))

@@ -86,6 +86,7 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             *args,
             **kwargs,
         )
+        self.use_multithreading = False
         self.flop_counter = None
 
     def _update_evidence_with_vote(self, state_votes, graph_id):
