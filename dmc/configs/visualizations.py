@@ -42,7 +42,10 @@ from .common import (
     DMC_ROOT_DIR,
 )
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
-from .fig4_rapid_inference_with_voting import dist_agent_8lm_half_lms_match
+from .fig4_rapid_inference_with_voting import (
+    dist_agent_1lm_randrot_noise,
+    dist_agent_8lm_half_lms_match,
+)
 from .fig9_structured_object_representations import (
     EvidenceLoggingMontyObjectRecognitionExperiment,
 )
@@ -80,12 +83,21 @@ fig3_evidence_run.update(
         ),
     )
 )
-# We want to be able to run for at least 40 consecutive steps (without jumps) so we
-# can plot a nice smooth trajectory over the object model.
-fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 41
-fig3_evidence_run[
-    "monty_config"
-].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
+
+# ----
+
+fig3_symmetry_run = deepcopy(dist_agent_1lm_randrot_noise)
+fig3_symmetry_run.update(
+    dict(
+        experiment_class=EvidenceLoggingMontyObjectRecognitionExperiment,
+        logging_config=DetailedEvidenceLMLoggingConfig(
+            output_dir=str(VISUALIZATION_RESULTS_DIR),
+            run_name="fig3_symmetry_run",
+            wandb_group="dmc",
+            monty_log_level="SELECTIVE",
+        ),
+    )
+)
 
 
 """
@@ -128,5 +140,6 @@ dataset_args.__post_init__()
 
 CONFIGS = {
     "fig3_evidence_run": fig3_evidence_run,
+    "fig3_symmetry_run": fig3_symmetry_run,
     "fig4_visualize_8lm_patches": fig4_visualize_8lm_patches,
 }
