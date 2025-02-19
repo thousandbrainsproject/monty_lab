@@ -83,6 +83,35 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     n_epochs = int(len(df) / rows_per_epoch)
     df["epoch"] = np.repeat(np.arange(n_epochs), rows_per_epoch)
 
+    # Decode array columns.
+    def decode_array_string(s: str, dtype: type = float) -> np.ndarray:
+        if not isinstance(s, str):
+            return s
+        if s in ("", "None"):
+            return None
+        s = s.strip("[]")
+        if "," in s:
+            lst = [elt.strip() for elt in s.split(",")]
+        else:
+            lst = s.split()
+        lst = [np.nan if elt == "None" else dtype(elt) for elt in lst]
+        return np.array(lst)
+
+    array_cols = [
+        "primary_target_position",
+        "primary_target_rotation_euler",
+        "most_likely_rotation",
+        "detected_location",
+        "detected_rotation",
+        "location_rel_body",
+        "detected_path",
+        "most_likely_rotation",
+        "primary_target_rotation_quat",
+    ]
+    column_order = list(df.columns)
+    for col in array_cols:
+        df[col] = df[col].apply(decode_array_string)
+    df = df[column_order]
     return df
 
 
