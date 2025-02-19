@@ -15,12 +15,15 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 """
 
 import os
+from numbers import Number
 from pathlib import Path
 from types import SimpleNamespace
-from typing import List, Optional, Tuple, Union
+from typing import List, Mapping, Optional, Tuple, Type, Union
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy
 from data_utils import (
     DMC_ANALYSIS_DIR,
@@ -34,6 +37,7 @@ from data_utils import (
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from scipy.spatial.transform import Rotation as R
 from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS
+from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
 # from tbp.monty.frameworks.models.object_model import GraphObjectModel
 
@@ -334,6 +338,7 @@ def plot_evidence_graphs_and_patches():
         fig.savefig(pdf_dir / f"patch_step_{step}.pdf")
         plt.close(fig)
 
+
 def plot_trajectory():
     experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
     detailed_stats = DetailedJSONStatsInterface(
@@ -346,7 +351,7 @@ def plot_trajectory():
     # Find the steps where the LM has processed data, but limit to 21 steps total.
     lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
     lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
-    lm_processed_steps = lm_processed_steps[:21]
+    lm_processed_steps = lm_processed_steps[:41]
     n_steps = len(lm_processed_steps)
 
     sm = stats["SM_0"]  # a list of dicts
@@ -364,83 +369,70 @@ def plot_trajectory():
     out_dir = OUT_DIR / "trajectory_plots"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    fig = plt.figure(figsize=(3.5, 3.5))
-    ax = fig.add_subplot(projection="3d")
+    def init_plot(
+        observed_points: bool = False,
+        path: bool = False,
+        path_labels: bool = False,
+    ):
+        fig = plt.figure(figsize=(4, 4))
+        ax = fig.add_subplot(projection="3d")
+        linewidths = np.zeros(len(mug.x))
+        ax.scatter(
+            mug.x,
+            mug.y,
+            mug.z,
+            color=mug.rgba,
+            alpha=0.5,
+            linewidths=linewidths,
+            zorder=1,
+            s=5,
+        )
+        ax.view_init(115, -90, 0)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        blue = TBP_COLORS["blue"]
+        x, y, z = centers[:, 0], centers[:, 1], centers[:, 2]
+        if observed_points:
+            # z += 0.005
+            ax.scatter(
+                x,
+                y,
+                z,
+                color="k",
+                edgecolors="k",
+                alpha=1,
+                zorder=5,
+                marker="s",
+                s=8,
+                linewidths=1,
+            )
+        if path:
+            ax.plot(x, y, z, color=blue, alpha=1, ls="--", lw=1)
+        if path_labels:
+            for i in range(len(x)):
+                if i % 10 == 0:
+                    ax.text(x[i], y[i], z[i], f"{i}", color="k", alpha=1, zorder=5)
+        return fig, ax
 
-    # Draw the mug.
-    linewidths = np.zeros(len(mug.x))
-    ax.scatter(mug.x, mug.y, mug.z, color=mug.rgba, alpha=0.5, linewidths=linewidths)
-    ax.view_init(115, -90, 0)
-    axes3d_clean(ax, grid=False)
-    axes3d_set_aspect_equal(ax)
+    fig, ax = init_plot()
     fig.savefig(out_dir / "mug.png", dpi=300)
     fig.savefig(out_dir / "mug.pdf")
-
-    # Draw the observation locations.
-    blue = TBP_COLORS["blue"]
-    x, y, z = centers[:, 0], centers[:, 1], centers[:, 2]
-    z += 0.0025
-    edgecolors = np.zeros([len(x), 4])
-    # edgecolors[:, 3] = 1
-    ax.scatter(x, y, z, color=blue, edgecolors="none")
-    fig.savefig(out_dir / "mug_with_points.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_points.pdf")
-
-    # Draw points connecting the observation locations.
-    ax.plot(x, y, z, color=blue, alpha=1, ls="--")
-    fig.savefig(out_dir / "mug_with_path.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_path.pdf")
-
-    for i in range(len(x)):
-        # if i in [1, 10, 20]:
-        ax.text(x[i], y[i], z[i], f"{i}", color=blue, alpha=1)
-
-    fig.savefig(out_dir / "mug_with_path_and_labels.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_path_and_labels.pdf")
-
-    # axes3d_clean(ax, grid=False)
-    # axes3d_set_aspect_equal(ax)
     plt.show()
 
+    fig, ax = init_plot(observed_points=True)
+    fig.savefig(out_dir / "mug_with_points.png", dpi=300)
+    fig.savefig(out_dir / "mug_with_points.svg")
+    plt.show()
 
-def rotation_difference(
-    rot_a: scipy.spatial.transform.Rotation,
-    rot_b: scipy.spatial.transform.Rotation,
-    degrees: bool = False,
-) -> Tuple[float, np.ndarray]:
-    """Computes the angle and axis of rotation between two rotation matrices.
+    fig, ax = init_plot(observed_points=True, path=True)
+    fig.savefig(out_dir / "mug_with_path.png", dpi=300)
+    fig.savefig(out_dir / "mug_with_path.svg")
+    plt.show()
 
-    Args:
-        rot_a (scipy.spatial.transform.Rotation): The first rotation.
-        rot_b (scipy.spatial.transform.Rotation): The second rotation.
-
-    Returns:
-        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
-    """
-    # Compute rotation angle
-    rel = rot_a * rot_b.inv()
-    mat = rel.as_matrix()
-    trace = np.trace(mat)
-    theta = np.arccos((trace - 1) / 2)
-
-    if np.isclose(theta, 0):  # No rotation
-        return 0, np.array([0.0, 0.0, 0.0])
-
-    # Compute rotation axis
-    axis = np.array(
-        [
-            mat[2, 1] - mat[1, 2],
-            mat[0, 2] - mat[2, 0],
-            mat[1, 0] - mat[0, 1],
-        ]
-    )
-    axis = axis / (2 * np.sin(theta))  # Normalize
-
-    if degrees:
-        theta = np.degrees(theta)
-        axis = np.degrees(axis)
-
-    return theta, axis
+    fig, ax = init_plot(observed_points=True, path=True, path_labels=True)
+    fig.savefig(out_dir / "mug_with_labels.png", dpi=300)
+    fig.savefig(out_dir / "mug_with_labels.svg")
+    plt.show()
 
 
 def l2_distance(
@@ -505,262 +497,210 @@ def chamfer_distance(
     return np.mean(dists1) + np.mean(dists2)
 
 
-class RotationUtility:
-    def __init__(self, experiment_dir: os.PathLike):
-        self.experiment_dir = Path(experiment_dir)
-        self.detailed_stats = DetailedJSONStatsInterface(
-            experiment_dir / "detailed_run_stats.json"
-        )
-        self.eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-        self._episode = None
-        self.stats = None
+def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
+    """Load end-of-episode rotations.
 
-    @property
-    def episode(self) -> int:
-        return self._episode
-
-    @episode.setter
-    def episode(self, episode: int):
-        self._episode = episode
-        self.stats = self.detailed_stats[episode]
-
-    def get_csv_info(
-        self, episode: int
-    ) -> Tuple[str, np.ndarray, np.ndarray, np.ndarray]:
-        df_row = self.eval_stats.iloc[episode]
-        primary_target_object = df_row.primary_target_object
-        primary_target_rotation = df_row.primary_target_rotation_euler
-        detected_rotation = df_row.detected_rotation
-        most_likely_rotation = df_row.most_likely_rotation
-        primary_target_rotation = np.array(
-            [float(x) for x in primary_target_rotation[1:-1].split(",")]
-        )
-        detected_rotation = np.array(
-            [float(x) for x in detected_rotation[1:-1].split()]
-        )
-        most_likely_rotation = np.array(
-            [float(x) for x in most_likely_rotation[1:-1].split()]
-        )
-        return (
-            primary_target_object,
-            primary_target_rotation,
-            detected_rotation,
-            most_likely_rotation,
-        )
-
-    def load_rotations(self) -> List[SimpleNamespace]:
-        """Loads the rotations and evidence values.
-
-        Returns:
-            List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
-            the id, rotation, and evidence value.
-        """
-        last_hypotheses_evidence = np.array(
-            self.stats["LM_0"]["last_hypotheses_evidence"]
-        )
-        possible_rotations = np.array(self.stats["LM_0"]["symmetric_rotations"])
-        rotations = []
-        for i in range(len(possible_rotations)):
-            rotations.append(
-                SimpleNamespace(
-                    id=i,
-                    rot=R.from_matrix(possible_rotations[i]).inv(),
-                    evidence=last_hypotheses_evidence[i],
-                )
+    Returns:
+        List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
+        the id, rotation, and evidence value.
+    """
+    last_hypotheses_evidence = np.array(
+        episode_stats["LM_0"]["last_hypotheses_evidence"]
+    )
+    possible_rotations = np.array(episode_stats["LM_0"]["symmetric_rotations"])
+    rotations = []
+    for i in range(len(possible_rotations)):
+        rotations.append(
+            SimpleNamespace(
+                id=i,
+                rot=R.from_matrix(possible_rotations[i]).inv(),
+                evidence=last_hypotheses_evidence[i],
             )
-        return rotations
-
-    def filter_rotations(
-        self, rotations: List[SimpleNamespace], max_rotations: int = 100
-    ) -> List[SimpleNamespace]:
-        """Filters the rotations to the top `max_rotations` rotations.
-
-        Args:
-            rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
-            each containing the id, rotation, and evidence value.
-            max_rotations (int): The maximum number of rotations to return.
-
-        Returns:
-            List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
-            the id, rotation, and evidence value.
-        """
-        n_rotations = len(rotations)
-        if n_rotations > max_rotations:
-            last_hypotheses_evidence = np.array([obj.evidence for obj in rotations])
-            sorting_inds = np.argsort(last_hypotheses_evidence)[::-1]
-            rotations = [rotations[ind] for ind in sorting_inds][:max_rotations]
-        return rotations
-
-    def compute_relative_rotations(
-        self, rotations: List[SimpleNamespace]
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Computes the relative rotations between all rotations.
-
-        Args:
-            rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
-            each containing the id, rotation, and evidence value.
-        """
-        # Find relative rotations between all rotations.
-        n_rotations = len(rotations)
-        theta_matrix = np.zeros((n_rotations, n_rotations))
-        axis_matrix = np.zeros((n_rotations, n_rotations, 3))
-        for i in range(n_rotations - 1):
-            for j in range(i + 1, n_rotations):
-                rot_a, rot_b = rotations[i].rot, rotations[j].rot
-                theta, axis = rotation_difference(rot_a, rot_b, degrees=True)
-                theta_matrix[i, j] = theta
-                axis_matrix[i, j] = axis
-        return theta_matrix, axis_matrix
-
-    def group_rotations(
-        self,
-        rotations: List[SimpleNamespace],
-        theta_threshold: float = 20.0,
-    ) -> Tuple[List[SimpleNamespace]]:
-        """Groups the rotations into two groups based on the rotation difference.
-
-        Args:
-            rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
-            each containing the id, rotation, and evidence value.
-        """
-        # Group rotations
-        theta_matrix, axis_matrix = self.compute_relative_rotations(rotations)
-        row = theta_matrix[0]
-        group_a = np.where(abs(row - 0) < theta_threshold)[0]
-        group_b = np.where(abs(row - 180) < theta_threshold)[0]
-
-        if len(group_b) == 0:
-            print("No 180 degree rotations found. Returning.")
-            return None
-        if len(group_a) + len(group_b) != len(rotations):
-            print(
-                f" - WARNING: episode {self.episode} has more than two rotation groups"
-            )
-        print(f" - Num. rotations per group: a={len(group_a)}, b={len(group_b)}")
-
-        # Replace indices with rotation objects.
-        group_a = [rotations[i] for i in group_a]
-        group_b = [rotations[i] for i in group_b]
-
-        # Sort rotations within each group by evidence.
-        group_a = sorted(group_a, key=lambda x: x.evidence, reverse=True)
-        group_b = sorted(group_b, key=lambda x: x.evidence, reverse=True)
-        groups = [group_a, group_b]
-
-        # Find best rotation, make its group group a.
-        if max([r.evidence for r in group_b]) > max([r.evidence for r in group_a]):
-            groups = [group_b, group_a]
-
-        return groups
+        )
+    return rotations
 
 
-def plot_rotations(episode: int):
+def get_relative_rotation(
+    rot_a: scipy.spatial.transform.Rotation,
+    rot_b: scipy.spatial.transform.Rotation,
+    degrees: bool = False,
+) -> Tuple[float, np.ndarray]:
+    """Computes the angle and axis of rotation between two rotation matrices.
+
+    Args:
+        rot_a (scipy.spatial.transform.Rotation): The first rotation.
+        rot_b (scipy.spatial.transform.Rotation): The second rotation.
+
+    Returns:
+        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
+    """
+    # Compute rotation angle
+    rel = rot_a * rot_b.inv()
+    mat = rel.as_matrix()
+    trace = np.trace(mat)
+    theta = np.arccos((trace - 1) / 2)
+
+    if np.isclose(theta, 0):  # No rotation
+        return 0.0, np.array([0.0, 0.0, 0.0])
+
+    # Compute rotation axis
+    axis = np.array(
+        [
+            mat[2, 1] - mat[1, 2],
+            mat[0, 2] - mat[2, 0],
+            mat[1, 0] - mat[0, 1],
+        ]
+    )
+    axis = axis / (2 * np.sin(theta))  # Normalize
+    if degrees:
+        theta, axis = np.degrees(theta), np.degrees(axis)
+
+    return theta, axis
+
+
+def get_pairwise_relative_rotations(
+    rotations: List[SimpleNamespace],
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the relative rotations between all pairs of rotations.
+
+    Args:
+        rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
+        each containing the id, rotation, and evidence value.
+    """
+    n_rotations = len(rotations)
+    theta_matrix = np.zeros((n_rotations, n_rotations))
+    axis_matrix = np.zeros((n_rotations, n_rotations, 3))
+    for i in range(n_rotations - 1):
+        for j in range(i + 1, n_rotations):
+            rot_a, rot_b = rotations[i].rot, rotations[j].rot
+            theta, axis = get_relative_rotation(rot_a, rot_b, degrees=True)
+            theta_matrix[i, j] = theta
+            axis_matrix[i, j] = axis
+    return theta_matrix, axis_matrix
+
+
+def group_rotations_by_symmetry(
+    rotations: List[SimpleNamespace],
+    group_threshold: float = 20.0,
+) -> Tuple[List[SimpleNamespace], List[SimpleNamespace]]:
+    """Groups the rotations into two groups based on the rotation difference.
+
+    Args:
+        rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
+        each containing the id, rotation, and evidence value.
+
+
+    """
+    # Group rotations
+    theta_matrix, _ = get_pairwise_relative_rotations(rotations)
+    group_a_inds = np.where(abs(theta_matrix[0]) <= group_threshold)[0]
+    group_b_inds = np.where(abs(theta_matrix[0] - 180) <= group_threshold)[0]
+
+    # Replace indices with rotation objects.
+    group_a = []
+    for ind in group_a_inds:
+        r = rotations[ind]
+        r.group = "a"
+        group_a.append(r)
+
+    group_b = []
+    for ind in group_b_inds:
+        r = rotations[ind]
+        r.group = "b"
+        group_b.append(r)
+
+    return group_a, group_b
+
+
+def plot_symmetrical_rotations_overview(
+    episode: int,
+    max_rotations: int = 100,
+    group_threshold: Number = 20,
+    show: bool = False,
+    episode_stats: Optional[Mapping] = None,
+    eval_stats: Optional[pd.DataFrame] = None,
+) -> "matplotlib.figure.Figure":
     """Plots the rotations of the object for a given episode."""
 
-    from types import SimpleNamespace
+    # Load rotations, evidence, and episode info.
+    # ------------------------------------------
 
-    # Load detailed stats.
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_rotations"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    stats = detailed_stats[episode]
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
 
-    # Load some info from 'eval_stats.csv'.
-    df = load_eval_stats(experiment_dir / "eval_stats.csv")
-    df_row = df.iloc[episode]
-    primary_target_object = df_row.primary_target_object
-    primary_target_rotation = df_row.primary_target_rotation_euler
-    detected_rotation = df_row.detected_rotation
-    most_likely_rotation = df_row.most_likely_rotation
-    primary_target_rotation = np.array(
-        [float(x) for x in primary_target_rotation[1:-1].split(",")]
-    )
-    detected_rotation = np.array([float(x) for x in detected_rotation[1:-1].split()])
-    most_likely_rotation = np.array(
-        [float(x) for x in most_likely_rotation[1:-1].split()]
-    )
-    # Load the rotations and evidence values.
-    last_hypotheses_evidence = np.array(stats["LM_0"]["last_hypotheses_evidence"])
-    possible_rotations = np.array(stats["LM_0"]["symmetric_rotations"])
-    n_rotations = len(possible_rotations)
-    rotations = []
-    for i in range(n_rotations):
-        rot = R.from_matrix(possible_rotations[i]).inv()
-        ev = last_hypotheses_evidence[i]
-        rotations.append(SimpleNamespace(id=i, rot=rot, evidence=ev))
+    # - Extract info from 'eval_stats.csv'.
+    if eval_stats is None:
+        eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+    row = eval_stats.iloc[episode]
+    primary_target_object = row.primary_target_object
+    primary_target_rotation = row.primary_target_rotation_euler
+    detected_rotation = row.detected_rotation
+    most_likely_rotation = row.most_likely_rotation
+
+    # - Load rotations. We place the scipy rotation objects inside a SimpleNamespace
+    # object to bind it to an evidence value and its insex.
+
+    if episode_stats is None:
+        detailed_stats = DetailedJSONStatsInterface(
+            experiment_dir / "detailed_run_stats.json"
+        )
+        episode_stats = detailed_stats[episode]
+    rotations = load_symmetry_rotations(episode_stats)
+
+    # - Optionally, only look at the top `n` rotations, ranked by evidence.
+    if max_rotations and len(rotations) > max_rotations:
+        evidence_values = np.array([r.evidence for r in rotations])
+        sorting_inds = np.argsort(evidence_values)[::-1]
+        rotations = [rotations[ind] for ind in sorting_inds][:max_rotations]
 
     print(f"\nEpisode {episode}\n-----------")
     print(f" - primary target object: {primary_target_object}")
     print(f" - primary target rotation: {primary_target_rotation}")
     print(f" - detected rotation: {detected_rotation}")
     print(f" - most likely rotation: {most_likely_rotation}")
-    print(f" - num. rotations: {n_rotations}")
-    max_rotations = 100
-    if n_rotations > max_rotations:
-        print(f" - Using top {max_rotations} rotations.")
-        sorting_inds = np.argsort(last_hypotheses_evidence)[::-1]
-        rotations = [rotations[ind] for ind in sorting_inds][:max_rotations]
-        n_rotations = len(rotations)
+    print(f" - num. rotations: {len(rotations)}")
 
-    # Find relative rotations between all rotations.
-    theta_matrix = np.zeros((n_rotations, n_rotations))
-    axis_matrix = np.zeros((n_rotations, n_rotations, 3))
-    for i in range(n_rotations - 1):
-        for j in range(i + 1, n_rotations):
-            rot_a, rot_b = rotations[i].rot, rotations[j].rot
-            theta, axes = rotation_difference(rot_a, rot_b, degrees=True)
-            theta_matrix[i, j] = theta
-            axis_matrix[i, j] = axes
-
-    # Group rotations
-    theta_threshold = 20
-    row = theta_matrix[0]
-    group_a = np.where(abs(row - 0) < theta_threshold)[0]
-    group_b = np.where(abs(row - 180) < theta_threshold)[0]
-
+    # Partition rotations into two symmetrical groups.
+    # ------------------------------------------------
+    # - Find relative rotations between all rotations.
+    group_a, group_b = group_rotations_by_symmetry(rotations, group_threshold)
     if len(group_b) == 0:
-        print("No 180 degree rotations found. Returning.")
+        print(" - No 180 degree rotations found. Returning.")
         return None
-    if len(group_a) + len(group_b) != n_rotations:
-        print(f" - WARNING: episode {episode} has more than two rotation groups")
     print(f" - Num. rotations per group: a={len(group_a)}, b={len(group_b)}")
 
-    # Replace indices with rotation objects.
-    group_a = [rotations[i] for i in group_a]
-    group_b = [rotations[i] for i in group_b]
-
-    # Sort rotations within each group by evidence.
+    # - Sort rotations within each group by evidence.
     group_a = sorted(group_a, key=lambda x: x.evidence, reverse=True)
     group_b = sorted(group_b, key=lambda x: x.evidence, reverse=True)
-    groups = [group_a, group_b]
 
-    # Find best rotation, make its group group a.
+    # - Have group_a contain the rotation with the highest evidence/mlh.
     if max([r.evidence for r in group_b]) > max([r.evidence for r in group_a]):
         group_a, group_b = group_b, group_a
 
-    # Plot objects.
+    # Draw objects models
+    # --------------------------------
     init_elev, init_azim = 30, -90
 
-    # Plot true object first.
+    # Load the object model.
     base_obj = load_object_model("dist_agent_1lm", primary_target_object)
     base_obj = base_obj.centered()
+
+    # Get target rotation (no inversion needed), and rotate an object model with it.
     true_rotation = R.from_euler("xyz", primary_target_rotation, degrees=True)
     true_obj = base_obj.rotated(true_rotation)
 
-    # Plot same-group, different-group, and random rotations.
-    n_rows = 4
-    n_cols = min([4, len(group_a), len(group_b)])
+    # Initialize figure. The top row is for true rotation and the axes of relative
+    # rotation between group_a and group_b. The next three rows are for objects
+    # from group_a, group_b, and random rotations, respectively.
+    n_rows, n_cols = 4, min([4, len(group_a), len(group_b)])
     fig, axes = plt.subplots(
         n_rows,
         n_cols,
         figsize=(4 * n_cols, 4 * n_rows),
         subplot_kw={"projection": "3d"},
     )
-    if n_cols == 1:
-        axes = axes[:, np.newaxis]
+    axes = axes[:, np.newaxis] if n_cols == 1 else axes
 
-    # Plot the true rotation top-left.
+    # - Draw the object at the target rotation.
     ax = axes[0, 0]
     ax.scatter(true_obj.x, true_obj.y, true_obj.z, color=true_obj.rgba, alpha=0.5)
     ax.set_title("True Rotation")
@@ -768,49 +708,51 @@ def plot_rotations(episode: int):
     axes3d_set_aspect_equal(ax)
     ax.view_init(init_elev, init_azim)
 
-    # Draw rotation axes between group_a and group_b.
+    # - Draw the rotation axes between group_a and group_b (if we have room).
     if n_cols > 1:
         ax = axes[0, 1]
-        a, b = groups[0][0], groups[1][0]
+        a, b = group_a[0], group_b[0]
         rel_rot = a.rot * b.rot.inv()
+        rel_rot = rel_rot * true_rotation
         rel_mat = rel_rot.as_matrix()
         origin = np.array([0, 0, 0])
-        ax.quiver(*origin, *rel_mat[0], color="red", length=1, arrow_length_ratio=0.1)
-        ax.quiver(*origin, *rel_mat[1], color="green", length=1, arrow_length_ratio=0.1)
-        ax.quiver(*origin, *rel_mat[2], color="blue", length=1, arrow_length_ratio=0.1)
-        ax.set_xlim([-1, 1])
-        ax.set_ylim([-1, 1])
-        ax.set_zlim([-1, 1])
+        colors = ["red", "green", "blue"]
+        axis_names = ["x", "y", "z"]
+        for i in range(3):
+            ax.quiver(
+                *origin,
+                *rel_mat[:, i],
+                color=colors[i],
+                length=1,
+                arrow_length_ratio=0.2,
+            )
+            getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
         axes3d_clean(ax)
         axes3d_set_aspect_equal(ax)
         ax.view_init(init_elev, init_azim)
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_zlabel("Z")
         ax.set_title("Relative Rotation Axis")
         for ax in axes[0, 2:]:
             ax.remove()
 
-    # Plot group_a and group_b rotations.
-    for i, group in enumerate(groups):
+    # - Draw object models with group_a and group_b rotations.
+    for i, group in enumerate([group_a, group_b]):
         for j in range(n_cols):
             r = group[j]
-            rot = r.rot
-            obj = base_obj.rotated(rot)
+            obj = base_obj.rotated(r.rot)
             ax = axes[i + 1, j]
-            ax.scatter(obj.x, obj.y, obj.z, color=obj.rgba, alpha=0.5)
-            evidence = r.evidence
+            ax.scatter(obj.x, obj.y, obj.z, color=obj.rgba, alpha=0.5, marker="o")
             l2 = l2_distance(obj, true_obj)
             emd = emd_distance(obj, true_obj)
             chamfer = chamfer_distance(obj, true_obj)
             ax.set_title(
-                f"ID={r.id}: Evidence: {evidence:.2f}\nL2: {l2:.4f}\nEMD: {emd:.4f}\nChamfer: {chamfer:.4f}"
+                f"ID={r.id}: Evidence: {r.evidence:.2f}\nL2: {l2:.4f}\n"
+                + f"EMD: {emd:.4f}\nChamfer: {chamfer:.4f}"
             )
             axes3d_clean(ax)
             axes3d_set_aspect_equal(ax)
             ax.view_init(init_elev, init_azim)
 
-    # Plot random rotations.
+    # - Draw object models with random rotations.
     random_rots = [
         R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True)
         for _ in range(n_cols)
@@ -827,21 +769,23 @@ def plot_rotations(episode: int):
         axes3d_set_aspect_equal(ax)
         ax.view_init(init_elev, init_azim)
 
+    title = f"Episode {episode}: '{primary_target_object}' at {primary_target_rotation}"
+    fig.suptitle(title)
+
+    if show:
+        plt.show()
     return fig
 
 
-def run_plots():
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_rotations"
+def run_plot_symmetrical_rotations_overview():
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
     detailed_stats = DetailedJSONStatsInterface(
         experiment_dir / "detailed_run_stats.json"
     )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
     maybe_usable_episodes = []
     for i, stats in enumerate(detailed_stats):
         if "last_hypotheses_evidence" not in stats["LM_0"]:
-            continue
-        last_hypotheses_evidence = np.array(stats["LM_0"]["last_hypotheses_evidence"])
-        n_rotations = len(last_hypotheses_evidence)
-        if n_rotations < 2:
             continue
         maybe_usable_episodes.append(i)
 
@@ -849,18 +793,22 @@ def run_plots():
     unusable_episodes = [9]
     highest_completed_episode = 0
 
-    episodes = np.setdiff1d(maybe_usable_episodes, unusable_episodes)
-    episodes = episodes[episodes > highest_completed_episode]
+    episodes_to_plot = np.setdiff1d(maybe_usable_episodes, unusable_episodes)
+    episodes_to_plot = episodes_to_plot[episodes_to_plot > highest_completed_episode]
 
-    out_dir = OUT_DIR / "rotations"
+    out_dir = OUT_DIR / "symmetrical_rotations_overview"
     out_dir.mkdir(parents=True, exist_ok=True)
-    for episode in episodes:
+    for episode, episode_stats in enumerate(detailed_stats):
+        if episode not in episodes_to_plot:
+            continue
         try:
-            fig = plot_rotations(episode)
+            fig = plot_symmetrical_rotations_overview(
+                episode, episode_stats=episode_stats, eval_stats=eval_stats
+            )
         except Exception as e:
             print(f"Error plotting episode {episode}: {e}")
             unusable_episodes.append(episode)
-            continue
+            raise
         if fig is None:
             unusable_episodes.append(episode)
             continue
@@ -869,36 +817,657 @@ def run_plots():
         plt.close()
 
 
-run_plots()
+# episode = 0
+def plot_mlh_vs_min_error():
+    """Exploratory plotting to visualize rotation error and symmetry."""
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
 
-# util = RotationUtility(VISUALIZATION_RESULTS_DIR / "fig3_rotations")
-# util.episode = 4
-# rotations = util.load_rotations()
-# rotations = util.filter_rotations(rotations, max_rotations=100)
-# n_rotations = len(rotations)
+    mlh_rotations = []
+    min_error_rotations = []
+    target_names = []
+    target_rotations = []
+    differences = []
+    episode_nums = []
+    # - Extract info from 'eval_stats.csv'.
+    # episode = 2
+    # episode_stats = detailed_stats[episode]
 
-# groups = util.group_rotations(rotations)
-# a, b = groups[0][0], groups[1][0]
-# theta, rot_axes = rotation_difference(a.rot, b.rot, degrees=True)
-# rel_rot = a.rot * b.rot.inv()
-# rel_mat = rel_rot.as_matrix()
+    for episode, episode_stats in enumerate(detailed_stats):
+        if "last_hypotheses_evidence" not in episode_stats["LM_0"]:
+            continue
+        rotations = load_symmetry_rotations(episode_stats)
+        row = eval_stats.iloc[episode]
+        primary_target_object = row.primary_target_object
+        primary_target_rotation = row.primary_target_rotation_euler
+        primary_target_rotation_r = R.from_euler(
+            "xyz", primary_target_rotation, degrees=True
+        )
 
-# fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"})
-# origin = np.array([0, 0, 0])
-# i_hat = rel_mat[0]
-# j_hat = rel_mat[1]
-# k_hat = rel_mat[2]
-# ax.quiver(*origin, *rel_mat[0], color="red", length=1, arrow_length_ratio=0.1)
-# ax.quiver(*origin, *rel_mat[1], color="green", length=1, arrow_length_ratio=0.1)
-# ax.quiver(*origin, *rel_mat[2], color="blue", length=1, arrow_length_ratio=0.1)
-# ax.set_xlim([-1, 1])
-# ax.set_ylim([-1, 1])
-# ax.set_zlim([-1, 1])
-# axes3d_clean(ax)
-# axes3d_set_aspect_equal(ax)
-# ax.set_xlabel("X")
-# ax.set_ylabel("Y")
-# ax.set_zlabel("Z")
+        # - Load rotations. We place the scipy rotation objects inside a SimpleNamespace
+        # object to bind it to an evidence value and its index.
+        # rotations = load_symmetry_rotations(episode_stats)
+        # group_a, group_b = group_rotations_by_symmetry(rotations)
+        # rotations = group_a + group_b
+        rotations = sorted(rotations, key=lambda x: x.evidence, reverse=True)
+
+        for r in rotations:
+            error_1 = get_pose_error(
+                r.rot.as_quat(), primary_target_rotation_r.as_quat()
+            )
+            r.error_1 = np.degrees(error_1)
+            error_2, _ = get_relative_rotation(
+                r.rot, primary_target_rotation_r, degrees=True
+            )
+            r.error_2 = error_2
+            r.error = error_1
+
+        # compute the difference between the mlh and min error rotations.
+        errors = np.array([r.error for r in rotations])
+        mlh_r = rotations[0].rot
+        min_error_r = rotations[np.argmin(errors)].rot
+        theta, _ = get_relative_rotation(mlh_r, min_error_r, degrees=True)
+        differences.append(theta)
+
+        episode_nums.append(episode)
+        target_names.append(primary_target_object)
+        mlh_rotations.append(mlh_r)
+        min_error_rotations.append(min_error_r)
+        target_rotations.append(primary_target_rotation_r)
+
+        print(f"Episode {episode}: '{primary_target_object}'")
+        print(f" delta = {theta:.2f} deg")
+        if theta > 20:
+            base_obj = load_object_model("dist_agent_1lm", primary_target_object)
+            base_obj = base_obj.centered()
+
+            true_obj = base_obj.rotated(primary_target_rotation_r)
+            mlh_obj = base_obj.rotated(mlh_r)
+            min_error_obj = base_obj.rotated(min_error_r)
+
+            fig, axes = plt.subplots(
+                1, 3, figsize=(5, 2), subplot_kw={"projection": "3d"}
+            )
+            titles, objects = (
+                ["True", "MLH", "Min Error"],
+                [true_obj, mlh_obj, min_error_obj],
+            )
+            for j, ax in enumerate(axes):
+                ax.scatter(
+                    objects[j].x,
+                    objects[j].y,
+                    objects[j].z,
+                    color=objects[j].rgba,
+                    alpha=0.5,
+                    s=5,
+                )
+                ax.set_title(titles[j])
+                axes3d_clean(ax)
+                axes3d_set_aspect_equal(ax)
+                ax.view_init(125, -100, -10)
+                fig_title = f"Episode {episode} ('{primary_target_object}'): theta = {theta:.2f} deg"
+                fig.suptitle(fig_title)
+            out_dir = OUT_DIR / "mlh_vs_min_error"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            fig.savefig(out_dir / f"episode_{episode}.png", dpi=300)
+            plt.close()
 
 
-# plt.show()
+def plot_symmetrical_rotations_qualitative(episode: int):
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    episode_params = {
+        6: {
+            "other_index": 5,
+            "random_rotation": np.array([98, 86, 134]),
+            "elev": 30,
+            "azim": -90,
+        },
+        130: {
+            "other_index": 5,
+            "random_rotation": np.array([98, 86, 134]),
+            "elev": 30,
+            "azim": -10,
+        },
+        309: {
+            "other_index": 17,
+            "random_rotation": np.array([172, 68, -25]),
+            "elev": 30,
+            "azim": -90,
+        },
+    }
+
+    params = episode_params.get(episode, {})
+
+    row = eval_stats.iloc[episode]
+    primary_target_object = row.primary_target_object
+    target = SimpleNamespace(
+        rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+    )
+
+    # Load rotations, compute rotation error for each, and sort them by error.
+    episode_stats = detailed_stats[episode]
+    rotations = load_symmetry_rotations(episode_stats)
+    for r in rotations:
+        theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
+        r.theta = theta
+        r.axis = axis
+    rotations = sorted(rotations, key=lambda x: x.theta)
+
+    # Get rotation with lowest error and any other symmetrical rotation.
+    best = rotations[0]
+    other_index = params.get("other_index", np.random.randint(1, len(rotations)))
+    other = rotations[other_index]
+
+    # Get a random rotation, and compute its error.
+    random_rotation = params.get(
+        "random_rotation", np.random.randint(0, 360, size=(3,))
+    )
+    rot_random = R.from_euler("xyz", random_rotation, degrees=True)
+    rot_random = SimpleNamespace(rot=rot_random)
+    theta, axis = get_relative_rotation(rot_random.rot, target.rot, degrees=True)
+    rot_random.theta = theta
+    rot_random.axis = axis
+
+    base_model = load_object_model("dist_agent_1lm", primary_target_object)
+    base_model = base_model.centered()
+
+    target.model = base_model.rotated(target.rot)
+    best.model = base_model.rotated(best.rot)
+    other.model = base_model.rotated(other.rot)
+    random.model = base_model.rotated(random.rot)
+
+    fig, axes = plt.subplots(2, 3, figsize=(5, 4), subplot_kw={"projection": "3d"})
+    objects = [best, other, random]
+    elev, azim = params.get("elev", 30), params.get("azim", -90)
+    for i in range(3):
+        obj = objects[i]
+
+        # Plot object.
+        ax = axes[0, i]
+        model = obj.model
+        ax.scatter(
+            model.x,
+            model.y,
+            model.z,
+            color=model.rgba,
+            alpha=0.5,
+            edgecolors="none",
+            s=10,
+        )
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(elev, azim)
+
+        # Plot basis vectors.
+        ax = axes[1, i]
+        mat = obj.rot.as_matrix()
+        origin = np.array([0, 0, 0])
+        colors = ["red", "green", "blue"]
+        axis_names = ["x", "y", "z"]
+        for i in range(3):
+            ax.quiver(
+                *origin,
+                *mat[:, i],
+                color=colors[i],
+                length=1,
+                arrow_length_ratio=0.2,
+                normalize=True,
+            )
+            getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(elev, azim)
+        ax.axis("off")
+
+    plt.show()
+    out_dir = OUT_DIR / "symmetrical_plot"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
+    fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
+    plt.close()
+
+
+def plot_symmetrical_distances():
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    stat_arrays = {
+        "L2": {"best": [], "other": [], "random": []},
+        "EMD": {"best": [], "other": [], "random": []},
+        "Chamfer": {"best": [], "other": [], "random": []},
+    }
+
+    for episode, episode_stats in enumerate(detailed_stats):
+        if "last_hypotheses_evidence" not in episode_stats["LM_0"]:
+            continue
+        print(f"Episode {episode}")
+        experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+        detailed_stats = DetailedJSONStatsInterface(
+            experiment_dir / "detailed_run_stats.json"
+        )
+        eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+        row = eval_stats.iloc[episode]
+        primary_target_object = row.primary_target_object
+        target = SimpleNamespace(
+            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+        )
+
+        # Load rotations, compute rotation error for each, and sort them by error.
+        rotations = load_symmetry_rotations(episode_stats)
+        for r in rotations:
+            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
+            r.theta = theta
+            r.axis = axis
+        rotations = sorted(rotations, key=lambda x: x.theta)
+
+        # Get rotation with lowest error and any other symmetrical rotation.
+        best = rotations[0]
+        other_index = np.random.randint(1, len(rotations))
+        other = rotations[other_index]
+
+        # Get a random rotation, and compute its error.
+        random_rotation = np.random.randint(0, 360, size=(3,))
+        random = R.from_euler("xyz", random_rotation, degrees=True)
+        random = SimpleNamespace(rot=random)
+        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
+        random.theta = theta
+        random.axis = axis
+
+        # Get object models, rotated accordingly.
+        base_model = load_object_model("dist_agent_1lm", primary_target_object)
+        base_model = base_model.centered()
+        target.model = base_model.rotated(target.rot)
+        best.model = base_model.rotated(best.rot)
+        other.model = base_model.rotated(other.rot)
+        random.model = base_model.rotated(random.rot)
+
+        objects = {"best": best, "other": other, "random": random}
+        metrics = {"L2": l2_distance, "EMD": emd_distance, "Chamfer": chamfer_distance}
+        for metric_name, metric_func in metrics.items():
+            for obj_name, obj in objects.items():
+                stat_arrays[metric_name][obj_name].append(
+                    metric_func(obj.model, target.model)
+                )
+
+    for metric_name in stat_arrays:
+        for obj_name in stat_arrays[metric_name]:
+            arr = np.array(stat_arrays[metric_name][obj_name])
+            print(
+                f"{metric_name} {obj_name}: min={arr.min():.4f}, max={arr.max():.4f}, "
+                + f"mean={arr.mean():.4f}, median={np.median(arr):.4f}"
+            )
+            stat_arrays[metric_name][obj_name] = np.array(arr)
+
+    metric_names = ["L2", "EMD", "Chamfer"]
+    object_names = ["best", "other", "random"]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["pink"], TBP_COLORS["green"]]
+
+    fig, ax = plt.subplots(1, 3, figsize=(4, 2))
+    for i, ax in enumerate(ax):
+        array_dict = stat_arrays[metric_names[i]]
+        arrays = [array_dict[name] for name in object_names]
+        ymax = max(np.percentile(arr, 95) for arr in arrays)
+        vp = ax.violinplot(
+            arrays,
+            showextrema=False,
+            showmedians=True,
+        )
+        for j, body in enumerate(vp["bodies"]):
+            body.set_facecolor(colors[j])
+            body.set_alpha(1.0)
+        vp["cmedians"].set_color("black")
+        ax.set_title(metric_names[i])
+        ax.set_xticks(list(range(1, len(object_names) + 1)))
+        ax.set_xticklabels(object_names, rotation=45)
+        ax.set_ylim(0, ymax)
+    fig.tight_layout()
+    plt.show()
+    fig.savefig(OUT_DIR / "distances.png", dpi=300)
+    fig.savefig(OUT_DIR / "distances.svg")
+
+
+
+# %%
+def evidence_plots():
+    object_names = ["mug"]
+    steps = np.array([0, 10, 20, 30, 40])
+    # steps = np.arange(0, 40)
+    # steps = np.arange(0, 41, 20)
+
+    # Find the steps where the LM has processed data, but limit to 21 steps total.
+    lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
+    lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
+    lm_processed_steps = lm_processed_steps[: steps[-1] + 1]
+    n_steps = len(lm_processed_steps)
+
+    # Extract evidence values for all objects.
+    evidences = stats["LM_0"]["evidences_ls"]
+    possible_locations = stats["LM_0"]["possible_locations_ls"]
+    possible_rotations = stats["LM_0"]["possible_rotations_ls"]
+    objects = {}
+    for object_name in DISTINCT_OBJECTS:
+        obj_evidences, obj_locations = [], []
+        for i in range(n_steps):
+            obj_evidences.append(evidences[i][object_name])
+            obj_locations.append(possible_locations[i][object_name])
+        obj_evidences = np.array(obj_evidences)
+        obj_locations = np.array(obj_locations)
+        obj_rotation = np.array(possible_rotations[0][object_name])
+        objects[object_name] = {
+            "evidences": obj_evidences,
+            "locations": obj_locations,
+            "rotation": obj_rotation,
+        }
+
+    # Build a color map that spans the range of all evidence values.
+    all_evidences = [objects[name]["evidences"].flatten() for name in DISTINCT_OBJECTS]
+    all_evidences = np.concatenate(all_evidences)
+    evidence_min = np.percentile(all_evidences, 2.5)
+    evidence_max = np.percentile(all_evidences, 99.99)
+    scalar_map = plt.cm.ScalarMappable(
+        cmap="coolwarm", norm=plt.Normalize(vmin=evidence_min, vmax=evidence_max)
+    )
+
+    models = {
+        "mug": load_object_model("dist_agent_1lm_10distinctobj", "mug"),
+        "bowl": load_object_model("dist_agent_1lm_10distinctobj", "bowl"),
+        "golf_ball": load_object_model("dist_agent_1lm_10distinctobj", "golf_ball"),
+    }
+
+    # Plot evidence graphs for each object and step individually.
+    out_dir = OUT_DIR / "evidence_graphs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    png_dir = out_dir / "png"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir = out_dir / "svg"
+    svg_dir.mkdir(parents=True, exist_ok=True)
+    for i, step in enumerate(steps):
+        for j, obj_name in enumerate(object_names):
+            fig = plt.figure(figsize=(4, 4))
+            ax = fig.add_subplot(projection="3d")
+
+            model = models[obj_name]
+            # model = model.centered()
+            linewidths = np.zeros(model.points.shape[0])
+            ax.scatter(
+                model.x,
+                model.y,
+                model.z,
+                color="gray",
+                alpha=0.4,
+                s=2,
+                linewidths=linewidths,
+            )
+
+            dct = objects[obj_name]
+            locations = dct["locations"][step]
+            n_points = locations.shape[0] // 2
+            print(n_points)
+            locations = locations[:n_points]
+            evidences = dct["evidences"][step]
+            ev1 = evidences[:n_points]
+            ev2 = evidences[n_points:]
+            stacked = np.hstack([ev1[:, np.newaxis], ev2[:, np.newaxis]])
+            evidences = stacked.max(axis=1)
+            x, y, z = locations[:, 0], locations[:, 1], locations[:, 2]
+            color = scalar_map.to_rgba(evidences)
+
+            obj = ObjectModel(locations, features=dict(rgba=color))
+            # obj = obj.centered()
+
+            x, y, z = obj.x, obj.y, obj.z
+
+            sizes = np.log(evidences + 1) * 10
+            sizes = evidences * 20
+            sizes -= sizes.min()
+            sizes = 10 * np.ones(len(x))
+            alpha = np.log(evidences + 1)
+            alpha[alpha < 0] = 0
+            alpha = alpha / alpha.max()
+            # med = np.percentile(evidences, 50)
+            # alpha[evidences < med] = 0
+            linewidths = np.zeros(len(x))
+
+            subsample_pct = 1.0
+            n_points = len(x)
+            n_points_sub = int(n_points * subsample_pct)
+            rand_inds = np.random.permutation(n_points)
+            cur_inds = np.arange(n_points, dtype=int)
+            sub_inds = cur_inds[rand_inds[:n_points_sub]]
+            x = x[sub_inds]
+            y = y[sub_inds]
+            z = z[sub_inds]
+            color = color[sub_inds]
+            sizes = sizes[sub_inds]
+            linewidths = linewidths[sub_inds]
+
+            ax.scatter(
+                x, y, z, color=color, alpha=alpha, s=sizes, linewidths=linewidths
+            )
+            ax.view_init(100, -100, -10)
+            axes3d_clean(ax, grid=False)
+            axes3d_set_aspect_equal(ax)
+            ax.set_title(f"step {step}")
+            # ax.set_xlim(-0.119, 0.119)
+            # ax.set_ylim(-0.119, 0.119)
+            # ax.set_zlim(-0.119, 0.119)
+            fig.savefig(png_dir / f"{obj_name}_step_{step}.png", dpi=300)
+            fig.savefig(svg_dir / f"{obj_name}_step_{step}.svg")
+            plt.show()
+            plt.close(fig)
+
+    # Plot the colorbar.
+    fig, ax = plt.subplots(1, 1, figsize=(1, 2))
+    cbar = plt.colorbar(scalar_map, ax=ax, orientation="vertical", label="Evidence")
+    ax.remove()  # Remove the empty axes, we just want the colorbar
+    cbar.set_ticks([])
+    cbar.set_label("")
+    fig.tight_layout()
+    fig.savefig(out_dir / "colorbar.png", dpi=300)
+    fig.savefig(out_dir / "colorbar.svg")
+
+    # Extract RGBA patches for sensor module 0.
+    rgba_patches = []
+    for ind in lm_processed_steps:
+        rgba_patches.append(np.array(stats["SM_0"][ind]["rgba"]))
+    rgba_patches = np.array(rgba_patches)
+
+    # Save the RGBA patches.
+    out_dir = OUT_DIR / "patches"
+    png_dir = out_dir / "png"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir = out_dir / "svg"
+    svg_dir.mkdir(parents=True, exist_ok=True)
+    for step in steps:
+        patch = rgba_patches[step]
+        fig, ax = plt.subplots(1, 1, figsize=(2, 2))
+        ax.imshow(patch)
+        ax.axis("off")
+        fig.tight_layout(pad=0.0)
+        fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
+        fig.savefig(svg_dir / f"patch_step_{step}.svg")
+        plt.close(fig)
+
+
+# plot_trajectory()
+# evidence_plots()
+# Load detailed stats.
+experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
+detailed_stats = DetailedJSONStatsInterface(experiment_dir / "detailed_run_stats.json")
+stats = detailed_stats[0]
+
+object_names = ["mug"]
+steps = np.array([20, 40])
+steps = np.arange(0, 40)
+# steps = np.arange(0, 41, 20)
+
+# Find the steps where the LM has processed data, but limit to 21 steps total.
+lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
+lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
+lm_processed_steps = lm_processed_steps[: steps[-1] + 1]
+n_steps = len(lm_processed_steps)
+
+# Extract evidence values for all objects.
+evidences = stats["LM_0"]["evidences_ls"]
+possible_locations = stats["LM_0"]["possible_locations_ls"]
+possible_rotations = stats["LM_0"]["possible_rotations_ls"]
+objects = {}
+for object_name in DISTINCT_OBJECTS:
+    obj_evidences, obj_locations = [], []
+    for i in range(n_steps):
+        obj_evidences.append(evidences[i][object_name])
+        obj_locations.append(possible_locations[i][object_name])
+    obj_evidences = np.array(obj_evidences)
+    obj_locations = np.array(obj_locations)
+    obj_rotation = np.array(possible_rotations[0][object_name])
+    objects[object_name] = {
+        "evidences": obj_evidences,
+        "locations": obj_locations,
+        "rotation": obj_rotation,
+    }
+
+# Build a color map that spans the range of all evidence values.
+all_evidences = [objects[name]["evidences"].flatten() for name in object_names]
+all_evidences = np.concatenate(all_evidences)
+evidence_min = np.percentile(all_evidences, 2.5)
+evidence_max = np.percentile(all_evidences, 99.99)
+scalar_map = plt.cm.ScalarMappable(
+    cmap="coolwarm", norm=plt.Normalize(vmin=evidence_min, vmax=evidence_max)
+)
+
+models = {
+    "mug": load_object_model("dist_agent_1lm_10distinctobj", "mug"),
+    "bowl": load_object_model("dist_agent_1lm_10distinctobj", "bowl"),
+    "golf_ball": load_object_model("dist_agent_1lm_10distinctobj", "golf_ball"),
+}
+
+# Plot evidence graphs for each object and step individually.
+out_dir = OUT_DIR / "evidence_graphs"
+out_dir.mkdir(parents=True, exist_ok=True)
+png_dir = out_dir / "png"
+png_dir.mkdir(parents=True, exist_ok=True)
+svg_dir = out_dir / "svg"
+svg_dir.mkdir(parents=True, exist_ok=True)
+for i, step in enumerate(steps):
+    for j, obj_name in enumerate(object_names):
+        fig = plt.figure(figsize=(4, 4))
+        ax = fig.add_subplot(projection="3d")
+
+        model = models[obj_name]
+        # model = model.centered()
+        linewidths = np.zeros(model.points.shape[0])
+        ax.scatter(
+            model.x,
+            model.y,
+            model.z,
+            color="gray",
+            alpha=0.4,
+            s=2,
+            linewidths=linewidths,
+        )
+
+        dct = objects[obj_name]
+        locations = dct["locations"][step]
+        n_points = locations.shape[0] // 2
+        locations = locations[:n_points]
+        evidences = dct["evidences"][step]
+        ev1 = evidences[:n_points]
+        ev2 = evidences[n_points:]
+        stacked = np.hstack([ev1[:, np.newaxis], ev2[:, np.newaxis]])
+        evidences = stacked.max(axis=1)
+        color = scalar_map.to_rgba(evidences)
+
+        obj = ObjectModel(locations, features=dict(rgba=color))
+        # obj = obj.centered()
+
+        max_evidence = evidences.max()
+        ev_threshold = max_evidence * 0.5
+        low_inds = np.argwhere(evidences < ev_threshold).flatten()
+        high_inds = np.argwhere(evidences >= ev_threshold).flatten()
+        print(f"step {step}: {len(low_inds)} low, {len(high_inds)} high")
+        for inds in [high_inds]:
+            evidences_0 = evidences[inds]
+            x_0 = obj.x[inds]
+            y_0 = obj.y[inds]
+            z_0 = obj.z[inds]
+            color_0 = color[inds]
+            sizes = np.log(evidences_0 + 1) * 10
+            sizes = evidences_0 * 20
+            sizes -= sizes.min()
+            sizes = 10 * np.ones(len(x_0))
+            alpha = np.log(evidences_0 + 1)
+            alpha[alpha < 0] = 0
+            alpha = alpha / alpha.max()
+            # med = np.percentile(evidences, 50)
+            # alpha[evidences < med] = 0
+            linewidths = np.zeros(len(x_0))
+            ax.scatter(
+                x_0,
+                y_0,
+                z_0,
+                color=color_0,
+                alpha=alpha,
+                s=sizes,
+                linewidths=linewidths,
+            )
+
+        ax.view_init(100, -100, -10)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.set_title(f"step {step}")
+        # ax.set_xlim(-0.119, 0.119)
+        # ax.set_ylim(-0.119, 0.119)
+        # ax.set_zlim(-0.119, 0.119)
+        fig.savefig(png_dir / f"{obj_name}_step_{step}.png", dpi=300)
+        fig.savefig(svg_dir / f"{obj_name}_step_{step}.svg")
+        plt.show()
+        plt.close(fig)
+
+
+# Plot the colorbar.
+# fig, ax = plt.subplots(1, 1, figsize=(1, 2))
+# cbar = plt.colorbar(scalar_map, ax=ax, orientation="vertical", label="Evidence")
+# ax.remove()  # Remove the empty axes, we just want the colorbar
+# cbar.set_ticks([])
+# cbar.set_label("")
+# fig.tight_layout()
+# fig.savefig(out_dir / "colorbar.png", dpi=300)
+# fig.savefig(out_dir / "colorbar.svg")
+
+# # Extract RGBA patches for sensor module 0.
+# rgba_patches = []
+# for ind in lm_processed_steps:
+#     rgba_patches.append(np.array(stats["SM_0"][ind]["rgba"]))
+# rgba_patches = np.array(rgba_patches)
+
+# # Save the RGBA patches.
+# out_dir = OUT_DIR / "patches"
+# png_dir = out_dir / "png"
+# png_dir.mkdir(parents=True, exist_ok=True)
+# svg_dir = out_dir / "svg"
+# svg_dir.mkdir(parents=True, exist_ok=True)
+# for step in steps:
+#     patch = rgba_patches[step]
+#     fig, ax = plt.subplots(1, 1, figsize=(2, 2))
+#     ax.imshow(patch)
+#     ax.axis("off")
+#     fig.tight_layout(pad=0.0)
+#     fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
+#     fig.savefig(svg_dir / f"patch_step_{step}.svg")
+#     plt.close(fig)
+
+
+# plot_trajectory()
+# evidence_plots()
