@@ -49,7 +49,7 @@ def plot_potted_meat_can_object_models():
 
     # Plot the distant agent's object model using stored colors.
     obj = load_object_model("dist_agent_1lm_10distinctobj", "potted_meat_can")
-    obj -= obj.translation
+    obj -= np.array([0.0, 1.5, 0.0])
     obj = obj.rotated(90, 260, 0)
 
     fig = plt.figure(figsize=(2, 2))
@@ -66,7 +66,7 @@ def plot_potted_meat_can_object_models():
 
     # Plot the touch agent's object model. Generate colors.
     obj = load_object_model("touch_agent_1lm", "potted_meat_can")
-    obj -= obj.translation
+    obj -= np.array([0.0, 1.5, 0.0])
     obj = obj.rotated(90, 260, 0)
 
     fig = plt.figure(figsize=(2, 2))

@@ -16,12 +16,14 @@ import os
 from copy import deepcopy
 from numbers import Number
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Iterable, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
+import scipy
 import torch
 from numpy.typing import ArrayLike
+from scipy.spatial.transform import Rotation as R
 
 # Path settings - mirrors those in configs/common.py
 DMC_ROOT_DIR = Path(os.environ.get("DMC_ROOT_DIR", "~/tbp/results/dmc")).expanduser()
@@ -184,12 +186,12 @@ class ObjectModel:
     def __init__(
         self,
         points: ArrayLike,
-        translation: ArrayLike = (0, 0, 0),
-        rgba: Optional[Any] = None,
+        features: Optional[Mapping[str, ArrayLike]] = None,
     ):
-        self.points = np.asarray(points).astype(float)
-        self.translation = np.asarray(translation).astype(float)
-        self.rgba = rgba
+        self.points = np.asarray(points, dtype=float)
+        if features:
+            for key, value in features.items():
+                setattr(self, key, np.asarray(value))
 
     @property
     def x(self) -> np.ndarray:
@@ -203,55 +205,113 @@ class ObjectModel:
     def z(self) -> np.ndarray:
         return self.points[:, 2]
 
-    def centered(self) -> "ObjectModel":
-        return self - self.translation
+    @property
+    def pos(self) -> np.ndarray:
+        return self.points
 
-    def rotated(self, pitch: Number, roll: Number, yaw: Number) -> "ObjectModel":
-        # Convert angles to radians
-        pitch = np.radians(pitch)
-        roll = np.radians(roll)
-        yaw = np.radians(yaw)
+    @pos.setter
+    def pos(self, arr: ArrayLike):
+        assert arr.shape == self.points.shape
+        self.points = np.asarray(arr)
 
-        # Create rotation matrices
-        Rx = np.array(
-            [
-                [1, 0, 0],
-                [0, np.cos(pitch), -np.sin(pitch)],
-                [0, np.sin(pitch), np.cos(pitch)],
-            ]
-        )
-        Ry = np.array(
-            [
-                [np.cos(yaw), 0, np.sin(yaw)],
-                [0, 1, 0],
-                [-np.sin(yaw), 0, np.cos(yaw)],
-            ]
-        )
-        Rz = np.array(
-            [
-                [np.cos(roll), -np.sin(roll), 0],
-                [np.sin(roll), np.cos(roll), 0],
-                [0, 0, 1],
-            ]
-        )
-        # Combine rotations
-        R = Rz @ Ry @ Rx
+    def copy(self, deep: bool = True) -> "ObjectModel":
+        return deepcopy(self) if deep else self
 
-        # Undo translation, rotate, and reapply translation.
-        centered = self.points - self.translation
-        rotated = centered @ R.T
-        points = rotated + self.translation
+    def centered(self, method: str = "bbox") -> "ObjectModel":
+        return self - self.get_center(method)
 
-        # Assign points to the new object, and return it.
-        out = deepcopy(self)
+    def get_center(self, method: str = "bbox"):
+        return get_center(self.points, method)
+
+    def rotated(
+        self,
+        rotation: Union[R, ArrayLike],
+        degrees: bool = False,
+        world: bool = False,
+    ) -> "ObjectModel":
+        """Rotate the object model.
+
+        Args:
+            rotation (Union[R, ArrayLike]): Rotation to apply. May be
+              - A `scipy.spatial.transform.Rotation` object.
+              - A 3x3 rotation matrix.
+              - A 3-element array of x, y, z euler angles.
+            degrees (bool, optional): Whether Euler angles are in degrees. Ignored
+                if `rotation` is not a 1D array.
+            world (bool, optional): If True, rotate the object in world coordinates.
+                If False, rotate the object about its own center.
+
+        Returns:
+            ObjectModel: _description_
+        """
+        if isinstance(rotation, R):
+            rot = rotation
+        else:
+            arr = np.asarray(rotation)
+            if arr.shape == (3,):
+                rot = R.from_euler("xyz", arr, degrees=degrees)
+            elif arr.shape == (3, 3):
+                rot = R.from_matrix(arr)
+            else:
+                raise ValueError(f"Invalid rotation argument: {rotation}")
+
+        if world:
+            center = self.get_center()
+            points = rot.apply(self.points - center)
+            points = points + center
+        else:
+            points = rot.apply(self.points)
+
+        out = self.copy()
         out.points = points
+
         return out
+
+    # def rotated(self, pitch: Number, roll: Number, yaw: Number) -> "ObjectModel":
+    #     # Convert angles to radians
+    #     pitch = np.radians(pitch)
+    #     roll = np.radians(roll)
+    #     yaw = np.radians(yaw)
+
+    #     # Create rotation matrices
+    #     Rx = np.array(
+    #         [
+    #             [1, 0, 0],
+    #             [0, np.cos(pitch), -np.sin(pitch)],
+    #             [0, np.sin(pitch), np.cos(pitch)],
+    #         ]
+    #     )
+    #     Ry = np.array(
+    #         [
+    #             [np.cos(yaw), 0, np.sin(yaw)],
+    #             [0, 1, 0],
+    #             [-np.sin(yaw), 0, np.cos(yaw)],
+    #         ]
+    #     )
+    #     Rz = np.array(
+    #         [
+    #             [np.cos(roll), -np.sin(roll), 0],
+    #             [np.sin(roll), np.cos(roll), 0],
+    #             [0, 0, 1],
+    #         ]
+    #     )
+    #     # Combine rotations
+    #     R = Rz @ Ry @ Rx
+
+    #     # Undo translation, rotate, and reapply translation.
+    #     centered = self.points - self.translation
+    #     rotated = centered @ R.T
+    #     points = rotated + self.translation
+
+    #     # Assign points to the new object, and return it.
+    #     out = deepcopy(self)
+    #     out.points = points
+    #     return out
 
     def __add__(self, translation: ArrayLike) -> "ObjectModel":
         translation = np.asarray(translation)
         out = deepcopy(self)
         out.points += translation
-        out.translation += translation
         return out
 
     def __sub__(self, translation: ArrayLike) -> "ObjectModel":
@@ -262,6 +322,7 @@ class ObjectModel:
 def load_object_model(
     model_name: str,
     object_name: str,
+    features: Optional[Iterable[str]] = ("rgba",),
     checkpoint: Optional[int] = None,
     lm_id: int = 0,
 ) -> "ObjectModel":
@@ -286,12 +347,37 @@ def load_object_model(
         )
     data = torch.load(model_path)
     data = data["lm_dict"][lm_id]["graph_memory"][object_name]["patch"]
-    points = np.array(data.pos)
-    if "rgba" in data.feature_mapping:
-        rgba_idx = data.feature_mapping["rgba"]
-        rgba = np.array(data.x[:, rgba_idx[0] : rgba_idx[1]]) / 255.0
-    else:
-        rgba = None
-    translation = np.array([0.0, 1.5, 0.0])
-    out = ObjectModel(points, translation, rgba)
+    points = np.array(data.pos, dtype=float)
+    if features:
+        features = [features] if isinstance(features, str) else features
+        feature_dict = {}
+        for feature in features:
+            if feature not in data.feature_mapping:
+                print(f"WARNING: Feature {feature} not found in data.feature_mapping")
+                continue
+            idx = data.feature_mapping[feature]
+            feature_data = np.array(data.x[:, idx[0] : idx[1]])
+            if feature == "rgba":
+                feature_data = feature_data / 255.0
+            feature_dict[feature] = feature_data
+
+    out = ObjectModel(points, features=feature_dict)
     return out
+
+
+def get_center(points: ArrayLike, method: str = "bbox") -> np.ndarray:
+    """Get the center of a set of points.
+
+    Args:
+        points (ArrayLike): The points to get the center of.
+        method (str): The method to use to get the center. One of
+            - "centroid": The mean of the points.
+            - "bbox": The center of the bounding box of the points.
+    """
+    points = np.asarray(points)
+    if method == "mean":
+        return np.mean(points, axis=0)
+    elif method == "bbox":
+        return (np.min(points, axis=0) + np.max(points, axis=0)) / 2
+    else:
+        raise ValueError(f"Invalid method: {method}")

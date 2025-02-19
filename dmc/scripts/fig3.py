@@ -14,31 +14,23 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 `save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
 """
 
-from copy import deepcopy
-from numbers import Number
+import os
 from pathlib import Path
-from typing import Any, Optional
+from types import SimpleNamespace
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import torch
+import scipy
 from data_utils import (
     DMC_ANALYSIS_DIR,
-    DMC_PRETRAIN_DIR,
-    DMC_RESULTS_DIR,
-    DMC_ROOT_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
     ObjectModel,
-    describe_dict,
     get_percent_correct,
     load_eval_stats,
     load_object_model,
 )
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from mpl_toolkits.mplot3d.axes3d import Axes3D
-from numpy.typing import ArrayLike
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from scipy.spatial.transform import Rotation as R
 from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS
@@ -411,116 +403,502 @@ def plot_trajectory():
     plt.show()
 
 
-experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_rotations"
-detailed_stats = DetailedJSONStatsInterface(experiment_dir / "detailed_run_stats.json")
-df = load_eval_stats(experiment_dir / "eval_stats.csv")
-df = df[df["primary_performance"].str.startswith("correct")]
-has_symmetry = df[df["symmetry_evidence"] > 1]["episode"].values
-# 77 308
-# for episode in has_symmetry:
-#     stats = detailed_stats[episode]
+def rotation_difference(
+    rot_a: scipy.spatial.transform.Rotation,
+    rot_b: scipy.spatial.transform.Rotation,
+    degrees: bool = False,
+) -> Tuple[float, np.ndarray]:
+    """Computes the angle and axis of rotation between two rotation matrices.
 
-#     # Extract evidence values for all objects.
-#     symmetric_locations = stats["LM_0"]["symmetric_locations"]
-#     if symmetric_locations is None or len(symmetric_locations) == 0:
-#         n_sym_loc = 0
-#     else:
-#         n_sym_loc = len(symmetric_locations[-1])
-#     symmetric_rotations = stats["LM_0"]["symmetric_rotations"]
-#     if symmetric_rotations is None or len(symmetric_rotations) == 0:
-#         n_sym_rot = 0
-#     else:
-#         n_sym_rot = len(symmetric_rotations[-1])
+    Args:
+        rot_a (scipy.spatial.transform.Rotation): The first rotation.
+        rot_b (scipy.spatial.transform.Rotation): The second rotation.
 
-#     print(f"Episode {episode}: {n_sym_loc} {n_sym_rot}")
+    Returns:
+        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
+    """
+    # Compute rotation angle
+    rel = rot_a * rot_b.inv()
+    mat = rel.as_matrix()
+    trace = np.trace(mat)
+    theta = np.arccos((trace - 1) / 2)
 
-episode = 2
-stats = detailed_stats[episode]
-matches = stats["LM_0"]["possible_matches"]
-symmetric_locations = np.array(stats["LM_0"]["symmetric_locations"][1])
-symmetric_rotations = np.array(stats["LM_0"]["symmetric_rotations"][-1])
+    if np.isclose(theta, 0):  # No rotation
+        return 0, np.array([0.0, 0.0, 0.0])
 
+    # Compute rotation axis
+    axis = np.array(
+        [
+            mat[2, 1] - mat[1, 2],
+            mat[0, 2] - mat[2, 0],
+            mat[1, 0] - mat[0, 1],
+        ]
+    )
+    axis = axis / (2 * np.sin(theta))  # Normalize
 
-obj_name = df[df.episode == episode].primary_target_object.values[0]
-df_row = df[df.episode == episode]
-obj_name = df_row.primary_target_object.values[0]
-primary_target_rotation = df_row.primary_target_rotation_euler.values[0]
-detected_rotation = df_row.detected_rotation.values[0]
-most_likely_rotation = df_row.most_likely_rotation.values[0]
+    if degrees:
+        theta = np.degrees(theta)
+        axis = np.degrees(axis)
 
-detected_rotation = np.array([float(x) for x in detected_rotation[1:-1].split()])
-most_likely_rotation = np.array([float(x) for x in most_likely_rotation[1:-1].split()])
-print(f"Episode {episode}: {obj_name} ")
-print(f"target rotation: {primary_target_rotation}")
-print(f"detected rotation: {detected_rotation}")
-print(f"most likely rotation: {most_likely_rotation}")
-
-sym = np.array(stats["LM_0"]["symmetric_rotations"])
-th = 2
-for i, s in enumerate(sym):
-    r = R.from_matrix(s)
-    euler = r.inv().as_euler("xyz", degrees=True)
-    euler_mod = euler % 360
-    if np.all(np.abs(euler - detected_rotation) < th):
-        print(f"{i} - close - detected: {euler}")
-    if np.all(np.abs(euler_mod - detected_rotation) < th):
-        print(f"{i} - close - detected (euler_mod): {euler_mod}")
-
-    if np.all(np.abs(euler - most_likely_rotation) < th):
-        print(f"{i} - close - most likely: {euler}")
-    if np.all(np.abs(euler_mod - most_likely_rotation) < th):
-        print(f"{i} - close - most likely (mod): {euler_mod}")
+    return theta, axis
 
 
-sym_rot = symmetric_rotations
-# sym_rot = np.degrees(sym_rot)
-print(f"symmetric rotations: {sym_rot}")
-for i, angles in enumerate(sym_rot):
-    rot = R.from_euler("xyz", angles, degrees=True)
-    # rot = rot.inv()
-    angles_2 = rot.as_euler("xyz", degrees=True) % 360
-    print(f"symmetric rotation {i}: {angles_2}")
+def l2_distance(
+    pc1: Union[np.ndarray, ObjectModel],
+    pc2: Union[np.ndarray, ObjectModel],
+) -> float:
+    """
+    Computes the L2 Distance between two point clouds.
 
-obj = load_object_model("dist_agent_1lm", obj_name)
-center = np.array([obj.x.mean(), obj.y.mean(), obj.z.mean()])
+    Parameters:
+    pc1, pc2 : np.ndarray of shape (N, 3) - Two point clouds with the same number of points.
 
-obj = obj - center
-obj.translation = np.array([0, 0, 0], dtype=float)
+    Returns:
+    float : Chamfer distance.
+    """
+    pc1 = pc1.points if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.points if isinstance(pc2, ObjectModel) else pc2
 
-# need to rotate object by symmetric_rotations
-rot_a = R.from_euler("xyz", sym_rot[0], degrees=True)
-locs_a = rot_a.apply(obj.points)
-obj_a = deepcopy(obj)
-obj_a.points = locs_a
-# obj_a = obj_a.rotated(90, 0, 0)
+    return np.mean(np.linalg.norm(pc1 - pc2, axis=1))
 
-rot_b = R.from_euler("xyz", sym_rot[1], degrees=True)
-locs_b = rot_b.apply(obj.points)
-obj_b = deepcopy(obj)
-obj_b.points = locs_b
-# obj_b = obj_b.rotated(90, 0, 0)
 
-rot_c = R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True)
-locs_c = rot_c.apply(obj.points)
-obj_c = deepcopy(obj)
-obj_c.points = locs_c
+def emd_distance(
+    pc1: Union[np.ndarray, ObjectModel],
+    pc2: Union[np.ndarray, ObjectModel],
+) -> float:
+    """
+    Computes the Earth Mover's Distance (EMD) between two point clouds.
 
-fig = plt.figure()
-ax = fig.add_subplot(projection="3d")
-blue = TBP_COLORS["blue"]
-green = TBP_COLORS["green"]
-ax.scatter(obj_a.x, obj_a.y, obj_a.z, color=blue, alpha=0.5)
-ax.scatter(obj_b.x, obj_b.y, obj_b.z, color=green, alpha=0.5)
-axes3d_set_aspect_equal(ax)
-plt.show()
+    Parameters:
+    pc1, pc2 : np.ndarray of shape (N, 3) - Two point clouds with the same number of points.
 
-dist = np.linalg.norm(obj_a.points - obj_b.points, axis=1).mean()
-print(f"Distance between symmetric rotations: {dist}")
+    Returns:
+    float : EMD distance.
+    """
+    pc1 = pc1.points if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.points if isinstance(pc2, ObjectModel) else pc2
+    # Compute pairwise distances
+    cost_matrix = scipy.spatial.distance.cdist(pc1, pc2)
+    # Solve transport problem
+    row_ind, col_ind = scipy.optimize.linear_sum_assignment(cost_matrix)
+    return cost_matrix[row_ind, col_ind].sum() / len(pc1)
 
-dist = np.linalg.norm(obj_a.points - obj_c.points, axis=1).mean()
-print(f"Distance between random rotations: {dist}")
 
-rots = stats["LM_0"]["possible_rotations_ls"][0]
-sp = rots[obj_name]
-a = sp[-2]
-b = R.from_matrix(a)
+def chamfer_distance(
+    pc1: Union[np.ndarray, ObjectModel],
+    pc2: Union[np.ndarray, ObjectModel],
+) -> float:
+    """
+    Computes the Chamfer Distance between two point clouds.
+
+    Parameters:
+    pc1, pc2 : np.ndarray of shape (N, 3) - Two point clouds with the same number of points.
+
+    Returns:
+    float : Chamfer distance.
+    """
+    pc1 = pc1.points if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.points if isinstance(pc2, ObjectModel) else pc2
+
+    dists1 = np.min(scipy.spatial.distance.cdist(pc1, pc2), axis=1)
+    dists2 = np.min(scipy.spatial.distance.cdist(pc2, pc1), axis=1)
+    return np.mean(dists1) + np.mean(dists2)
+
+
+class RotationUtility:
+    def __init__(self, experiment_dir: os.PathLike):
+        self.experiment_dir = Path(experiment_dir)
+        self.detailed_stats = DetailedJSONStatsInterface(
+            experiment_dir / "detailed_run_stats.json"
+        )
+        self.eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+        self._episode = None
+        self.stats = None
+
+    @property
+    def episode(self) -> int:
+        return self._episode
+
+    @episode.setter
+    def episode(self, episode: int):
+        self._episode = episode
+        self.stats = self.detailed_stats[episode]
+
+    def get_csv_info(
+        self, episode: int
+    ) -> Tuple[str, np.ndarray, np.ndarray, np.ndarray]:
+        df_row = self.eval_stats.iloc[episode]
+        primary_target_object = df_row.primary_target_object
+        primary_target_rotation = df_row.primary_target_rotation_euler
+        detected_rotation = df_row.detected_rotation
+        most_likely_rotation = df_row.most_likely_rotation
+        primary_target_rotation = np.array(
+            [float(x) for x in primary_target_rotation[1:-1].split(",")]
+        )
+        detected_rotation = np.array(
+            [float(x) for x in detected_rotation[1:-1].split()]
+        )
+        most_likely_rotation = np.array(
+            [float(x) for x in most_likely_rotation[1:-1].split()]
+        )
+        return (
+            primary_target_object,
+            primary_target_rotation,
+            detected_rotation,
+            most_likely_rotation,
+        )
+
+    def load_rotations(self) -> List[SimpleNamespace]:
+        """Loads the rotations and evidence values.
+
+        Returns:
+            List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
+            the id, rotation, and evidence value.
+        """
+        last_hypotheses_evidence = np.array(
+            self.stats["LM_0"]["last_hypotheses_evidence"]
+        )
+        possible_rotations = np.array(self.stats["LM_0"]["symmetric_rotations"])
+        rotations = []
+        for i in range(len(possible_rotations)):
+            rotations.append(
+                SimpleNamespace(
+                    id=i,
+                    rot=R.from_matrix(possible_rotations[i]).inv(),
+                    evidence=last_hypotheses_evidence[i],
+                )
+            )
+        return rotations
+
+    def filter_rotations(
+        self, rotations: List[SimpleNamespace], max_rotations: int = 100
+    ) -> List[SimpleNamespace]:
+        """Filters the rotations to the top `max_rotations` rotations.
+
+        Args:
+            rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
+            each containing the id, rotation, and evidence value.
+            max_rotations (int): The maximum number of rotations to return.
+
+        Returns:
+            List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
+            the id, rotation, and evidence value.
+        """
+        n_rotations = len(rotations)
+        if n_rotations > max_rotations:
+            last_hypotheses_evidence = np.array([obj.evidence for obj in rotations])
+            sorting_inds = np.argsort(last_hypotheses_evidence)[::-1]
+            rotations = [rotations[ind] for ind in sorting_inds][:max_rotations]
+        return rotations
+
+    def compute_relative_rotations(
+        self, rotations: List[SimpleNamespace]
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Computes the relative rotations between all rotations.
+
+        Args:
+            rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
+            each containing the id, rotation, and evidence value.
+        """
+        # Find relative rotations between all rotations.
+        n_rotations = len(rotations)
+        theta_matrix = np.zeros((n_rotations, n_rotations))
+        axis_matrix = np.zeros((n_rotations, n_rotations, 3))
+        for i in range(n_rotations - 1):
+            for j in range(i + 1, n_rotations):
+                rot_a, rot_b = rotations[i].rot, rotations[j].rot
+                theta, axis = rotation_difference(rot_a, rot_b, degrees=True)
+                theta_matrix[i, j] = theta
+                axis_matrix[i, j] = axis
+        return theta_matrix, axis_matrix
+
+    def group_rotations(
+        self,
+        rotations: List[SimpleNamespace],
+        theta_threshold: float = 20.0,
+    ) -> Tuple[List[SimpleNamespace]]:
+        """Groups the rotations into two groups based on the rotation difference.
+
+        Args:
+            rotations (List[SimpleNamespace]): A list of SimpleNamespace objects,
+            each containing the id, rotation, and evidence value.
+        """
+        # Group rotations
+        theta_matrix, axis_matrix = self.compute_relative_rotations(rotations)
+        row = theta_matrix[0]
+        group_a = np.where(abs(row - 0) < theta_threshold)[0]
+        group_b = np.where(abs(row - 180) < theta_threshold)[0]
+
+        if len(group_b) == 0:
+            print("No 180 degree rotations found. Returning.")
+            return None
+        if len(group_a) + len(group_b) != len(rotations):
+            print(
+                f" - WARNING: episode {self.episode} has more than two rotation groups"
+            )
+        print(f" - Num. rotations per group: a={len(group_a)}, b={len(group_b)}")
+
+        # Replace indices with rotation objects.
+        group_a = [rotations[i] for i in group_a]
+        group_b = [rotations[i] for i in group_b]
+
+        # Sort rotations within each group by evidence.
+        group_a = sorted(group_a, key=lambda x: x.evidence, reverse=True)
+        group_b = sorted(group_b, key=lambda x: x.evidence, reverse=True)
+        groups = [group_a, group_b]
+
+        # Find best rotation, make its group group a.
+        if max([r.evidence for r in group_b]) > max([r.evidence for r in group_a]):
+            groups = [group_b, group_a]
+
+        return groups
+
+
+def plot_rotations(episode: int):
+    """Plots the rotations of the object for a given episode."""
+
+    from types import SimpleNamespace
+
+    # Load detailed stats.
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_rotations"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    stats = detailed_stats[episode]
+
+    # Load some info from 'eval_stats.csv'.
+    df = load_eval_stats(experiment_dir / "eval_stats.csv")
+    df_row = df.iloc[episode]
+    primary_target_object = df_row.primary_target_object
+    primary_target_rotation = df_row.primary_target_rotation_euler
+    detected_rotation = df_row.detected_rotation
+    most_likely_rotation = df_row.most_likely_rotation
+    primary_target_rotation = np.array(
+        [float(x) for x in primary_target_rotation[1:-1].split(",")]
+    )
+    detected_rotation = np.array([float(x) for x in detected_rotation[1:-1].split()])
+    most_likely_rotation = np.array(
+        [float(x) for x in most_likely_rotation[1:-1].split()]
+    )
+    # Load the rotations and evidence values.
+    last_hypotheses_evidence = np.array(stats["LM_0"]["last_hypotheses_evidence"])
+    possible_rotations = np.array(stats["LM_0"]["symmetric_rotations"])
+    n_rotations = len(possible_rotations)
+    rotations = []
+    for i in range(n_rotations):
+        rot = R.from_matrix(possible_rotations[i]).inv()
+        ev = last_hypotheses_evidence[i]
+        rotations.append(SimpleNamespace(id=i, rot=rot, evidence=ev))
+
+    print(f"\nEpisode {episode}\n-----------")
+    print(f" - primary target object: {primary_target_object}")
+    print(f" - primary target rotation: {primary_target_rotation}")
+    print(f" - detected rotation: {detected_rotation}")
+    print(f" - most likely rotation: {most_likely_rotation}")
+    print(f" - num. rotations: {n_rotations}")
+    max_rotations = 100
+    if n_rotations > max_rotations:
+        print(f" - Using top {max_rotations} rotations.")
+        sorting_inds = np.argsort(last_hypotheses_evidence)[::-1]
+        rotations = [rotations[ind] for ind in sorting_inds][:max_rotations]
+        n_rotations = len(rotations)
+
+    # Find relative rotations between all rotations.
+    theta_matrix = np.zeros((n_rotations, n_rotations))
+    axis_matrix = np.zeros((n_rotations, n_rotations, 3))
+    for i in range(n_rotations - 1):
+        for j in range(i + 1, n_rotations):
+            rot_a, rot_b = rotations[i].rot, rotations[j].rot
+            theta, axes = rotation_difference(rot_a, rot_b, degrees=True)
+            theta_matrix[i, j] = theta
+            axis_matrix[i, j] = axes
+
+    # Group rotations
+    theta_threshold = 20
+    row = theta_matrix[0]
+    group_a = np.where(abs(row - 0) < theta_threshold)[0]
+    group_b = np.where(abs(row - 180) < theta_threshold)[0]
+
+    if len(group_b) == 0:
+        print("No 180 degree rotations found. Returning.")
+        return None
+    if len(group_a) + len(group_b) != n_rotations:
+        print(f" - WARNING: episode {episode} has more than two rotation groups")
+    print(f" - Num. rotations per group: a={len(group_a)}, b={len(group_b)}")
+
+    # Replace indices with rotation objects.
+    group_a = [rotations[i] for i in group_a]
+    group_b = [rotations[i] for i in group_b]
+
+    # Sort rotations within each group by evidence.
+    group_a = sorted(group_a, key=lambda x: x.evidence, reverse=True)
+    group_b = sorted(group_b, key=lambda x: x.evidence, reverse=True)
+    groups = [group_a, group_b]
+
+    # Find best rotation, make its group group a.
+    if max([r.evidence for r in group_b]) > max([r.evidence for r in group_a]):
+        group_a, group_b = group_b, group_a
+
+    # Plot objects.
+    init_elev, init_azim = 30, -90
+
+    # Plot true object first.
+    base_obj = load_object_model("dist_agent_1lm", primary_target_object)
+    base_obj = base_obj.centered()
+    true_rotation = R.from_euler("xyz", primary_target_rotation, degrees=True)
+    true_obj = base_obj.rotated(true_rotation)
+
+    # Plot same-group, different-group, and random rotations.
+    n_rows = 4
+    n_cols = min([4, len(group_a), len(group_b)])
+    fig, axes = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(4 * n_cols, 4 * n_rows),
+        subplot_kw={"projection": "3d"},
+    )
+    if n_cols == 1:
+        axes = axes[:, np.newaxis]
+
+    # Plot the true rotation top-left.
+    ax = axes[0, 0]
+    ax.scatter(true_obj.x, true_obj.y, true_obj.z, color=true_obj.rgba, alpha=0.5)
+    ax.set_title("True Rotation")
+    axes3d_clean(ax)
+    axes3d_set_aspect_equal(ax)
+    ax.view_init(init_elev, init_azim)
+
+    # Draw rotation axes between group_a and group_b.
+    if n_cols > 1:
+        ax = axes[0, 1]
+        a, b = groups[0][0], groups[1][0]
+        rel_rot = a.rot * b.rot.inv()
+        rel_mat = rel_rot.as_matrix()
+        origin = np.array([0, 0, 0])
+        ax.quiver(*origin, *rel_mat[0], color="red", length=1, arrow_length_ratio=0.1)
+        ax.quiver(*origin, *rel_mat[1], color="green", length=1, arrow_length_ratio=0.1)
+        ax.quiver(*origin, *rel_mat[2], color="blue", length=1, arrow_length_ratio=0.1)
+        ax.set_xlim([-1, 1])
+        ax.set_ylim([-1, 1])
+        ax.set_zlim([-1, 1])
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(init_elev, init_azim)
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+        ax.set_title("Relative Rotation Axis")
+        for ax in axes[0, 2:]:
+            ax.remove()
+
+    # Plot group_a and group_b rotations.
+    for i, group in enumerate(groups):
+        for j in range(n_cols):
+            r = group[j]
+            rot = r.rot
+            obj = base_obj.rotated(rot)
+            ax = axes[i + 1, j]
+            ax.scatter(obj.x, obj.y, obj.z, color=obj.rgba, alpha=0.5)
+            evidence = r.evidence
+            l2 = l2_distance(obj, true_obj)
+            emd = emd_distance(obj, true_obj)
+            chamfer = chamfer_distance(obj, true_obj)
+            ax.set_title(
+                f"ID={r.id}: Evidence: {evidence:.2f}\nL2: {l2:.4f}\nEMD: {emd:.4f}\nChamfer: {chamfer:.4f}"
+            )
+            axes3d_clean(ax)
+            axes3d_set_aspect_equal(ax)
+            ax.view_init(init_elev, init_azim)
+
+    # Plot random rotations.
+    random_rots = [
+        R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True)
+        for _ in range(n_cols)
+    ]
+    for j in range(len(random_rots)):
+        obj = base_obj.rotated(random_rots[j])
+        ax = axes[3, j]
+        ax.scatter(obj.x, obj.y, obj.z, color=obj.rgba, alpha=0.5)
+        l2 = l2_distance(obj, true_obj)
+        emd = emd_distance(obj, true_obj)
+        chamfer = chamfer_distance(obj, true_obj)
+        ax.set_title(f"L2: {l2:.4f}\nEMD: {emd:.4f}\nChamfer: {chamfer:.4f}")
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(init_elev, init_azim)
+
+    return fig
+
+
+def run_plots():
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_rotations"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    maybe_usable_episodes = []
+    for i, stats in enumerate(detailed_stats):
+        if "last_hypotheses_evidence" not in stats["LM_0"]:
+            continue
+        last_hypotheses_evidence = np.array(stats["LM_0"]["last_hypotheses_evidence"])
+        n_rotations = len(last_hypotheses_evidence)
+        if n_rotations < 2:
+            continue
+        maybe_usable_episodes.append(i)
+
+    maybe_usable_episodes = np.array(maybe_usable_episodes)
+    unusable_episodes = [9]
+    highest_completed_episode = 0
+
+    episodes = np.setdiff1d(maybe_usable_episodes, unusable_episodes)
+    episodes = episodes[episodes > highest_completed_episode]
+
+    out_dir = OUT_DIR / "rotations"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for episode in episodes:
+        try:
+            fig = plot_rotations(episode)
+        except Exception as e:
+            print(f"Error plotting episode {episode}: {e}")
+            unusable_episodes.append(episode)
+            continue
+        if fig is None:
+            unusable_episodes.append(episode)
+            continue
+
+        fig.savefig(out_dir / f"rotations_{episode}.png", dpi=300)
+        plt.close()
+
+
+run_plots()
+
+# util = RotationUtility(VISUALIZATION_RESULTS_DIR / "fig3_rotations")
+# util.episode = 4
+# rotations = util.load_rotations()
+# rotations = util.filter_rotations(rotations, max_rotations=100)
+# n_rotations = len(rotations)
+
+# groups = util.group_rotations(rotations)
+# a, b = groups[0][0], groups[1][0]
+# theta, rot_axes = rotation_difference(a.rot, b.rot, degrees=True)
+# rel_rot = a.rot * b.rot.inv()
+# rel_mat = rel_rot.as_matrix()
+
+# fig, ax = plt.subplots(1, 1, subplot_kw={"projection": "3d"})
+# origin = np.array([0, 0, 0])
+# i_hat = rel_mat[0]
+# j_hat = rel_mat[1]
+# k_hat = rel_mat[2]
+# ax.quiver(*origin, *rel_mat[0], color="red", length=1, arrow_length_ratio=0.1)
+# ax.quiver(*origin, *rel_mat[1], color="green", length=1, arrow_length_ratio=0.1)
+# ax.quiver(*origin, *rel_mat[2], color="blue", length=1, arrow_length_ratio=0.1)
+# ax.set_xlim([-1, 1])
+# ax.set_ylim([-1, 1])
+# ax.set_zlim([-1, 1])
+# axes3d_clean(ax)
+# axes3d_set_aspect_equal(ax)
+# ax.set_xlabel("X")
+# ax.set_ylabel("Y")
+# ax.set_zlabel("Z")
+
+
+# plt.show()
