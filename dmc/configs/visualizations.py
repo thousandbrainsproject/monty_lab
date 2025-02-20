@@ -74,7 +74,7 @@ fig3_evidence_run.update(
         logging_config=DetailedEvidenceLMLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
             run_name="fig3_evidence_run",
-            wandb_group="dmc",
+            wandb_handlers=[],
             monty_log_level="SELECTIVE",
         ),
         eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
