@@ -83,7 +83,7 @@ fig3_evidence_run.update(
         ),
     )
 )
-
+fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
 # ----
 
 fig3_symmetry_run = deepcopy(dist_agent_1lm_randrot_noise)
