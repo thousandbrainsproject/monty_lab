@@ -140,11 +140,22 @@ def describe_dict(data: Mapping, level: int = 0):
         return
 
     for key in sorted(data.keys()):
-        value = data[key]
-        print(f"{'  ' * (level + 1)}'{key}': {type(value).__name__}")
-        if isinstance(value, dict):
+        obj = data[key]
+        type_ = type(obj).__name__
+
+        if isinstance(obj, dict):
+            print(f"{'  ' * level}'{key}': {type_} (len: {len(obj)})")
             # Recursively describe nested dictionaries
-            describe_dict(value, level + 1)
+            describe_dict(obj, level + 1)
+
+        elif isinstance(obj, (tuple, list)):
+            if len(obj) > 0 and isinstance(obj[0], dict):
+                print(f"{'  ' * level}'{key}': {type_} of dict (len: {len(obj)})")
+                describe_dict(obj[0], level + 1)
+            else:
+                print(f"{'  ' * level}'{key}': {type_} (len: {len(obj)})")
+        else:
+            print(f"{'  ' * level}'{key}': {type_}")
 
 
 class DetailedJSONStatsInterface:
