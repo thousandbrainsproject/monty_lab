@@ -30,6 +30,7 @@ from data_utils import (
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
     ObjectModel,
+    describe_dict,
     get_percent_correct,
     load_eval_stats,
     load_object_model,
@@ -46,6 +47,335 @@ plt.rcParams["font.size"] = 8
 # Directories to save plots and tables to.
 OUT_DIR = DMC_ANALYSIS_DIR / "fig3"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+"""
+--------------------------------------------------------------------------------
+Panel A: Sensor path and known objects
+--------------------------------------------------------------------------------
+"""
+
+
+def plot_sensor_path():
+    """Plot the sensor path for panel A."""
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    stats = detailed_stats[0]
+
+    mug = load_object_model("dist_agent_1lm_10distinctobj", "mug")
+    raw_observations = stats["SM_0"]["raw_observations"]  # a list of dicts
+    n_steps = 36
+
+    # Extract the (central) locations of each observation.
+    n_rows = n_cols = 64
+    center_loc = n_rows // 2 * n_cols + n_cols // 2
+    centers = np.zeros((n_steps, 3))
+    for i in range(n_steps):
+        arr = np.array(raw_observations[i]["semantic_3d"])
+        centers[i, 0] = arr[center_loc, 0]
+        centers[i, 1] = arr[center_loc, 1]
+        centers[i, 2] = arr[center_loc, 2]
+
+    out_dir = OUT_DIR / "sensor_path"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def init_plot(
+        observed_points: bool = False,
+        path: bool = False,
+        path_labels: bool = False,
+    ):
+        fig = plt.figure(figsize=(4, 4))
+        ax = fig.add_subplot(projection="3d")
+        linewidths = np.zeros(len(mug.x))
+        ax.scatter(
+            mug.x,
+            mug.y,
+            mug.z,
+            color=mug.rgba,
+            alpha=0.5,
+            linewidths=linewidths,
+            zorder=1,
+            s=5,
+        )
+        ax.view_init(115, -90, 0)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        blue = TBP_COLORS["blue"]
+        x, y, z = centers[:, 0], centers[:, 1], centers[:, 2]
+        if observed_points:
+            # z += 0.005
+            ax.scatter(
+                x,
+                y,
+                z,
+                color="k",
+                edgecolors="k",
+                alpha=1,
+                zorder=5,
+                marker="s",
+                s=8,
+                linewidths=1,
+            )
+        if path:
+            ax.plot(x, y, z, color=blue, alpha=1, ls="--", lw=1)
+        if path_labels:
+            for i in range(len(x)):
+                if i % 10 == 0:
+                    ax.text(x[i], y[i], z[i], f"{i}", color="k", alpha=1, zorder=5)
+        return fig, ax
+
+    fig, ax = init_plot()
+    fig.savefig(out_dir / "mug.png", dpi=300)
+    fig.savefig(out_dir / "mug.svg")
+    plt.show()
+
+    fig, ax = init_plot(observed_points=True)
+    fig.savefig(out_dir / "mug_with_points.png", dpi=300)
+    fig.savefig(out_dir / "mug_with_points.svg")
+    plt.show()
+
+    fig, ax = init_plot(observed_points=True, path=True)
+    fig.savefig(out_dir / "mug_with_path.png", dpi=300)
+    fig.savefig(out_dir / "mug_with_path.svg")
+    plt.show()
+
+    fig, ax = init_plot(observed_points=True, path=True, path_labels=True)
+    fig.savefig(out_dir / "mug_with_labels.png", dpi=300)
+    fig.savefig(out_dir / "mug_with_labels.svg")
+    plt.show()
+
+
+def plot_known_objects():
+    """Plot the "known objects" for panel A."""
+    fig, axes = plt.subplots(1, 3, figsize=(5, 4), subplot_kw={"projection": "3d"})
+    mug = load_object_model("dist_agent_1lm", "mug")
+    bowl = load_object_model("dist_agent_1lm", "bowl")
+    golf_ball = load_object_model("dist_agent_1lm", "golf_ball")
+
+    axes[0].scatter(mug.x, mug.y, mug.z, color=mug.rgba, alpha=0.5, s=5, linewidth=0)
+    axes[1].scatter(
+        bowl.x, bowl.y, bowl.z, color=bowl.rgba, alpha=0.5, s=5, linewidth=0
+    )
+    axes[2].scatter(
+        golf_ball.x,
+        golf_ball.y,
+        golf_ball.z,
+        color=golf_ball.rgba,
+        alpha=0.5,
+        s=5,
+        linewidth=0,
+    )
+
+    for ax in axes:
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(115, -90, 0)
+
+    fig.savefig(OUT_DIR / "known_objects.png", dpi=300)
+    fig.savefig(OUT_DIR / "known_objects.svg")
+    plt.show()
+
+
+"""
+--------------------------------------------------------------------------------
+Panel B: Evidence graphs
+--------------------------------------------------------------------------------
+"""
+
+
+def plot_evidence_graphs_and_patches():
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    stats = detailed_stats[0]
+
+    object_names = ["mug", "bowl", "golf_ball"]
+    steps = np.array([0, 10, 20, 39, 40])
+    steps = np.arange(41)
+    n_steps = len(steps)
+
+    # steps = np.arange(0, 40)
+    # steps = np.arange(0, 41, 20)
+    n_rows = n_cols = 64
+    center_loc = n_rows // 2 * n_cols + n_cols // 2
+    centers = np.zeros((n_steps, 3))
+    for i in range(n_steps):
+        arr = np.array(stats["SM_0"]["raw_observations"][i]["semantic_3d"])
+        centers[i, 0] = arr[center_loc, 0]
+        centers[i, 1] = arr[center_loc, 1]
+        centers[i, 2] = arr[center_loc, 2]
+
+    # Extract evidence values for all objects.
+    all_evidences = stats["LM_0"]["evidences"]
+    all_possible_locations = stats["LM_0"]["possible_locations"]
+    all_possible_rotations = stats["LM_0"]["possible_rotations"]
+    objects = {
+        name: load_object_model("dist_agent_1lm_10distinctobj", name)
+        for name in object_names
+    }
+    for name, obj in objects.items():
+        obj.evidences, obj.locations = [], []
+        for i in range(n_steps):
+            obj.evidences.append(all_evidences[i][name])
+            obj.locations.append(all_possible_locations[i][name])
+        obj.evidences = np.array(obj.evidences)
+        obj.locations = np.array(obj.locations)
+        obj.rotation = np.array(all_possible_rotations[0][name])
+
+    # Plot evidence graphs for each object and step individually.
+    out_dir = OUT_DIR / "evidence_graphs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    png_dir = out_dir / "png"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir = out_dir / "svg"
+    svg_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, step in enumerate(steps):
+        fig, axes = plt.subplots(
+            1, len(objects) + 1, figsize=(12, 6), subplot_kw=dict(projection="3d")
+        )
+
+        # Plot mug with current observation location.
+        ax = axes[0]
+        mug = objects["mug"]
+        ax.scatter(
+            mug.x,
+            mug.y,
+            mug.z,
+            color="gray",
+            alpha=0.1,
+            s=1,
+            linewidths=0,
+        )
+        center = centers[step]
+        ax.scatter(center[0], center[1], center[2], color="red", s=50)
+        ax.view_init(100, -100, -10)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.set_title(f"step {step}")
+        ax.set_xlim(-0.119, 0.119)
+        ax.set_ylim(1.5 - 0.119, 1.5 + 0.119)
+        ax.set_zlim(-0.119, 0.119)
+
+        # Make colormap for this step.
+        all_evidences = [obj.evidences[step].flatten() for obj in objects.values()]
+        all_evidences = np.concatenate(all_evidences)
+        evidences_min = np.percentile(all_evidences, 2.5)
+        evidences_max = np.percentile(all_evidences, 99.99)
+        scalar_map = plt.cm.ScalarMappable(
+            cmap="inferno", norm=plt.Normalize(vmin=evidences_min, vmax=evidences_max)
+        )
+
+        for j, obj in enumerate(objects.values()):
+            ax = axes[j + 1]
+            # ax.scatter(
+            #     obj.x,
+            #     obj.y,
+            #     obj.z,
+            #     color="gray",
+            #     alpha=0.1,
+            #     s=1,
+            #     linewidths=0,
+            # )
+
+            locations = obj.locations[step]
+            n_points = locations.shape[0] // 2
+            locations = locations[:n_points]
+            evidences = obj.evidences[step]
+            ev1 = evidences[:n_points]
+            ev2 = evidences[n_points:]
+            stacked = np.hstack([ev1[:, np.newaxis], ev2[:, np.newaxis]])
+            evidences = stacked.max(axis=1)
+
+            colors = evidences
+            sizes = np.log(evidences - evidences.min() + 1) * 10
+            alphas = np.array(evidences)
+            alphas = (alphas - alphas.min()) / (alphas.max() - alphas.min())
+            x, y, z = locations[:, 0], locations[:, 1], locations[:, 2]
+            ax.scatter(
+                x,
+                y,
+                z,
+                c=colors,
+                cmap="inferno",
+                alpha=alphas,
+                vmin=evidences_min,
+                vmax=evidences_max,
+                s=sizes,
+                linewidths=0,
+            )
+
+            # Plot highest evidence location separately.
+            ind_ev_max = evidences.argmax()
+            ev = evidences[ind_ev_max]
+            x, y, z = x[ind_ev_max], y[ind_ev_max], z[ind_ev_max]
+            sizes = sizes[ind_ev_max]
+            ax.scatter(
+                x,
+                y,
+                z,
+                c=ev,
+                cmap="inferno",
+                alpha=1,
+                vmin=evidences_min,
+                vmax=evidences_max,
+                s=sizes,
+                linewidths=0,
+            )
+
+            ax.view_init(100, -100, -10)
+            axes3d_clean(ax, grid=False)
+            axes3d_set_aspect_equal(ax)
+            ax.set_title(f"step {step}")
+            ax.set_xlim(-0.119, 0.119)
+            ax.set_ylim(1.5 - 0.119, 1.5 + 0.119)
+            ax.set_zlim(-0.119, 0.119)
+        fig.subplots_adjust(left=0.05, right=0.95, bottom=0.1, top=0.9, wspace=0.2)
+        fig.savefig(png_dir / f"evidence_graphs_{step}.png", dpi=300)
+        fig.savefig(svg_dir / f"evidence_graphs_{step}.svg")
+        plt.show()
+        plt.close(fig)
+
+    # Plot the colorbar.
+    fig, ax = plt.subplots(1, 1, figsize=(1, 2))
+    cbar = plt.colorbar(scalar_map, ax=ax, orientation="vertical", label="Evidence")
+    ax.remove()  # Remove the empty axes, we just want the colorbar
+    cbar.set_ticks([])
+    cbar.set_label("")
+    fig.tight_layout()
+    fig.savefig(out_dir / "colorbar.png", dpi=300)
+    fig.savefig(out_dir / "colorbar.svg")
+
+    # Extract RGBA patches for sensor module 0.
+    rgba_patches = []
+    for ind in range(n_steps):
+        rgba_patches.append(np.array(stats["SM_0"]["raw_observations"][ind]["rgba"]))
+    rgba_patches = np.array(rgba_patches)
+
+    # Save the RGBA patches.
+    out_dir = OUT_DIR / "patches"
+    png_dir = out_dir / "png"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir = out_dir / "svg"
+    svg_dir.mkdir(parents=True, exist_ok=True)
+    for step in steps:
+        patch = rgba_patches[step]
+        fig, ax = plt.subplots(1, 1, figsize=(2, 2))
+        ax.imshow(patch)
+        ax.axis("off")
+        fig.tight_layout(pad=0.0)
+        fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
+        fig.savefig(svg_dir / f"patch_step_{step}.svg")
+        plt.close(fig)
+
+
+"""
+--------------------------------------------------------------------------------
+Panel C: ?
+--------------------------------------------------------------------------------
+"""
 
 
 def plot_accuracy_and_steps():
@@ -97,345 +427,18 @@ def plot_accuracy_and_steps():
     ax2.spines["top"].set_visible(False)
     fig.tight_layout()
     fig.savefig(out_dir / "accuracy_and_steps.png", dpi=300)
-    fig.savefig(out_dir / "accuracy_and_steps.pdf")
+    fig.savefig(out_dir / "accuracy_and_steps.svg")
     plt.show()
 
 
-
-def mug_plot_top_left():
-    mug = load_object_model("dist_agent_1lm", "mug")
-    mug.translation = np.array([-0.012628763, 1.4593439, 0.00026388466])
-    mug -= mug.translation
-
-    blue = TBP_COLORS["blue"]
-    green = TBP_COLORS["green"]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-
-    # Draw mug at detected_rotation.
-    mug_rot_detected = mug.rotated(0, 0, 0)
-    ax.scatter(
-        mug_rot_detected.x,
-        mug_rot_detected.y,
-        mug_rot_detected.z,
-        color=blue,
-        alpha=0.3,
-    )
-
-    # Draw mug at most_likely_rotation.
-    mug_r = mug.rotated(0, 0, 180)
-    ax.scatter(mug_r.x, mug_r.y, mug_r.z, color=green, alpha=0.3)
-
-    ax.view_init(125, -100, -10)
-    axes3d_clean(ax)
-    axes3d_set_aspect_equal(ax)
-
-    fig.tight_layout()
-    plt.show()
-
-    out_path = OUT_DIR / "mug_top_left.png"
-    fig.savefig(out_path, dpi=300)
-    return fig
+"""
+--------------------------------------------------------------------------------
+Panel D: Symmetrical rotations
+--------------------------------------------------------------------------------
+"""
 
 
-def mug_plot_top_right():
-    mug = load_object_model("dist_agent_1lm", "mug")
-    mug.translation = np.array([-0.012628763, 1.4593439, 0.00026388466])
-    mug -= mug.translation
-
-    blue = TBP_COLORS["blue"]
-    green = TBP_COLORS["green"]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-
-    # Draw original mug.
-    ax.scatter(mug.x, mug.y, mug.z, color=blue, alpha=0.3)
-
-    # Draw rotated mug.
-    mug_r = mug.rotated(15, 70, 45)
-    ax.scatter(mug_r.x, mug_r.y, mug_r.z, color=green, alpha=0.3)
-
-    ax.view_init(125, -100, -10)
-    axes3d_clean(ax)
-    axes3d_set_aspect_equal(ax)
-
-    fig.tight_layout()
-    plt.show()
-    out_path = OUT_DIR / "mug_top_right.png"
-    fig.savefig(out_path, dpi=300)
-
-    return fig
-
-
-def spoon_plot_bottom_left():
-    spoon = load_object_model("surf_agent_1lm", "spoon")
-    spoon -= spoon.translation
-
-    blue = TBP_COLORS["blue"]
-    green = TBP_COLORS["green"]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-
-    # Draw original spoon.
-    spoon = spoon.rotated(0, 0, 20)
-    ax.scatter(spoon.x, spoon.y, spoon.z, color=blue, alpha=0.8)
-
-    # Draw rotated spoon.
-    spoon_r = spoon.rotated(180, 0, 0)
-    ax.scatter(spoon_r.x, spoon_r.y, spoon_r.z, color=green, alpha=0.8)
-
-    ax.view_init(125, -100, -10)
-    axes3d_clean(ax)
-    axes3d_set_aspect_equal(ax)
-
-    fig.tight_layout()
-    plt.show()
-    out_path = OUT_DIR / "spoon_bottom_left.png"
-    fig.savefig(out_path, dpi=300)
-
-
-def spoon_plot_bottom_right():
-    spoon = load_object_model("surf_agent_1lm", "spoon")
-    spoon -= spoon.translation
-
-    blue = TBP_COLORS["blue"]
-    green = TBP_COLORS["green"]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection="3d")
-
-    # Draw original spoon.
-    ax.scatter(spoon.x, spoon.y, spoon.z, color=blue, alpha=0.75)
-
-    # Draw rotated spoon.
-    spoon_r = spoon.rotated(80, 70, 180)
-    # spoon_r -= ()
-    ax.scatter(spoon_r.x, spoon_r.y, spoon_r.z, color=green, alpha=0.75)
-
-    ax.view_init(125, -100, -10)
-    axes3d_clean(ax, label_axes=True)
-    axes3d_set_aspect_equal(ax)
-
-    fig.tight_layout()
-    plt.show()
-    out_path = OUT_DIR / "spoon_bottom_right.png"
-    fig.savefig(out_path, dpi=300)
-
-
-def plot_evidence_graphs_and_patches():
-    # Load detailed stats.
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    stats = detailed_stats[0]
-
-    # Find the steps where the LM has processed data, but limit to 21 steps total.
-    lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
-    lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
-    lm_processed_steps = lm_processed_steps[:21]
-    n_steps = len(lm_processed_steps)
-
-    # Extract evidence values for all objects.
-    evidences = stats["LM_0"]["evidences_ls"]
-    possible_locations = stats["LM_0"]["possible_locations_ls"]
-    possible_rotations = stats["LM_0"]["possible_rotations_ls"]
-    objects = {}
-    for object_name in DISTINCT_OBJECTS:
-        obj_evidences, obj_locations = [], []
-        for i in range(n_steps):
-            obj_evidences.append(evidences[i][object_name])
-            obj_locations.append(possible_locations[i][object_name])
-        obj_evidences = np.array(obj_evidences)
-        obj_locations = np.array(obj_locations)
-        obj_rotation = np.array(possible_rotations[0][object_name])
-        objects[object_name] = {
-            "evidences": obj_evidences,
-            "locations": obj_locations,
-            "rotation": obj_rotation,
-        }
-
-    # Define which objects and steps we're going to plot, and where to save the plots.
-    object_names = ["mug", "bowl", "golf_ball"]
-    steps = np.array([1, 10, 20])
-    out_dir = OUT_DIR / "evidence_plots"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # Build a color map that spans the range of all evidence values.
-    all_evidences = [objects[name]["evidences"].flatten() for name in DISTINCT_OBJECTS]
-    all_evidences = np.concatenate(all_evidences)
-    evidence_min = np.percentile(all_evidences, 2.5)
-    evidence_max = np.percentile(all_evidences, 97.5)
-    scalar_map = plt.cm.ScalarMappable(
-        cmap="coolwarm", norm=plt.Normalize(vmin=evidence_min, vmax=evidence_max)
-    )
-
-    # Plot evidence graphs for each object and step individually.
-    png_dir = out_dir / "png"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    pdf_dir = out_dir / "pdf"
-    pdf_dir.mkdir(parents=True, exist_ok=True)
-    for i, step in enumerate(steps):
-        for j, obj_name in enumerate(object_names):
-            fig = plt.figure(figsize=(2, 2))
-            ax = fig.add_subplot(projection="3d")
-
-            dct = objects[obj_name]
-            locations = dct["locations"][step]
-            evidences = dct["evidences"][step]
-            x, y, z = locations[:, 0], locations[:, 1], locations[:, 2]
-            color = scalar_map.to_rgba(evidences)
-
-            obj = ObjectModel(locations, translation=np.array([0, 1.5, 0]), rgba=color)
-            obj = obj.rotated(0, 0, -20)
-            x, y, z = obj.x, obj.y, obj.z
-
-            sizes = evidences * 10
-            sizes[sizes <= 0] = 0.1
-            linewidths = [0] * sizes.shape[0]
-            ax.scatter(x, y, z, color=color, alpha=0.5, s=sizes, linewidths=linewidths)
-            ax.view_init(100, -100, -10)
-            axes3d_clean(ax, grid=False)
-            axes3d_set_aspect_equal(ax)
-            ax.margins(0)
-            fig.tight_layout(pad=0.1)
-            fig.savefig(png_dir / f"{obj_name}_step_{step}.png", dpi=300)
-            fig.savefig(pdf_dir / f"{obj_name}_step_{step}.pdf")
-            plt.close(fig)
-
-    # Plot the colorbar.
-    fig, ax = plt.subplots(1, 1, figsize=(1, 2))
-    cbar = plt.colorbar(scalar_map, ax=ax, orientation="vertical", label="Evidence")
-    ax.remove()  # Remove the empty axes, we just want the colorbar
-    cbar.set_ticks([])
-    cbar.set_label("")
-    fig.tight_layout()
-    fig.savefig(out_dir / "colorbar.png", dpi=300)
-    fig.savefig(out_dir / "colorbar.pdf")
-
-    # Extract RGBA patches for sensor module 0.
-    rgba_patches = []
-    for ind in lm_processed_steps:
-        rgba_patches.append(np.array(stats["SM_0"][ind]["rgba"]))
-    rgba_patches = np.array(rgba_patches)
-
-    # Save the RGBA patches.
-    out_dir = OUT_DIR / "patches"
-    png_dir = out_dir / "png"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    pdf_dir = out_dir / "pdf"
-    pdf_dir.mkdir(parents=True, exist_ok=True)
-    for step in steps:
-        patch = rgba_patches[step]
-        fig, ax = plt.subplots(1, 1, figsize=(2, 2))
-        ax.imshow(patch)
-        ax.axis("off")
-        fig.tight_layout(pad=0.0)
-        fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
-        fig.savefig(pdf_dir / f"patch_step_{step}.pdf")
-        plt.close(fig)
-
-
-def plot_trajectory():
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    stats = detailed_stats[0]
-
-    mug = load_object_model("dist_agent_1lm_10distinctobj", "mug")
-
-    # Find the steps where the LM has processed data, but limit to 21 steps total.
-    lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
-    lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
-    lm_processed_steps = lm_processed_steps[:41]
-    n_steps = len(lm_processed_steps)
-
-    sm = stats["SM_0"]  # a list of dicts
-
-    # Extract the (central) locations of each observation.
-    n_rows = n_cols = 64
-    center_loc = n_rows // 2 * n_cols + n_cols // 2
-    centers = np.zeros((n_steps, 3))
-    for i, step in enumerate(lm_processed_steps):
-        arr = np.array(sm[step]["semantic_3d"])
-        centers[i, 0] = arr[center_loc, 0]
-        centers[i, 1] = arr[center_loc, 1]
-        centers[i, 2] = arr[center_loc, 2]
-
-    out_dir = OUT_DIR / "trajectory_plots"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    def init_plot(
-        observed_points: bool = False,
-        path: bool = False,
-        path_labels: bool = False,
-    ):
-        fig = plt.figure(figsize=(4, 4))
-        ax = fig.add_subplot(projection="3d")
-        linewidths = np.zeros(len(mug.x))
-        ax.scatter(
-            mug.x,
-            mug.y,
-            mug.z,
-            color=mug.rgba,
-            alpha=0.5,
-            linewidths=linewidths,
-            zorder=1,
-            s=5,
-        )
-        ax.view_init(115, -90, 0)
-        axes3d_clean(ax, grid=False)
-        axes3d_set_aspect_equal(ax)
-        blue = TBP_COLORS["blue"]
-        x, y, z = centers[:, 0], centers[:, 1], centers[:, 2]
-        if observed_points:
-            # z += 0.005
-            ax.scatter(
-                x,
-                y,
-                z,
-                color="k",
-                edgecolors="k",
-                alpha=1,
-                zorder=5,
-                marker="s",
-                s=8,
-                linewidths=1,
-            )
-        if path:
-            ax.plot(x, y, z, color=blue, alpha=1, ls="--", lw=1)
-        if path_labels:
-            for i in range(len(x)):
-                if i % 10 == 0:
-                    ax.text(x[i], y[i], z[i], f"{i}", color="k", alpha=1, zorder=5)
-        return fig, ax
-
-    fig, ax = init_plot()
-    fig.savefig(out_dir / "mug.png", dpi=300)
-    fig.savefig(out_dir / "mug.pdf")
-    plt.show()
-
-    fig, ax = init_plot(observed_points=True)
-    fig.savefig(out_dir / "mug_with_points.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_points.svg")
-    plt.show()
-
-    fig, ax = init_plot(observed_points=True, path=True)
-    fig.savefig(out_dir / "mug_with_path.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_path.svg")
-    plt.show()
-
-    fig, ax = init_plot(observed_points=True, path=True, path_labels=True)
-    fig.savefig(out_dir / "mug_with_labels.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_labels.svg")
-    plt.show()
-
-
-def l2_distance(
+def get_l2_distance(
     pc1: Union[np.ndarray, ObjectModel],
     pc2: Union[np.ndarray, ObjectModel],
 ) -> float:
@@ -448,13 +451,13 @@ def l2_distance(
     Returns:
     float : Chamfer distance.
     """
-    pc1 = pc1.points if isinstance(pc1, ObjectModel) else pc1
-    pc2 = pc2.points if isinstance(pc2, ObjectModel) else pc2
+    pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
 
     return np.mean(np.linalg.norm(pc1 - pc2, axis=1))
 
 
-def emd_distance(
+def get_emd_distance(
     pc1: Union[np.ndarray, ObjectModel],
     pc2: Union[np.ndarray, ObjectModel],
 ) -> float:
@@ -467,8 +470,8 @@ def emd_distance(
     Returns:
     float : EMD distance.
     """
-    pc1 = pc1.points if isinstance(pc1, ObjectModel) else pc1
-    pc2 = pc2.points if isinstance(pc2, ObjectModel) else pc2
+    pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
     # Compute pairwise distances
     cost_matrix = scipy.spatial.distance.cdist(pc1, pc2)
     # Solve transport problem
@@ -476,7 +479,7 @@ def emd_distance(
     return cost_matrix[row_ind, col_ind].sum() / len(pc1)
 
 
-def chamfer_distance(
+def get_chamfer_distance(
     pc1: Union[np.ndarray, ObjectModel],
     pc2: Union[np.ndarray, ObjectModel],
 ) -> float:
@@ -489,8 +492,8 @@ def chamfer_distance(
     Returns:
     float : Chamfer distance.
     """
-    pc1 = pc1.points if isinstance(pc1, ObjectModel) else pc1
-    pc2 = pc2.points if isinstance(pc2, ObjectModel) else pc2
+    pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
 
     dists1 = np.min(scipy.spatial.distance.cdist(pc1, pc2), axis=1)
     dists2 = np.min(scipy.spatial.distance.cdist(pc2, pc1), axis=1)
@@ -498,25 +501,37 @@ def chamfer_distance(
 
 
 def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
-    """Load end-of-episode rotations.
+    """Load symmetric rotations.
 
     Returns:
         List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
         the id, rotation, and evidence value.
     """
-    last_hypotheses_evidence = np.array(
-        episode_stats["LM_0"]["last_hypotheses_evidence"]
-    )
-    possible_rotations = np.array(episode_stats["LM_0"]["symmetric_rotations"])
+    # Get all evidence vals.
+    evidences_ls = episode_stats["LM_0"]["evidences_ls"]
+    mlh_object = list(evidences_ls.keys())[0]
+    evidences_ls = np.array(evidences_ls[mlh_object])
+
+    # Get all symmetric rotations.
+    symmetric_rotations = np.array(episode_stats["LM_0"]["symmetric_rotations"])
+    n_rotations = len(symmetric_rotations)
+
+    # Find evidence values associated with each rotation.
+    sorting_inds = np.argsort(evidences_ls)[::-1]
+    evidences_sorted = evidences_ls[sorting_inds]
+    ev_threshold = np.mean(evidences_sorted[n_rotations - 1 : n_rotations + 1])
+    evidences_ls = evidences_ls[evidences_ls >= ev_threshold]
+    assert len(evidences_ls) == n_rotations
     rotations = []
-    for i in range(len(possible_rotations)):
+    for i in range(len(symmetric_rotations)):
         rotations.append(
             SimpleNamespace(
                 id=i,
-                rot=R.from_matrix(possible_rotations[i]).inv(),
-                evidence=last_hypotheses_evidence[i],
+                rot=R.from_matrix(symmetric_rotations[i]).inv(),
+                evidence=evidences_ls[i],
             )
         )
+
     return rotations
 
 
@@ -556,6 +571,245 @@ def get_relative_rotation(
         theta, axis = np.degrees(theta), np.degrees(axis)
 
     return theta, axis
+
+
+def plot_symmetrical_rotations_qualitative(episode: int):
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    episode_params = {
+        6: {
+            "other_index": 5,
+            "random_rotation": np.array([98, 86, 134]),
+            "elev": 30,
+            "azim": -90,
+        },
+        130: {
+            "other_index": 5,
+            "random_rotation": np.array([98, 86, 134]),
+            "elev": 30,
+            "azim": -10,
+        },
+        309: {
+            "other_index": 17,
+            "random_rotation": np.array([172, 68, -25]),
+            "elev": 30,
+            "azim": -90,
+        },
+    }
+
+    params = episode_params.get(episode, {})
+
+    row = eval_stats.iloc[episode]
+    primary_target_object = row.primary_target_object
+    target = SimpleNamespace(
+        rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+    )
+
+    # Load rotations, compute rotation error for each, and sort them by error.
+    episode_stats = detailed_stats[episode]
+    rotations = load_symmetry_rotations(episode_stats)
+    for r in rotations:
+        theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
+        r.theta = theta
+        r.axis = axis
+    rotations = sorted(rotations, key=lambda x: x.theta)
+
+    # Get rotation with lowest error and any other symmetrical rotation.
+    best = rotations[0]
+    other_index = params.get("other_index", np.random.randint(1, len(rotations)))
+    other = rotations[other_index]
+
+    # Get a random rotation, and compute its error.
+    random_rotation = params.get(
+        "random_rotation", np.random.randint(0, 360, size=(3,))
+    )
+    rot_random = R.from_euler("xyz", random_rotation, degrees=True)
+    random = SimpleNamespace(rot=rot_random)
+    theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
+    random.theta = theta
+    random.axis = axis
+
+    base_model = load_object_model("dist_agent_1lm", primary_target_object)
+    base_model = base_model.centered()
+
+    target.model = base_model.rotated(target.rot)
+    best.model = base_model.rotated(best.rot)
+    other.model = base_model.rotated(other.rot)
+    random.model = base_model.rotated(random.rot)
+
+    fig, axes = plt.subplots(2, 3, figsize=(5, 4), subplot_kw={"projection": "3d"})
+    objects = [best, other, random]
+    elev, azim = params.get("elev", 30), params.get("azim", -90)
+    for i in range(3):
+        obj = objects[i]
+
+        # Plot object.
+        ax = axes[0, i]
+        model = obj.model
+        ax.scatter(
+            model.x,
+            model.y,
+            model.z,
+            color=model.rgba,
+            alpha=0.5,
+            edgecolors="none",
+            s=10,
+        )
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(elev, azim)
+
+        # Plot basis vectors.
+        ax = axes[1, i]
+        mat = obj.rot.as_matrix()
+        origin = np.array([0, 0, 0])
+        colors = ["red", "green", "blue"]
+        axis_names = ["x", "y", "z"]
+        for i in range(3):
+            ax.quiver(
+                *origin,
+                *mat[:, i],
+                color=colors[i],
+                length=1,
+                arrow_length_ratio=0.2,
+                normalize=True,
+            )
+            getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(elev, azim)
+        ax.axis("off")
+
+    plt.show()
+    out_dir = OUT_DIR / "symmetrical_plot"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
+    fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
+    plt.close()
+
+
+def plot_symmetrical_rotations_qualitative_all() -> None:
+    for episode in (6, 130, 309):
+        plot_symmetrical_rotations_qualitative(episode)
+
+
+def plot_symmetrical_distances():
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    stat_arrays = {
+        "L2": {"best": [], "other": [], "random": []},
+        "EMD": {"best": [], "other": [], "random": []},
+        "Chamfer": {"best": [], "other": [], "random": []},
+    }
+
+    for episode, episode_stats in enumerate(detailed_stats):
+        sym_rots = episode_stats["LM_0"]["symmetric_rotations"]
+        if sym_rots is None or len(sym_rots) < 2:
+            continue
+        print(f"Episode {episode}")
+        experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+        detailed_stats = DetailedJSONStatsInterface(
+            experiment_dir / "detailed_run_stats.json"
+        )
+        eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+        row = eval_stats.iloc[episode]
+        primary_target_object = row.primary_target_object
+        target = SimpleNamespace(
+            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+        )
+
+        # Load rotations, compute rotation error for each, and sort them by error.
+        rotations = load_symmetry_rotations(episode_stats)
+        for r in rotations:
+            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
+            r.theta = theta
+            r.axis = axis
+        rotations = sorted(rotations, key=lambda x: x.theta)
+
+        # Get rotation with lowest error and any other symmetrical rotation.
+        best = rotations[0]
+        other_index = np.random.randint(1, len(rotations))
+        other = rotations[other_index]
+
+        # Get a random rotation, and compute its error.
+        random_rotation = np.random.randint(0, 360, size=(3,))
+        random = R.from_euler("xyz", random_rotation, degrees=True)
+        random = SimpleNamespace(rot=random)
+        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
+        random.theta = theta
+        random.axis = axis
+
+        # Get object models, rotated accordingly.
+        base_model = load_object_model("dist_agent_1lm", primary_target_object)
+        base_model = base_model.centered()
+        target.model = base_model.rotated(target.rot)
+        best.model = base_model.rotated(best.rot)
+        other.model = base_model.rotated(other.rot)
+        random.model = base_model.rotated(random.rot)
+
+        objects = {"best": best, "other": other, "random": random}
+        metrics = {
+            "L2": get_l2_distance,
+            "EMD": get_emd_distance,
+            "Chamfer": get_chamfer_distance,
+        }
+        for metric_name, metric_func in metrics.items():
+            for obj_name, obj in objects.items():
+                stat_arrays[metric_name][obj_name].append(
+                    metric_func(obj.model, target.model)
+                )
+
+    for metric_name in stat_arrays:
+        for obj_name in stat_arrays[metric_name]:
+            arr = np.array(stat_arrays[metric_name][obj_name])
+            print(
+                f"{metric_name} {obj_name}: min={arr.min():.4f}, max={arr.max():.4f}, "
+                + f"mean={arr.mean():.4f}, median={np.median(arr):.4f}"
+            )
+            stat_arrays[metric_name][obj_name] = np.array(arr)
+
+    metric_names = ["L2", "EMD", "Chamfer"]
+    object_names = ["best", "other", "random"]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["pink"], TBP_COLORS["green"]]
+
+    fig, ax = plt.subplots(1, 3, figsize=(4, 2))
+    for i, ax in enumerate(ax):
+        array_dict = stat_arrays[metric_names[i]]
+        arrays = [array_dict[name] for name in object_names]
+        ymax = max(np.percentile(arr, 95) for arr in arrays)
+        vp = ax.violinplot(
+            arrays,
+            showextrema=False,
+            showmedians=True,
+        )
+        for j, body in enumerate(vp["bodies"]):
+            body.set_facecolor(colors[j])
+            body.set_alpha(1.0)
+        vp["cmedians"].set_color("black")
+        ax.set_title(metric_names[i])
+        ax.set_xticks(list(range(1, len(object_names) + 1)))
+        ax.set_xticklabels(object_names, rotation=45)
+        ax.set_ylim(0, ymax)
+    fig.tight_layout()
+    plt.show()
+    fig.savefig(OUT_DIR / "distances.png", dpi=300)
+    fig.savefig(OUT_DIR / "distances.svg")
+
+
+"""
+--------------------------------------------------------------------------------
+Exploratory (OK to delete or archive later)
+--------------------------------------------------------------------------------
+"""
 
 
 def get_pairwise_relative_rotations(
@@ -741,9 +995,9 @@ def plot_symmetrical_rotations_overview(
             obj = base_obj.rotated(r.rot)
             ax = axes[i + 1, j]
             ax.scatter(obj.x, obj.y, obj.z, color=obj.rgba, alpha=0.5, marker="o")
-            l2 = l2_distance(obj, true_obj)
-            emd = emd_distance(obj, true_obj)
-            chamfer = chamfer_distance(obj, true_obj)
+            l2 = get_l2_distance(obj, true_obj)
+            emd = get_emd_distance(obj, true_obj)
+            chamfer = get_chamfer_distance(obj, true_obj)
             ax.set_title(
                 f"ID={r.id}: Evidence: {r.evidence:.2f}\nL2: {l2:.4f}\n"
                 + f"EMD: {emd:.4f}\nChamfer: {chamfer:.4f}"
@@ -761,9 +1015,9 @@ def plot_symmetrical_rotations_overview(
         obj = base_obj.rotated(random_rots[j])
         ax = axes[3, j]
         ax.scatter(obj.x, obj.y, obj.z, color=obj.rgba, alpha=0.5)
-        l2 = l2_distance(obj, true_obj)
-        emd = emd_distance(obj, true_obj)
-        chamfer = chamfer_distance(obj, true_obj)
+        l2 = get_l2_distance(obj, true_obj)
+        emd = get_emd_distance(obj, true_obj)
+        chamfer = get_chamfer_distance(obj, true_obj)
         ax.set_title(f"L2: {l2:.4f}\nEMD: {emd:.4f}\nChamfer: {chamfer:.4f}")
         axes3d_clean(ax)
         axes3d_set_aspect_equal(ax)
@@ -817,7 +1071,6 @@ def run_plot_symmetrical_rotations_overview():
         plt.close()
 
 
-# episode = 0
 def plot_mlh_vs_min_error():
     """Exploratory plotting to visualize rotation error and symmetry."""
     experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
@@ -914,560 +1167,3 @@ def plot_mlh_vs_min_error():
             out_dir.mkdir(parents=True, exist_ok=True)
             fig.savefig(out_dir / f"episode_{episode}.png", dpi=300)
             plt.close()
-
-
-def plot_symmetrical_rotations_qualitative(episode: int):
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-    episode_params = {
-        6: {
-            "other_index": 5,
-            "random_rotation": np.array([98, 86, 134]),
-            "elev": 30,
-            "azim": -90,
-        },
-        130: {
-            "other_index": 5,
-            "random_rotation": np.array([98, 86, 134]),
-            "elev": 30,
-            "azim": -10,
-        },
-        309: {
-            "other_index": 17,
-            "random_rotation": np.array([172, 68, -25]),
-            "elev": 30,
-            "azim": -90,
-        },
-    }
-
-    params = episode_params.get(episode, {})
-
-    row = eval_stats.iloc[episode]
-    primary_target_object = row.primary_target_object
-    target = SimpleNamespace(
-        rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
-    )
-
-    # Load rotations, compute rotation error for each, and sort them by error.
-    episode_stats = detailed_stats[episode]
-    rotations = load_symmetry_rotations(episode_stats)
-    for r in rotations:
-        theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
-        r.theta = theta
-        r.axis = axis
-    rotations = sorted(rotations, key=lambda x: x.theta)
-
-    # Get rotation with lowest error and any other symmetrical rotation.
-    best = rotations[0]
-    other_index = params.get("other_index", np.random.randint(1, len(rotations)))
-    other = rotations[other_index]
-
-    # Get a random rotation, and compute its error.
-    random_rotation = params.get(
-        "random_rotation", np.random.randint(0, 360, size=(3,))
-    )
-    rot_random = R.from_euler("xyz", random_rotation, degrees=True)
-    rot_random = SimpleNamespace(rot=rot_random)
-    theta, axis = get_relative_rotation(rot_random.rot, target.rot, degrees=True)
-    rot_random.theta = theta
-    rot_random.axis = axis
-
-    base_model = load_object_model("dist_agent_1lm", primary_target_object)
-    base_model = base_model.centered()
-
-    target.model = base_model.rotated(target.rot)
-    best.model = base_model.rotated(best.rot)
-    other.model = base_model.rotated(other.rot)
-    random.model = base_model.rotated(random.rot)
-
-    fig, axes = plt.subplots(2, 3, figsize=(5, 4), subplot_kw={"projection": "3d"})
-    objects = [best, other, random]
-    elev, azim = params.get("elev", 30), params.get("azim", -90)
-    for i in range(3):
-        obj = objects[i]
-
-        # Plot object.
-        ax = axes[0, i]
-        model = obj.model
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color=model.rgba,
-            alpha=0.5,
-            edgecolors="none",
-            s=10,
-        )
-        axes3d_clean(ax)
-        axes3d_set_aspect_equal(ax)
-        ax.view_init(elev, azim)
-
-        # Plot basis vectors.
-        ax = axes[1, i]
-        mat = obj.rot.as_matrix()
-        origin = np.array([0, 0, 0])
-        colors = ["red", "green", "blue"]
-        axis_names = ["x", "y", "z"]
-        for i in range(3):
-            ax.quiver(
-                *origin,
-                *mat[:, i],
-                color=colors[i],
-                length=1,
-                arrow_length_ratio=0.2,
-                normalize=True,
-            )
-            getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
-        axes3d_clean(ax)
-        axes3d_set_aspect_equal(ax)
-        ax.view_init(elev, azim)
-        ax.axis("off")
-
-    plt.show()
-    out_dir = OUT_DIR / "symmetrical_plot"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
-    fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
-    plt.close()
-
-
-def plot_symmetrical_distances():
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-    stat_arrays = {
-        "L2": {"best": [], "other": [], "random": []},
-        "EMD": {"best": [], "other": [], "random": []},
-        "Chamfer": {"best": [], "other": [], "random": []},
-    }
-
-    for episode, episode_stats in enumerate(detailed_stats):
-        if "last_hypotheses_evidence" not in episode_stats["LM_0"]:
-            continue
-        print(f"Episode {episode}")
-        experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
-        detailed_stats = DetailedJSONStatsInterface(
-            experiment_dir / "detailed_run_stats.json"
-        )
-        eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-        row = eval_stats.iloc[episode]
-        primary_target_object = row.primary_target_object
-        target = SimpleNamespace(
-            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
-        )
-
-        # Load rotations, compute rotation error for each, and sort them by error.
-        rotations = load_symmetry_rotations(episode_stats)
-        for r in rotations:
-            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
-            r.theta = theta
-            r.axis = axis
-        rotations = sorted(rotations, key=lambda x: x.theta)
-
-        # Get rotation with lowest error and any other symmetrical rotation.
-        best = rotations[0]
-        other_index = np.random.randint(1, len(rotations))
-        other = rotations[other_index]
-
-        # Get a random rotation, and compute its error.
-        random_rotation = np.random.randint(0, 360, size=(3,))
-        random = R.from_euler("xyz", random_rotation, degrees=True)
-        random = SimpleNamespace(rot=random)
-        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
-        random.theta = theta
-        random.axis = axis
-
-        # Get object models, rotated accordingly.
-        base_model = load_object_model("dist_agent_1lm", primary_target_object)
-        base_model = base_model.centered()
-        target.model = base_model.rotated(target.rot)
-        best.model = base_model.rotated(best.rot)
-        other.model = base_model.rotated(other.rot)
-        random.model = base_model.rotated(random.rot)
-
-        objects = {"best": best, "other": other, "random": random}
-        metrics = {"L2": l2_distance, "EMD": emd_distance, "Chamfer": chamfer_distance}
-        for metric_name, metric_func in metrics.items():
-            for obj_name, obj in objects.items():
-                stat_arrays[metric_name][obj_name].append(
-                    metric_func(obj.model, target.model)
-                )
-
-    for metric_name in stat_arrays:
-        for obj_name in stat_arrays[metric_name]:
-            arr = np.array(stat_arrays[metric_name][obj_name])
-            print(
-                f"{metric_name} {obj_name}: min={arr.min():.4f}, max={arr.max():.4f}, "
-                + f"mean={arr.mean():.4f}, median={np.median(arr):.4f}"
-            )
-            stat_arrays[metric_name][obj_name] = np.array(arr)
-
-    metric_names = ["L2", "EMD", "Chamfer"]
-    object_names = ["best", "other", "random"]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["pink"], TBP_COLORS["green"]]
-
-    fig, ax = plt.subplots(1, 3, figsize=(4, 2))
-    for i, ax in enumerate(ax):
-        array_dict = stat_arrays[metric_names[i]]
-        arrays = [array_dict[name] for name in object_names]
-        ymax = max(np.percentile(arr, 95) for arr in arrays)
-        vp = ax.violinplot(
-            arrays,
-            showextrema=False,
-            showmedians=True,
-        )
-        for j, body in enumerate(vp["bodies"]):
-            body.set_facecolor(colors[j])
-            body.set_alpha(1.0)
-        vp["cmedians"].set_color("black")
-        ax.set_title(metric_names[i])
-        ax.set_xticks(list(range(1, len(object_names) + 1)))
-        ax.set_xticklabels(object_names, rotation=45)
-        ax.set_ylim(0, ymax)
-    fig.tight_layout()
-    plt.show()
-    fig.savefig(OUT_DIR / "distances.png", dpi=300)
-    fig.savefig(OUT_DIR / "distances.svg")
-
-
-
-# %%
-def evidence_plots():
-    object_names = ["mug"]
-    steps = np.array([0, 10, 20, 30, 40])
-    # steps = np.arange(0, 40)
-    # steps = np.arange(0, 41, 20)
-
-    # Find the steps where the LM has processed data, but limit to 21 steps total.
-    lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
-    lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
-    lm_processed_steps = lm_processed_steps[: steps[-1] + 1]
-    n_steps = len(lm_processed_steps)
-
-    # Extract evidence values for all objects.
-    evidences = stats["LM_0"]["evidences_ls"]
-    possible_locations = stats["LM_0"]["possible_locations_ls"]
-    possible_rotations = stats["LM_0"]["possible_rotations_ls"]
-    objects = {}
-    for object_name in DISTINCT_OBJECTS:
-        obj_evidences, obj_locations = [], []
-        for i in range(n_steps):
-            obj_evidences.append(evidences[i][object_name])
-            obj_locations.append(possible_locations[i][object_name])
-        obj_evidences = np.array(obj_evidences)
-        obj_locations = np.array(obj_locations)
-        obj_rotation = np.array(possible_rotations[0][object_name])
-        objects[object_name] = {
-            "evidences": obj_evidences,
-            "locations": obj_locations,
-            "rotation": obj_rotation,
-        }
-
-    # Build a color map that spans the range of all evidence values.
-    all_evidences = [objects[name]["evidences"].flatten() for name in DISTINCT_OBJECTS]
-    all_evidences = np.concatenate(all_evidences)
-    evidence_min = np.percentile(all_evidences, 2.5)
-    evidence_max = np.percentile(all_evidences, 99.99)
-    scalar_map = plt.cm.ScalarMappable(
-        cmap="coolwarm", norm=plt.Normalize(vmin=evidence_min, vmax=evidence_max)
-    )
-
-    models = {
-        "mug": load_object_model("dist_agent_1lm_10distinctobj", "mug"),
-        "bowl": load_object_model("dist_agent_1lm_10distinctobj", "bowl"),
-        "golf_ball": load_object_model("dist_agent_1lm_10distinctobj", "golf_ball"),
-    }
-
-    # Plot evidence graphs for each object and step individually.
-    out_dir = OUT_DIR / "evidence_graphs"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    png_dir = out_dir / "png"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    svg_dir = out_dir / "svg"
-    svg_dir.mkdir(parents=True, exist_ok=True)
-    for i, step in enumerate(steps):
-        for j, obj_name in enumerate(object_names):
-            fig = plt.figure(figsize=(4, 4))
-            ax = fig.add_subplot(projection="3d")
-
-            model = models[obj_name]
-            # model = model.centered()
-            linewidths = np.zeros(model.points.shape[0])
-            ax.scatter(
-                model.x,
-                model.y,
-                model.z,
-                color="gray",
-                alpha=0.4,
-                s=2,
-                linewidths=linewidths,
-            )
-
-            dct = objects[obj_name]
-            locations = dct["locations"][step]
-            n_points = locations.shape[0] // 2
-            print(n_points)
-            locations = locations[:n_points]
-            evidences = dct["evidences"][step]
-            ev1 = evidences[:n_points]
-            ev2 = evidences[n_points:]
-            stacked = np.hstack([ev1[:, np.newaxis], ev2[:, np.newaxis]])
-            evidences = stacked.max(axis=1)
-            x, y, z = locations[:, 0], locations[:, 1], locations[:, 2]
-            color = scalar_map.to_rgba(evidences)
-
-            obj = ObjectModel(locations, features=dict(rgba=color))
-            # obj = obj.centered()
-
-            x, y, z = obj.x, obj.y, obj.z
-
-            sizes = np.log(evidences + 1) * 10
-            sizes = evidences * 20
-            sizes -= sizes.min()
-            sizes = 10 * np.ones(len(x))
-            alpha = np.log(evidences + 1)
-            alpha[alpha < 0] = 0
-            alpha = alpha / alpha.max()
-            # med = np.percentile(evidences, 50)
-            # alpha[evidences < med] = 0
-            linewidths = np.zeros(len(x))
-
-            subsample_pct = 1.0
-            n_points = len(x)
-            n_points_sub = int(n_points * subsample_pct)
-            rand_inds = np.random.permutation(n_points)
-            cur_inds = np.arange(n_points, dtype=int)
-            sub_inds = cur_inds[rand_inds[:n_points_sub]]
-            x = x[sub_inds]
-            y = y[sub_inds]
-            z = z[sub_inds]
-            color = color[sub_inds]
-            sizes = sizes[sub_inds]
-            linewidths = linewidths[sub_inds]
-
-            ax.scatter(
-                x, y, z, color=color, alpha=alpha, s=sizes, linewidths=linewidths
-            )
-            ax.view_init(100, -100, -10)
-            axes3d_clean(ax, grid=False)
-            axes3d_set_aspect_equal(ax)
-            ax.set_title(f"step {step}")
-            # ax.set_xlim(-0.119, 0.119)
-            # ax.set_ylim(-0.119, 0.119)
-            # ax.set_zlim(-0.119, 0.119)
-            fig.savefig(png_dir / f"{obj_name}_step_{step}.png", dpi=300)
-            fig.savefig(svg_dir / f"{obj_name}_step_{step}.svg")
-            plt.show()
-            plt.close(fig)
-
-    # Plot the colorbar.
-    fig, ax = plt.subplots(1, 1, figsize=(1, 2))
-    cbar = plt.colorbar(scalar_map, ax=ax, orientation="vertical", label="Evidence")
-    ax.remove()  # Remove the empty axes, we just want the colorbar
-    cbar.set_ticks([])
-    cbar.set_label("")
-    fig.tight_layout()
-    fig.savefig(out_dir / "colorbar.png", dpi=300)
-    fig.savefig(out_dir / "colorbar.svg")
-
-    # Extract RGBA patches for sensor module 0.
-    rgba_patches = []
-    for ind in lm_processed_steps:
-        rgba_patches.append(np.array(stats["SM_0"][ind]["rgba"]))
-    rgba_patches = np.array(rgba_patches)
-
-    # Save the RGBA patches.
-    out_dir = OUT_DIR / "patches"
-    png_dir = out_dir / "png"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    svg_dir = out_dir / "svg"
-    svg_dir.mkdir(parents=True, exist_ok=True)
-    for step in steps:
-        patch = rgba_patches[step]
-        fig, ax = plt.subplots(1, 1, figsize=(2, 2))
-        ax.imshow(patch)
-        ax.axis("off")
-        fig.tight_layout(pad=0.0)
-        fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
-        fig.savefig(svg_dir / f"patch_step_{step}.svg")
-        plt.close(fig)
-
-
-# plot_trajectory()
-# evidence_plots()
-# Load detailed stats.
-experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
-detailed_stats = DetailedJSONStatsInterface(experiment_dir / "detailed_run_stats.json")
-stats = detailed_stats[0]
-
-object_names = ["mug"]
-steps = np.array([20, 40])
-steps = np.arange(0, 40)
-# steps = np.arange(0, 41, 20)
-
-# Find the steps where the LM has processed data, but limit to 21 steps total.
-lm_processed_steps = np.array(stats["LM_0"]["lm_processed_steps"])
-lm_processed_steps = np.argwhere(lm_processed_steps).flatten()
-lm_processed_steps = lm_processed_steps[: steps[-1] + 1]
-n_steps = len(lm_processed_steps)
-
-# Extract evidence values for all objects.
-evidences = stats["LM_0"]["evidences_ls"]
-possible_locations = stats["LM_0"]["possible_locations_ls"]
-possible_rotations = stats["LM_0"]["possible_rotations_ls"]
-objects = {}
-for object_name in DISTINCT_OBJECTS:
-    obj_evidences, obj_locations = [], []
-    for i in range(n_steps):
-        obj_evidences.append(evidences[i][object_name])
-        obj_locations.append(possible_locations[i][object_name])
-    obj_evidences = np.array(obj_evidences)
-    obj_locations = np.array(obj_locations)
-    obj_rotation = np.array(possible_rotations[0][object_name])
-    objects[object_name] = {
-        "evidences": obj_evidences,
-        "locations": obj_locations,
-        "rotation": obj_rotation,
-    }
-
-# Build a color map that spans the range of all evidence values.
-all_evidences = [objects[name]["evidences"].flatten() for name in object_names]
-all_evidences = np.concatenate(all_evidences)
-evidence_min = np.percentile(all_evidences, 2.5)
-evidence_max = np.percentile(all_evidences, 99.99)
-scalar_map = plt.cm.ScalarMappable(
-    cmap="coolwarm", norm=plt.Normalize(vmin=evidence_min, vmax=evidence_max)
-)
-
-models = {
-    "mug": load_object_model("dist_agent_1lm_10distinctobj", "mug"),
-    "bowl": load_object_model("dist_agent_1lm_10distinctobj", "bowl"),
-    "golf_ball": load_object_model("dist_agent_1lm_10distinctobj", "golf_ball"),
-}
-
-# Plot evidence graphs for each object and step individually.
-out_dir = OUT_DIR / "evidence_graphs"
-out_dir.mkdir(parents=True, exist_ok=True)
-png_dir = out_dir / "png"
-png_dir.mkdir(parents=True, exist_ok=True)
-svg_dir = out_dir / "svg"
-svg_dir.mkdir(parents=True, exist_ok=True)
-for i, step in enumerate(steps):
-    for j, obj_name in enumerate(object_names):
-        fig = plt.figure(figsize=(4, 4))
-        ax = fig.add_subplot(projection="3d")
-
-        model = models[obj_name]
-        # model = model.centered()
-        linewidths = np.zeros(model.points.shape[0])
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color="gray",
-            alpha=0.4,
-            s=2,
-            linewidths=linewidths,
-        )
-
-        dct = objects[obj_name]
-        locations = dct["locations"][step]
-        n_points = locations.shape[0] // 2
-        locations = locations[:n_points]
-        evidences = dct["evidences"][step]
-        ev1 = evidences[:n_points]
-        ev2 = evidences[n_points:]
-        stacked = np.hstack([ev1[:, np.newaxis], ev2[:, np.newaxis]])
-        evidences = stacked.max(axis=1)
-        color = scalar_map.to_rgba(evidences)
-
-        obj = ObjectModel(locations, features=dict(rgba=color))
-        # obj = obj.centered()
-
-        max_evidence = evidences.max()
-        ev_threshold = max_evidence * 0.5
-        low_inds = np.argwhere(evidences < ev_threshold).flatten()
-        high_inds = np.argwhere(evidences >= ev_threshold).flatten()
-        print(f"step {step}: {len(low_inds)} low, {len(high_inds)} high")
-        for inds in [high_inds]:
-            evidences_0 = evidences[inds]
-            x_0 = obj.x[inds]
-            y_0 = obj.y[inds]
-            z_0 = obj.z[inds]
-            color_0 = color[inds]
-            sizes = np.log(evidences_0 + 1) * 10
-            sizes = evidences_0 * 20
-            sizes -= sizes.min()
-            sizes = 10 * np.ones(len(x_0))
-            alpha = np.log(evidences_0 + 1)
-            alpha[alpha < 0] = 0
-            alpha = alpha / alpha.max()
-            # med = np.percentile(evidences, 50)
-            # alpha[evidences < med] = 0
-            linewidths = np.zeros(len(x_0))
-            ax.scatter(
-                x_0,
-                y_0,
-                z_0,
-                color=color_0,
-                alpha=alpha,
-                s=sizes,
-                linewidths=linewidths,
-            )
-
-        ax.view_init(100, -100, -10)
-        axes3d_clean(ax, grid=False)
-        axes3d_set_aspect_equal(ax)
-        ax.set_title(f"step {step}")
-        # ax.set_xlim(-0.119, 0.119)
-        # ax.set_ylim(-0.119, 0.119)
-        # ax.set_zlim(-0.119, 0.119)
-        fig.savefig(png_dir / f"{obj_name}_step_{step}.png", dpi=300)
-        fig.savefig(svg_dir / f"{obj_name}_step_{step}.svg")
-        plt.show()
-        plt.close(fig)
-
-
-# Plot the colorbar.
-# fig, ax = plt.subplots(1, 1, figsize=(1, 2))
-# cbar = plt.colorbar(scalar_map, ax=ax, orientation="vertical", label="Evidence")
-# ax.remove()  # Remove the empty axes, we just want the colorbar
-# cbar.set_ticks([])
-# cbar.set_label("")
-# fig.tight_layout()
-# fig.savefig(out_dir / "colorbar.png", dpi=300)
-# fig.savefig(out_dir / "colorbar.svg")
-
-# # Extract RGBA patches for sensor module 0.
-# rgba_patches = []
-# for ind in lm_processed_steps:
-#     rgba_patches.append(np.array(stats["SM_0"][ind]["rgba"]))
-# rgba_patches = np.array(rgba_patches)
-
-# # Save the RGBA patches.
-# out_dir = OUT_DIR / "patches"
-# png_dir = out_dir / "png"
-# png_dir.mkdir(parents=True, exist_ok=True)
-# svg_dir = out_dir / "svg"
-# svg_dir.mkdir(parents=True, exist_ok=True)
-# for step in steps:
-#     patch = rgba_patches[step]
-#     fig, ax = plt.subplots(1, 1, figsize=(2, 2))
-#     ax.imshow(patch)
-#     ax.axis("off")
-#     fig.tight_layout(pad=0.0)
-#     fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
-#     fig.savefig(svg_dir / f"patch_step_{step}.svg")
-#     plt.close(fig)
-
-
-# plot_trajectory()
-# evidence_plots()
