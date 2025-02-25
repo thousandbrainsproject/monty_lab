@@ -244,12 +244,21 @@ class SelectiveHandlerLastEvidence(SelectiveHandler):
             data, episode, mode, **kwargs
         )
 
+        # Only store some data for the last step and for the mlh object.
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
         for lm_id in lm_ids:
+            mlh_object = buffer_data[lm_id]["current_mlh"][-1]["graph_id"]
             lm_dict = buffer_data[lm_id]
-            lm_dict["evidences_ls"] = lm_dict["evidences"][-1]
-            lm_dict["possible_locations_ls"] = lm_dict["possible_locations"][-1]
-            lm_dict["possible_rotations_ls"] = lm_dict["possible_rotations"]
+            evidences = lm_dict["evidences"]
+            possible_locations = lm_dict["possible_locations"]
+            possible_rotations = lm_dict["possible_rotations"]
+            lm_dict["evidences_ls"] = {mlh_object: evidences[-1][mlh_object]}
+            lm_dict["possible_locations_ls"] = {
+                mlh_object: possible_locations[-1][mlh_object]
+            }
+            lm_dict["possible_rotations_ls"] = {
+                mlh_object: possible_rotations[-1][mlh_object]
+            }
             lm_dict.pop("evidences")
             lm_dict.pop("possible_locations")
             lm_dict.pop("possible_rotations")
