@@ -1167,3 +1167,20 @@ def plot_mlh_vs_min_error():
             out_dir.mkdir(parents=True, exist_ok=True)
             fig.savefig(out_dir / f"episode_{episode}.png", dpi=300)
             plt.close()
+
+import json
+import re
+from time import perf_counter
+
+# Regular expression to match first number in double quotes
+FIRST_NUMBER_PATTERN = r'"(\d+)"'
+
+
+experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run_5"
+detailed_stats = DetailedJSONStatsInterface(experiment_dir / "detailed_run_stats.json")
+eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+for i in range(len(detailed_stats)):
+    stats = detailed_stats[i]
+    mlh = stats["LM_0"]["current_mlh"][-1]
+    print(f"Episode {i}: MLH = {mlh['graph_id']}")
