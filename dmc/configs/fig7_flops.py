@@ -9,26 +9,30 @@
 # https://opensource.org/licenses/MIT.
 
 """Configs for Figure 7: Flops Comparison.
+
 This module defines the following experiments:
  - `dist_agent_1lm_randrot_nohyp_x_percent_5p`
  - `dist_agent_1lm_randrot_nohyp_x_percent_10p`
  - `dist_agent_1lm_randrot_nohyp_x_percent_20p`
- - `dist_agent_1lm_randrot_nohyp_x_percent_30p`
- - `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_40p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_60p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_80p`
  - `dist_agent_1lm_randrot_x_percent_5p`
  - `dist_agent_1lm_randrot_x_percent_10p`
  - `dist_agent_1lm_randrot_x_percent_20p`
  - `dist_agent_1lm_randrot_x_percent_30p`
- - `dist_agent_1lm_randrot_x_percent_30p_evidence_update_all`
+ - `dist_agent_1lm_randrot_x_percent_40p`
+ - `dist_agent_1lm_randrot_x_percent_60p`
+ - `dist_agent_1lm_randrot_x_percent_80p`
 
 Experiments use:
  - 77 objects
  - 5 random rotations
- - No sensor noise*
- - No hypothesis testing*
+ - No sensor noise
  - No voting
 
-The main output measure is accuracy and FLOPs as a function of x-percent threshold.
+The main output measure is accuracy and FLOPs as a function of x-percent threshold and whether
+hypothesis testing is used.
 """
 
 import copy
