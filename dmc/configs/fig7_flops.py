@@ -66,6 +66,11 @@ def update_x_percent_threshold_in_config(
         "x_percent_threshold"
     ] = x_percent_threshold
 
+    # Explicitly set the evidence update to "80%"
+    lm_config_dict["learning_module_0"]["learning_module_args"][
+        "evidence_update_threshold"
+    ] = "80%"
+
     # Update the logging run name
     config[
         "logging_config"
