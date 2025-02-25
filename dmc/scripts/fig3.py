@@ -507,28 +507,45 @@ def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
         List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
         the id, rotation, and evidence value.
     """
-    # Get all evidence vals.
-    evidences_ls = episode_stats["LM_0"]["evidences_ls"]
-    mlh_object = list(evidences_ls.keys())[0]
-    evidences_ls = np.array(evidences_ls[mlh_object])
 
-    # Get all symmetric rotations.
+    # Get MLH object name -- symmetric rotations are only computed for the MLH object.
+    object_name = episode_stats["LM_0"]["current_mlh"][-1]["graph_id"]
+
+    # Load evidence values and possible locations.
+    evidences = np.array(episode_stats["LM_0"]["evidences_ls"][object_name])
+    # TODO: delete this once confident. It's only used as a sanity check below.
+    possible_rotations = np.array(
+        episode_stats["LM_0"]["possible_rotations_ls"][object_name]
+    )
+
+    # Load symmetric rotations.
     symmetric_rotations = np.array(episode_stats["LM_0"]["symmetric_rotations"])
-    n_rotations = len(symmetric_rotations)
+    symmetric_locations = np.array(episode_stats["LM_0"]["symmetric_locations"])
 
-    # Find evidence values associated with each rotation.
-    sorting_inds = np.argsort(evidences_ls)[::-1]
-    evidences_sorted = evidences_ls[sorting_inds]
-    ev_threshold = np.mean(evidences_sorted[n_rotations - 1 : n_rotations + 1])
-    evidences_ls = evidences_ls[evidences_ls >= ev_threshold]
-    assert len(evidences_ls) == n_rotations
+    # To get evidence values for each rotation, we need to find hypothesis IDs for the
+    # symmetric rotations. To do this, we find the evidence threshold that would yield
+    # the number of symmetric rotations given.
+    n_hypotheses = len(symmetric_rotations)
+    sorting_inds = np.argsort(evidences)[::-1]
+    evidences_sorted = evidences[sorting_inds]
+    evidence_threshold = np.mean(evidences_sorted[n_hypotheses - 1 : n_hypotheses + 1])
+    above_threshold = evidences >= evidence_threshold
+    hypothesis_ids = np.arange(len(evidences))[above_threshold]
+    symmetric_evidences = evidences[hypothesis_ids]
+
+    # Sanity checks.
+    assert len(hypothesis_ids) == n_hypotheses
+    assert np.allclose(evidence_threshold, possible_rotations[hypothesis_ids])
+
     rotations = []
-    for i in range(len(symmetric_rotations)):
+    for i in range(n_hypotheses):
         rotations.append(
             SimpleNamespace(
                 id=i,
+                hypothesis_id=hypothesis_ids[i],
                 rot=R.from_matrix(symmetric_rotations[i]).inv(),
-                evidence=evidences_ls[i],
+                location=symmetric_locations[i],
+                evidence=symmetric_evidences[i],
             )
         )
 
