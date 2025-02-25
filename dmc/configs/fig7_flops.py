@@ -46,22 +46,20 @@ from .fig5_rapid_inference_with_model_based_policies import (
 
 
 def update_x_percent_threshold_in_config(
-    config,
-    x_percent_threshold,
-    evidence_update_threshold="x_percent_threshold",
+    template: dict,
+    x_percent_threshold: int,
 ):
     """Update the x_percent threshold in the config.
     This function modifies the config in-place.
 
     Args:
-        config (dict): The config to update.
-        x_percent_threshold (float): The percentage of the threshold to update.
-        evidence_update_threshold (str): How to decide which hypotheses should be updated.
-            In [int, float, 'mean', 'median', 'all', 'x_percent_threshold'].
+        template (dict): The config to update.
+        x_percent_threshold (int): The percentage of the threshold to update.
 
     Returns:
         dict: The updated config.
     """
+    config = copy.deepcopy(template)
 
     # Update the x_percent_threshold
     lm_config_dict = config["monty_config"].learning_module_configs
@@ -69,10 +67,11 @@ def update_x_percent_threshold_in_config(
         "x_percent_threshold"
     ] = x_percent_threshold
 
-    # Update the string value for evidence_update_threshold
-    lm_config_dict["learning_module_0"]["learning_module_args"][
-        "evidence_update_threshold"
-    ] = evidence_update_threshold
+    # Update the logging run name
+    config[
+        "logging_config"
+    ].run_name = f"{config['logging_config'].run_name}_x_percent_{x_percent_threshold}"
+
     return config
 
 
