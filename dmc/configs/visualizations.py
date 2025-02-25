@@ -65,7 +65,7 @@ VISUALIZATION_RESULTS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
 
 
 
-class SelectiveHandler(MontyHandler):
+class SelectiveEvidenceHandler(MontyHandler):
     """Detailed Logger that only saves evidence data and limited sensor data.
 
     Saves the following LM data:
@@ -227,7 +227,7 @@ class SelectiveHandler(MontyHandler):
     def close(self):
         pass
 
-class SelectiveHandlerLastEvidence(SelectiveHandler):
+class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
     """Detailed Logger that only saves evidence data and limited sensor data."""
 
     def report_episode(
@@ -268,11 +268,11 @@ class SelectiveHandlerLastEvidence(SelectiveHandler):
 
 
 @dataclass
-class SelectiveLoggingConfig(EvalEvidenceLMLoggingConfig):
+class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
     monty_handlers: List = field(
         default_factory=lambda: [
             BasicCSVStatsHandler,
-            SelectiveHandler,
+            SelectiveEvidenceHandler,
             ReproduceEpisodeHandler,
         ]
     )
@@ -289,7 +289,6 @@ Figure 3
 fig3_evidence_run = deepcopy(dist_agent_1lm)
 fig3_evidence_run.update(
     dict(
-        # experiment_class=EvidenceLoggingMontyObjectRecognitionExperiment,
         experiment_args=EvalExperimentArgs(
             model_name_or_path=str(
                 DMC_PRETRAIN_DIR / "dist_agent_1lm_10distinctobj/pretrained"
@@ -298,7 +297,7 @@ fig3_evidence_run.update(
             max_total_steps=100,
             max_eval_steps=100,
         ),
-        logging_config=SelectiveLoggingConfig(
+        logging_config=SelectiveEvidenceLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
             run_name="fig3_evidence_run",
         ),
@@ -314,13 +313,12 @@ fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
 fig3_symmetry_run = deepcopy(dist_agent_1lm_randrot_noise)
 fig3_symmetry_run.update(
     dict(
-        # experiment_class=EvidenceLoggingMontyObjectRecognitionExperiment,
-        logging_config=SelectiveLoggingConfig(
+        logging_config=SelectiveEvidenceLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
             run_name="fig3_symmetry_run",
             monty_handlers=[
                 BasicCSVStatsHandler,
-                SelectiveHandlerLastEvidence,
+                SelectiveEvidenceHandlerSymmetryRun,
                 ReproduceEpisodeHandler,
             ],
             selective_handler_args=dict(exclude=["SM_0", "SM_1"]),
