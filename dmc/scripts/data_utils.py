@@ -191,7 +191,7 @@ class DetailedJSONStatsInterface:
         with open(self._path, "r") as f:
             for i, line in enumerate(f):
                 if i == episode:
-                    return json.loads(line)[str(i)]
+                    return list(json.loads(line).values())[0]
 
     def _check_initialized(self):
         if self._index is not None:
@@ -204,7 +204,7 @@ class DetailedJSONStatsInterface:
     def __iter__(self):
         with open(self._path, "r") as f:
             for i, line in enumerate(f):
-                yield json.loads(line)[str(i)]
+                yield list(json.loads(line).values())[0]
 
     def __len__(self) -> int:
         self._check_initialized()
