@@ -30,7 +30,7 @@ from tbp.monty.frameworks.utils.dataclass_utils import config_to_dict
 # data = {"LM_0": {"evidences": {"object_0": {}}}}
 
 
-experiment_name = "fig3_evidence_run"
+experiment_name = "fig3_symmetry_run"
 
 # config = CONFIGS[experiment_name]
 # config_dict = config_to_dict(config)
@@ -57,4 +57,4 @@ pass
 #         ),
 #     )
 # )
-main(all_configs=CONFIGS, experiments=["fig3_evidence_run"])
+main(all_configs=CONFIGS, experiments=[experiment_name])
