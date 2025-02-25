@@ -56,30 +56,44 @@ from .fig4_rapid_inference_with_voting import (
     dist_agent_1lm_randrot_noise,
     dist_agent_8lm_half_lms_match,
 )
-from .fig9_structured_object_representations import (
-    EvidenceLoggingMontyObjectRecognitionExperiment,
-)
 
 # Main output directory for visualization experiment results.
 VISUALIZATION_RESULTS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
 
 
 
-class SelectiveEvidenceHandler(MontyHandler):
-    """Detailed Logger that only saves evidence data and limited sensor data.
+class SelectiveEvidenceHandler(DetailedJSONHandler):
+    """Detailed Logger that only saves evidence LM data and limited sensor data.
 
     Saves the following LM data:
-    - current_mlh
-    - evidences
-    - lm_processed_steps
-    - possible_locations
-    - possible_rotations
-    - possible_matches
-    - symmetry_evidence
-    - symmetric_locations
-    - symmetric_rotations
+     - current_mlh
+     - evidences
+     - lm_processed_steps
+     - possible_locations
+     - possible_rotations
+     - possible_matches
+     - symmetry_evidence
+     - symmetric_locations
+     - symmetric_rotations
 
     For sensor modules, only data is saved for steps where an LM has processed data.
+
+    This class extends `DetailedJSONHandler` by breaking up the logic of
+    `report_episode` into two parts:
+     - `init_buffer_data`: Initialize the buffer data dict.
+     - `save`: Save the buffer data to a file.
+
+    This is intended to make it easier for subclasses to modify the data saved
+    by overriding `init_buffer_data` or dropping buffer data after its initialized
+    during `report_episode`.
+
+    This class also can take a `selective_handler_args` which can be used to exclude
+    certain items from the stored data. For example,
+    ```
+    selector_handler_args = {"exclude": ["SM_0", "SM_1"]}
+    ```
+    will exclude data for `SM_0` and `SM_1` entirely. Supply `selective_handler_args`
+    by setting the `selective_handler_args` attribute in a logging config.
     """
 
     def __init__(self, selective_handler_args: Optional[Mapping] = None):
@@ -87,11 +101,6 @@ class SelectiveEvidenceHandler(MontyHandler):
         self.handler_args = (
             dict(selective_handler_args) if selective_handler_args else {}
         )
-        self.report_count = 0
-
-    @classmethod
-    def log_level(cls):
-        return "DETAILED"
 
     def report_episode(
         self,
@@ -228,7 +237,7 @@ class SelectiveEvidenceHandler(MontyHandler):
         pass
 
 class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
-    """Detailed Logger that only saves evidence data and limited sensor data."""
+    """Logger that only saves final evidence data no sensor data."""
 
     def report_episode(
         self,
@@ -262,6 +271,11 @@ class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
             lm_dict.pop("evidences")
             lm_dict.pop("possible_locations")
             lm_dict.pop("possible_rotations")
+
+        # Remove sensor module data.
+        sm_ids = [key for key in buffer_data.keys() if key.startswith("SM")]
+        for sm_id in sm_ids:
+            buffer_data.pop(sm_id)
 
         # Save data.
         self.save(episode_total, buffer_data, output_dir)
@@ -326,6 +340,23 @@ fig3_symmetry_run.update(
     )
 )
 
+fig3_symmetry_run_5 = deepcopy(fig3_symmetry_run)
+fig3_symmetry_run_5["logging_config"].run_name = "fig3_symmetry_run_5"
+fig3_symmetry_run_5["monty_config"].learning_module_configs["learning_module_0"][
+    "learning_module_args"
+]["required_symmetry_evidence"] = 5
+
+fig3_symmetry_run_10 = deepcopy(fig3_symmetry_run)
+fig3_symmetry_run_10["logging_config"].run_name = "fig3_symmetry_run_10"
+fig3_symmetry_run_10["monty_config"].learning_module_configs["learning_module_0"][
+    "learning_module_args"
+]["required_symmetry_evidence"] = 10
+
+fig3_symmetry_run_20 = deepcopy(fig3_symmetry_run)
+fig3_symmetry_run_20["logging_config"].run_name = "fig3_symmetry_run_20"
+fig3_symmetry_run_20["monty_config"].learning_module_configs["learning_module_0"][
+    "learning_module_args"
+]["required_symmetry_evidence"] = 20
 
 """
 Figure 4
@@ -368,5 +399,8 @@ dataset_args.__post_init__()
 CONFIGS = {
     "fig3_evidence_run": fig3_evidence_run,
     "fig3_symmetry_run": fig3_symmetry_run,
+    "fig3_symmetry_run_5": fig3_symmetry_run_5,
+    "fig3_symmetry_run_10": fig3_symmetry_run_10,
+    "fig3_symmetry_run_20": fig3_symmetry_run_20,
     "fig4_visualize_8lm_patches": fig4_visualize_8lm_patches,
 }
