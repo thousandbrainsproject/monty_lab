@@ -99,40 +99,37 @@ The main output measure is accuracy and rotation error as a function of training
 
 ## Figure 7: Computationally Efficient Learning and Inference
 
-Consists of 8 experiments:
+### Inference (12 experiments)
 
-### Inference (7 experiments):
-- `dist_agent_1lm_randrot_nohyp_x_percent_5p` - 5% threshold
-  - `evidence_update_threshold=x_percent_threshold`  # Evidence update threshold is the same as x-percent threshold for determining convergence.
-- `dist_agent_1lm_randrot_nohyp_x_percent_10p` - 10% threshold
-- `dist_agent_1lm_randrot_nohyp_x_percent_15p` - 15% threshold
-- `dist_agent_1lm_randrot_nohyp_x_percent_20p` - 20% threshold (default for other experiments)
-- `dist_agent_1lm_randrot_nohyp_x_percent_30p` - 30% threshold
-- `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
-  - 30% x-percent threshold for *convergence*
-  - Effectively >100% threshold for which hypotheses to test, i.e. all hypotheses are tested, even those with negative evidence; determined by setting `evidence_update_threshold='all'
-  
+There are two sets of experiments, one using hypothesis testing and another using no hypothesis testing.
+
+- `dist_agent_1lm_randrot_nohyp_x_percent_5p` - 5% threshold (No Hypothesis Testing)
+- `dist_agent_1lm_randrot_nohyp_x_percent_10p` - 10% threshold (No Hypothesis Testing)
+- `dist_agent_1lm_randrot_nohyp_x_percent_20p` - 20% threshold (No Hypothesis Testing)
+- `dist_agent_1lm_randrot_nohyp_x_percent_40p` - 40% threshold (No Hypothesis Testing)
+- `dist_agent_1lm_randrot_nohyp_x_percent_60p` - 60% threshold (No Hypothesis Testing)
+- `dist_agent_1lm_randrot_nohyp_x_percent_80p` - 80% threshold (No Hypothesis Testing)
+- `dist_agent_1lm_randrot_x_percent_5p` - 5% threshold (With Hypothesis Testing)
+- `dist_agent_1lm_randrot_x_percent_10p` - 10% threshold (With Hypothesis Testing)
+- `dist_agent_1lm_randrot_x_percent_20p` - 20% threshold (With Hypothesis Testing)
+- `dist_agent_1lm_randrot_x_percent_40p` - 40% threshold (With Hypothesis Testing)
+- `dist_agent_1lm_randrot_x_percent_60p` - 60% threshold (With Hypothesis Testing)
+- `dist_agent_1lm_randrot_x_percent_80p` - 80% threshold (With Hypothesis Testing)
+
 **Notes:**
-- For the first 5 experiments above, x-percent threshold determines the threshold at which the LM determines it has converged. In addition we set `evidence_update_threshold=x_percent_threshold`, so that this same threshold also determines which evidence values are updated. 
-- For the final experiment, these are separated out as noted.
 
-This means performance is evaluated with:
+- For the first 5 experiments above, `x_percent_threshold` determines the threshold at which the LM determines it has converged. In addition, we explicitly set `evidence_update_threshold="80%"`.
+
+This performance is evaluated with:
+
 - 77 objects
 - 5 random rotations
 - No sensor noise*
-- No hypothesis-testing*
 - No voting
 
 *Due to ViT model comparison.
 
-The main output measure is accuracy and FLOPs as a function of x-percent threshold.
-
-### Training (1 experiment):
-- `dist_agent_77obj_1rot_trained`**
-
-**Single rotation evaluation due to FLOPs counting overhead, so we will extrapolate total FLOPs to 14 rotations based on this/or can compare to a ViT trained on 1 rotation.
-
-The main output measure is FLOPs as a function of whether the ViT or Monty is training.
+The main output measure is accuracy and FLOPs as a function of `x_percent threshold` and whether hypothesis testing was used or not.
 
 ## Figure 8: Multi-Modal Transfer
 
