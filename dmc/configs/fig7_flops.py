@@ -20,7 +20,6 @@ This module defines the following experiments:
  - `dist_agent_1lm_randrot_x_percent_5p`
  - `dist_agent_1lm_randrot_x_percent_10p`
  - `dist_agent_1lm_randrot_x_percent_20p`
- - `dist_agent_1lm_randrot_x_percent_30p`
  - `dist_agent_1lm_randrot_x_percent_40p`
  - `dist_agent_1lm_randrot_x_percent_60p`
  - `dist_agent_1lm_randrot_x_percent_80p`
@@ -48,7 +47,7 @@ from .fig5_rapid_inference_with_model_based_policies import (
 def update_x_percent_threshold_in_config(
     template: dict,
     x_percent_threshold: int,
-):
+) -> dict:
     """Update the x_percent threshold in the config.
     This function modifies the config in-place.
 
@@ -95,6 +94,7 @@ that follow. The main difference between them is the presence/absence of hypothe
 testing functionality.
 """
 
+# Define dist_agent_1lm_randrot_nohyp
 dist_agent_1lm_randrot_nohyp = copy.deepcopy(dist_agent_1lm_randrot_noise_nohyp)
 for sm_dict in dist_agent_1lm_randrot_nohyp[
     "monty_config"
@@ -105,6 +105,7 @@ for sm_dict in dist_agent_1lm_randrot_nohyp[
     sm_args["noise_params"] = {}  # Set noise_param to empty dictionary to remove noise
 dist_agent_1lm_randrot_nohyp["logging_config"].run_name = "dist_agent_1lm_randrot_nohyp"
 
+# Define dist_agent_1lm_randrot
 dist_agent_1lm_randrot = copy.deepcopy(dist_agent_1lm_randrot_noise)
 for sm_dict in dist_agent_1lm_randrot["monty_config"].sensor_module_configs.values():
     sm_args = sm_dict["sensor_module_args"]
@@ -116,119 +117,59 @@ dist_agent_1lm_randrot["logging_config"].run_name = "dist_agent_1lm_randrot"
 #####################################################################
 # No Hypothesis Testing Configs with different x percent thresholds #
 #####################################################################
-dist_agent_1lm_randrot_nohyp_x_percent_5p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
-)
 dist_agent_1lm_randrot_nohyp_x_percent_5p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_5p, 5, "x_percent_threshold"
-)
-dist_agent_1lm_randrot_nohyp_x_percent_5p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_5p"
-
-dist_agent_1lm_randrot_nohyp_x_percent_10p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+    dist_agent_1lm_randrot_nohyp, 5
 )
 dist_agent_1lm_randrot_nohyp_x_percent_10p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_10p, 10, "x_percent_threshold"
-)
-dist_agent_1lm_randrot_nohyp_x_percent_10p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_10p"
-
-dist_agent_1lm_randrot_nohyp_x_percent_20p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+    dist_agent_1lm_randrot_nohyp, 10
 )
 dist_agent_1lm_randrot_nohyp_x_percent_20p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_20p, 20, "x_percent_threshold"
+    dist_agent_1lm_randrot_nohyp, 20
 )
-dist_agent_1lm_randrot_nohyp_x_percent_20p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_20p"
-
-dist_agent_1lm_randrot_nohyp_x_percent_30p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+dist_agent_1lm_randrot_nohyp_x_percent_40p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot_nohyp, 40
 )
-dist_agent_1lm_randrot_nohyp_x_percent_30p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_30p, 30, "x_percent_threshold"
+dist_agent_1lm_randrot_nohyp_x_percent_60p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot_nohyp, 60
 )
-dist_agent_1lm_randrot_nohyp_x_percent_30p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_30p"
-
-dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+dist_agent_1lm_randrot_nohyp_x_percent_80p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot_nohyp, 80
 )
-dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all = (
-    update_x_percent_threshold_in_config(
-        dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all,
-        30,
-        "all",
-    )
-)
-dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all"
 
 ##################################################################
 # Hypothesis Testing Configs with different x percent thresholds #
 ##################################################################
-dist_agent_1lm_randrot_x_percent_5p = copy.deepcopy(dist_agent_1lm_randrot)
 dist_agent_1lm_randrot_x_percent_5p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_x_percent_5p, 5, "x_percent_threshold"
+    dist_agent_1lm_randrot, 5
 )
-dist_agent_1lm_randrot_x_percent_5p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_x_percent_5p"
-
-dist_agent_1lm_randrot_x_percent_10p = copy.deepcopy(dist_agent_1lm_randrot)
 dist_agent_1lm_randrot_x_percent_10p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_x_percent_10p, 10, "x_percent_threshold"
+    dist_agent_1lm_randrot, 10
 )
-dist_agent_1lm_randrot_x_percent_10p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_x_percent_10p"
-
-dist_agent_1lm_randrot_x_percent_20p = copy.deepcopy(dist_agent_1lm_randrot)
 dist_agent_1lm_randrot_x_percent_20p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_x_percent_20p, 20, "x_percent_threshold"
+    dist_agent_1lm_randrot, 20
 )
-dist_agent_1lm_randrot_x_percent_20p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_x_percent_20p"
-
-dist_agent_1lm_randrot_x_percent_30p = copy.deepcopy(dist_agent_1lm_randrot)
-dist_agent_1lm_randrot_x_percent_30p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_x_percent_30p, 30, "x_percent_threshold"
+dist_agent_1lm_randrot_x_percent_40p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 40
 )
-dist_agent_1lm_randrot_x_percent_30p[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_x_percent_30p"
-
-dist_agent_1lm_randrot_x_percent_30p_evidence_update_all = copy.deepcopy(
-    dist_agent_1lm_randrot
+dist_agent_1lm_randrot_x_percent_60p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 60
 )
-dist_agent_1lm_randrot_x_percent_30p_evidence_update_all = (
-    update_x_percent_threshold_in_config(
-        dist_agent_1lm_randrot_x_percent_30p_evidence_update_all,
-        30,
-        "all",
-    )
+dist_agent_1lm_randrot_x_percent_80p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 80
 )
-dist_agent_1lm_randrot_x_percent_30p_evidence_update_all[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_x_percent_30p_evidence_update_all"
 
 
 CONFIGS = {
     "dist_agent_1lm_randrot_nohyp_x_percent_5p": dist_agent_1lm_randrot_nohyp_x_percent_5p,
     "dist_agent_1lm_randrot_nohyp_x_percent_10p": dist_agent_1lm_randrot_nohyp_x_percent_10p,
     "dist_agent_1lm_randrot_nohyp_x_percent_20p": dist_agent_1lm_randrot_nohyp_x_percent_20p,
-    "dist_agent_1lm_randrot_nohyp_x_percent_30p": dist_agent_1lm_randrot_nohyp_x_percent_30p,
-    "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all": dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all,
+    "dist_agent_1lm_randrot_nohyp_x_percent_40p": dist_agent_1lm_randrot_nohyp_x_percent_40p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_60p": dist_agent_1lm_randrot_nohyp_x_percent_60p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_80p": dist_agent_1lm_randrot_nohyp_x_percent_80p,
     "dist_agent_1lm_randrot_x_percent_5p": dist_agent_1lm_randrot_x_percent_5p,
     "dist_agent_1lm_randrot_x_percent_10p": dist_agent_1lm_randrot_x_percent_10p,
     "dist_agent_1lm_randrot_x_percent_20p": dist_agent_1lm_randrot_x_percent_20p,
-    "dist_agent_1lm_randrot_x_percent_30p": dist_agent_1lm_randrot_x_percent_30p,
-    "dist_agent_1lm_randrot_x_percent_30p_evidence_update_all": dist_agent_1lm_randrot_x_percent_30p_evidence_update_all,
+    "dist_agent_1lm_randrot_x_percent_40p": dist_agent_1lm_randrot_x_percent_40p,
+    "dist_agent_1lm_randrot_x_percent_60p": dist_agent_1lm_randrot_x_percent_60p,
+    "dist_agent_1lm_randrot_x_percent_80p": dist_agent_1lm_randrot_x_percent_80p,
 }
