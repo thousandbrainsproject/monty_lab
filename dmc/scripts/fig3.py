@@ -18,7 +18,7 @@ import os
 from numbers import Number
 from pathlib import Path
 from types import SimpleNamespace
-from typing import List, Mapping, Optional, Tuple, Type, Union
+from typing import Iterable, List, Mapping, Optional, Tuple, Type, Union
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -535,7 +535,7 @@ def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
 
     # Sanity checks.
     assert len(hypothesis_ids) == n_hypotheses
-    assert np.allclose(evidence_threshold, possible_rotations[hypothesis_ids])
+    assert np.allclose(symmetric_rotations, possible_rotations[hypothesis_ids])
 
     rotations = []
     for i in range(n_hypotheses):
@@ -1088,116 +1088,142 @@ def run_plot_symmetrical_rotations_overview():
         plt.close()
 
 
-def plot_mlh_vs_min_error():
-    """Exploratory plotting to visualize rotation error and symmetry."""
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+def get_symmetry_stats(
+    experiment: os.PathLike = "fig3_symmetry_run",
+) -> Mapping:
+    """Compute pose errors and Chamfer distances for symmetric rotations.
+
+    Used to generate data by `plot_symmetry_stats`.
+
+    Computes the pose errors and Chamfer distances between symmetric rotations
+    and the target rotation. The following rotations are considered:
+     - "best": the rotation with the lowest pose error.
+     - "mlh": the rotation of the MLH.
+     - "other": another rotation from the same group of symmetric rotation.
+     - "random": a random rotation.
+
+    Returns:
+        The computed pose errors and Chamfer distances for the best, MLH, and
+        random rotations, as well as another random rotation from the same group
+        of symmetric rotations. Has the items "pose_error" and "Chamfer", each of
+        which is a dict with "best", "mlh", "other", and "random" (all numpy arrays)
+
+    """
+    experiment_dir = VISUALIZATION_RESULTS_DIR / experiment
     detailed_stats = DetailedJSONStatsInterface(
         experiment_dir / "detailed_run_stats.json"
     )
     eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
 
-    mlh_rotations = []
-    min_error_rotations = []
-    target_names = []
-    target_rotations = []
-    differences = []
-    episode_nums = []
-    # - Extract info from 'eval_stats.csv'.
-    # episode = 2
-    # episode_stats = detailed_stats[episode]
+    # Preload models that we'll be rotating.
+    models = {
+        name: load_object_model("dist_agent_1lm", name)
+        for name in eval_stats.primary_target_object.unique()
+    }
 
-    for episode, episode_stats in enumerate(detailed_stats):
-        if "last_hypotheses_evidence" not in episode_stats["LM_0"]:
-            continue
-        rotations = load_symmetry_rotations(episode_stats)
+    # Initialize dict that we'll be returning.
+    stat_arrays = {
+        "pose_error": {"best": [], "mlh": [], "other": [], "random": []},
+        "Chamfer": {"best": [], "mlh": [], "other": [], "random": []},
+    }
+    for episode, stats in enumerate(detailed_stats):
+        # print(f"Episode {episode}/{len(detailed_stats)}")
+        # Check valid symmetry rotations.
+        # - Must be correct performance
         row = eval_stats.iloc[episode]
-        primary_target_object = row.primary_target_object
-        primary_target_rotation = row.primary_target_rotation_euler
-        primary_target_rotation_r = R.from_euler(
-            "xyz", primary_target_rotation, degrees=True
+        if not row.primary_performance.startswith("correct"):
+            continue
+        # - Must have at least two symmetry rotations.
+        sym_rots = stats["LM_0"]["symmetric_rotations"]
+        if sym_rots is None or len(sym_rots) < 2:
+            continue
+
+        # - Load the target rotation.
+        target = SimpleNamespace(
+            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True),
+            location=row.primary_target_position,
         )
 
-        # - Load rotations. We place the scipy rotation objects inside a SimpleNamespace
-        # object to bind it to an evidence value and its index.
-        # rotations = load_symmetry_rotations(episode_stats)
-        # group_a, group_b = group_rotations_by_symmetry(rotations)
-        # rotations = group_a + group_b
-        rotations = sorted(rotations, key=lambda x: x.evidence, reverse=True)
+        # - Create a random rotation.
+        random = SimpleNamespace(
+            rot=R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True),
+            location=np.array([0, 1.5, 0]),
+        )
 
-        for r in rotations:
-            error_1 = get_pose_error(
-                r.rot.as_quat(), primary_target_rotation_r.as_quat()
+        # - Load symmetry rotations, and computed pose error.
+        rotations = load_symmetry_rotations(stats)
+        for r in rotations + [target, random]:
+            r.pose_error = np.degrees(
+                get_pose_error(r.rot.as_quat(), target.rot.as_quat())
             )
-            r.error_1 = np.degrees(error_1)
-            error_2, _ = get_relative_rotation(
-                r.rot, primary_target_rotation_r, degrees=True
-            )
-            r.error_2 = error_2
-            r.error = error_1
 
-        # compute the difference between the mlh and min error rotations.
-        errors = np.array([r.error for r in rotations])
-        mlh_r = rotations[0].rot
-        min_error_r = rotations[np.argmin(errors)].rot
-        theta, _ = get_relative_rotation(mlh_r, min_error_r, degrees=True)
-        differences.append(theta)
+        # - Find mlh, best, and some other symmetric.
+        rotations = sorted(rotations, key=lambda x: x.pose_error)
+        best = sorted(rotations, key=lambda x: x.pose_error)[0]
+        other = rotations[np.random.randint(1, len(rotations))]
+        mlh = sorted(rotations, key=lambda x: x.evidence)[-1]
 
-        episode_nums.append(episode)
-        target_names.append(primary_target_object)
-        mlh_rotations.append(mlh_r)
-        min_error_rotations.append(min_error_r)
-        target_rotations.append(primary_target_rotation_r)
+        # - Compute chamfer distances, and store the stats.
+        rotations = dict(best=best, mlh=mlh, other=other, random=random)
+        model = models[row.primary_target_object] - [0, 1.5, 0]
+        target_obj = model.rotated(target.rot)
+        for name, r in rotations.items():
+            obj = model.rotated(r.rot)
+            stat_arrays["Chamfer"][name].append(get_chamfer_distance(obj, target_obj))
+            stat_arrays["pose_error"][name].append(r.pose_error)
 
-        print(f"Episode {episode}: '{primary_target_object}'")
-        print(f" delta = {theta:.2f} deg")
-        if theta > 20:
-            base_obj = load_object_model("dist_agent_1lm", primary_target_object)
-            base_obj = base_obj.centered()
+    # - Convert lists to arrays, and return the data.
+    for key_1, dct_1 in stat_arrays.items():
+        for key_2 in dct_1.keys():
+            stat_arrays[key_1][key_2] = np.array(stat_arrays[key_1][key_2])
 
-            true_obj = base_obj.rotated(primary_target_rotation_r)
-            mlh_obj = base_obj.rotated(mlh_r)
-            min_error_obj = base_obj.rotated(min_error_r)
+    return stat_arrays
 
-            fig, axes = plt.subplots(
-                1, 3, figsize=(5, 2), subplot_kw={"projection": "3d"}
-            )
-            titles, objects = (
-                ["True", "MLH", "Min Error"],
-                [true_obj, mlh_obj, min_error_obj],
-            )
-            for j, ax in enumerate(axes):
-                ax.scatter(
-                    objects[j].x,
-                    objects[j].y,
-                    objects[j].z,
-                    color=objects[j].rgba,
-                    alpha=0.5,
-                    s=5,
-                )
-                ax.set_title(titles[j])
-                axes3d_clean(ax)
-                axes3d_set_aspect_equal(ax)
-                ax.view_init(125, -100, -10)
-                fig_title = f"Episode {episode} ('{primary_target_object}'): theta = {theta:.2f} deg"
-                fig.suptitle(fig_title)
-            out_dir = OUT_DIR / "mlh_vs_min_error"
-            out_dir.mkdir(parents=True, exist_ok=True)
-            fig.savefig(out_dir / f"episode_{episode}.png", dpi=300)
-            plt.close()
+def plot_symmetry_stats():
+    """Plot the symmetry stats."""
+    stat_arrays = get_symmetry_stats()
 
-import json
-import re
-from time import perf_counter
+    fig, axes = plt.subplots(1, 2, figsize=(4.5, 2.3))
 
-# Regular expression to match first number in double quotes
-FIRST_NUMBER_PATTERN = r'"(\d+)"'
+    rotation_types = ["best", "mlh", "other", "random"]
+    colors = [TBP_COLORS["blue"]] * len(rotation_types)
+    xticks = list(range(1, len(rotation_types) + 1))
+    xticklabels = ["min. error", "MLH", "other", "random"]
 
+    # Pose Error
+    ax = axes[0]
+    arrays = [stat_arrays["pose_error"][name] for name in rotation_types]
+    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
+    for j, body in enumerate(vp["bodies"]):
+        body.set_facecolor(colors[j])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticks([0, 45, 90, 135, 180])
+    ax.set_ylim(0, 180)
+    ax.set_ylabel("degrees")
+    ax.set_title("Pose Error")
 
-experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run_5"
-detailed_stats = DetailedJSONStatsInterface(experiment_dir / "detailed_run_stats.json")
-eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+    # Chamfer
+    ax = axes[1]
+    arrays = [stat_arrays["Chamfer"][name] for name in rotation_types]
+    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
+    for j, body in enumerate(vp["bodies"]):
+        body.set_facecolor(colors[j])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_ylabel("meters")
+    ymax = max(np.percentile(arr, 95) for arr in arrays)
+    ax.set_ylim(0, ymax)
+    ax.set_title("Chamfer Distance")
 
-for i in range(len(detailed_stats)):
-    stats = detailed_stats[i]
-    mlh = stats["LM_0"]["current_mlh"][-1]
-    print(f"Episode {i}: MLH = {mlh['graph_id']}")
+    fig.tight_layout()
+
+    plt.show()
+    out_dir = OUT_DIR / "symmetry"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_dir / "symmetry_stats.png", dpi=300)
+    fig.savefig(out_dir / "symmetry_stats.svg")
