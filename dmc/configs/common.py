@@ -660,9 +660,6 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
 
         return np.atleast_1d(np.argwhere(bool_array).squeeze())
 
-    # def close(self):
-    #     pass
-
 
 @dataclass
 class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
