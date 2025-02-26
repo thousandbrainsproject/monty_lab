@@ -179,9 +179,11 @@ fig4_visualize_8lm_patches.update(
             max_total_steps=1,
             max_eval_steps=1,
         ),
-        logging_config=DetailedEvidenceLMLoggingConfig(
+        # Exclude LM data to save space.
+        logging_config=SelectiveEvidenceLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
             run_name="fig4_visualize_8lm_patches",
+            selective_handler_args=dict(exclude=[f"LM_{i}" for i in range(8)]),
         ),
         eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=["mug"],

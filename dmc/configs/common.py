@@ -648,17 +648,20 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         """
         lm_ids = [key for key in detailed if key.startswith("LM")]
         if len(lm_ids) == 1:
-            return np.argwhere(detailed[lm_ids[0]]["lm_processed_steps"]).squeeze()
+            bool_array = np.array(detailed[lm_ids[0]]["lm_processed_steps"])
+        else:
+            n_monty_steps = len(detailed[lm_ids[0]]["lm_processed_steps"])
+            bool_array = np.zeros(n_monty_steps, dtype=bool)
+            for step in range(n_monty_steps):
+                processed = [
+                    detailed[key]["lm_processed_steps"][step] for key in lm_ids
+                ]
+                bool_array[step] = any(processed)
 
-        n_monty_steps = len(detailed[lm_ids[0]]["lm_processed_steps"])
-        lm_processed_steps = np.zeros(n_monty_steps, dtype=bool)
-        for step in range(n_monty_steps):
-            processed = [detailed[key]["lm_processed_steps"][step] for key in lm_ids]
-            lm_processed_steps[step] = any(processed)
-        return np.argwhere(lm_processed_steps).squeeze()
+        return np.atleast_1d(np.argwhere(bool_array).squeeze())
 
-    def close(self):
-        pass
+    # def close(self):
+    #     pass
 
 
 @dataclass
