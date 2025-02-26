@@ -35,7 +35,6 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
 )
 from tbp.monty.frameworks.loggers.monty_handlers import (
     BasicCSVStatsHandler,
-    DetailedJSONHandler,
     ReproduceEpisodeHandler,
 )
 
@@ -56,7 +55,10 @@ VISUALIZATION_RESULTS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
 
 
 class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
-    """Logging handler that only saves final evidence data no sensor data."""
+    """Logging handler that only saves final evidence data no sensor data.
+
+    A lean logger handler for the symmetry experiment (which are full-length).
+    """
 
     def report_episode(
         self,
@@ -163,8 +165,6 @@ fig4_visualize_8lm_patches.update(
         logging_config=DetailedEvidenceLMLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
             run_name="fig4_visualize_8lm_patches",
-            monty_log_level="DETAILED",
-            monty_handlers=[BasicCSVStatsHandler, DetailedJSONHandler],
         ),
         eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=["mug"],
