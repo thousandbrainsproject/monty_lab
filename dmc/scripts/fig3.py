@@ -39,8 +39,6 @@ from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from scipy.spatial.transform import Rotation as R
 from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
-# from tbp.monty.frameworks.models.object_model import GraphObjectModel
-
 plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"
 plt.rcParams["svg.fonttype"] = "none"

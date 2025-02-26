@@ -37,7 +37,52 @@ OUT_DIR = DMC_ANALYSIS_DIR / "fig2"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def plot_potted_meat_can_object_models():
+def plot_agent_models_mug():
+    out_dir = OUT_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(1, 2, figsize=(6, 4), subplot_kw={"projection": "3d"})
+
+    dist_mug = load_object_model("dist_agent_1lm", "mug")
+    dist_mug -= np.array([0.0, 1.5, 0.0])
+
+    touch_mug = load_object_model("touch_agent_1lm", "mug")
+    touch_mug -= np.array([0.0, 1.5, 0.0])
+
+    ax = axes[0]
+    obj = dist_mug
+    color = obj.rgba
+    ax.scatter(obj.x, obj.y, obj.z, c=color, s=15, alpha=0.5, linewidths=0)
+    axes3d_clean(ax, grid=False)
+    axes3d_set_aspect_equal(ax)
+    ax.axis("off")
+    ax.view_init(120, -45, 48)
+    ax.set_xlim(-0.055, 0.055)
+    ax.set_ylim(-0.055, 0.055)
+    ax.set_zlim(-0.055, 0.055)
+
+    ax = axes[1]
+    obj = touch_mug
+    color = TBP_COLORS["blue"]
+    values = obj.z
+    norm = plt.Normalize(vmin=values.min(), vmax=values.max())
+    cmap = plt.cm.gray
+    color = cmap(norm(values) * 0.33 + 0.33)
+    ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+    axes3d_clean(ax, grid=False)
+    axes3d_set_aspect_equal(ax)
+    ax.axis("off")
+    ax.view_init(120, -45, 48)
+    ax.set_xlim(-0.055, 0.055)
+    ax.set_ylim(-0.055, 0.055)
+    ax.set_zlim(-0.055, 0.055)
+
+    fig.tight_layout()
+    fig.savefig(out_dir / "agent_models.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "agent_models.svg", bbox_inches="tight", pad_inches=0)
+    plt.show()
+
+
+def plot_agent_models_potted_meat_can():
     """Plot the potted meat can (i.e., Spam) object model.
 
     Plots 2 object models for the potted meat can -- one with color as learned
@@ -241,31 +286,30 @@ def remove_svg_groups(input_svg, output_svg, group_prefix="axis3d"):
     # Write the modified SVG while preserving formatting
     tree.write(output_svg, encoding="utf-8", xml_declaration=True, method="xml")
 
+def plot_pretraining_epochs():
+    out_dir = OUT_DIR / "pretraining_epochs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(2, 7, figsize=(15, 5), subplot_kw={"projection": "3d"})
 
-out_dir = OUT_DIR / "pretraining_epochs"
-out_dir.mkdir(parents=True, exist_ok=True)
-fig, axes = plt.subplots(2, 7, figsize=(15, 5), subplot_kw={"projection": "3d"})
+    axes = axes.flatten()
+    for i, ax in enumerate(axes.flatten()):
+        obj = load_object_model(
+            "dist_agent_1lm_checkpoints", "potted_meat_can", checkpoint=i + 1
+        )
+        obj -= np.array([0.0, 1.5, 0.0])
+        color = TBP_COLORS["blue"]
+        ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(120, -45, 40)
+        ax.set_xlim(-0.055, 0.055)
+        ax.set_ylim(-0.055, 0.055)
+        ax.set_zlim(-0.055, 0.055)
+    fig.tight_layout()
+    fig.savefig(out_dir / "pretraining_epochs.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "pretraining_epochs.svg", bbox_inches="tight", pad_inches=0)
+    plt.show()
 
-axes = axes.flatten()
-for i, ax in enumerate(axes.flatten()):
-    obj = load_object_model(
-        "dist_agent_1lm_checkpoints", "potted_meat_can", checkpoint=i + 1
-    )
-    obj -= np.array([0.0, 1.5, 0.0])
-    color = TBP_COLORS["blue"]
-    ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
-    axes3d_clean(ax, grid=False)
-    axes3d_set_aspect_equal(ax)
-    ax.view_init(120, -45, 40)
-    ax.set_xlim(-0.055, 0.055)
-    ax.set_ylim(-0.055, 0.055)
-    ax.set_zlim(-0.055, 0.055)
-fig.tight_layout()
-fig.savefig(out_dir / "pretraining_epochs.png", bbox_inches="tight", dpi=300)
-fig.savefig(out_dir / "pretraining_epochs.svg", bbox_inches="tight", pad_inches=0)
-plt.show()
-
-
-input_file = out_dir / "pretraining_epochs.svg"
-output_file = out_dir / "pretraining_epochs.svg"
-remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
+    input_file = out_dir / "pretraining_epochs.svg"
+    output_file = out_dir / "pretraining_epochs.svg"
+    remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
