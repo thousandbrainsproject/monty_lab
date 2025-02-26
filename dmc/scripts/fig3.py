@@ -42,6 +42,9 @@ from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 # from tbp.monty.frameworks.models.object_model import GraphObjectModel
 
 plt.rcParams["font.size"] = 8
+plt.rcParams["font.family"] = "Arial"
+plt.rcParams["svg.fonttype"] = "none"
+
 
 # Directories to save plots and tables to.
 OUT_DIR = DMC_ANALYSIS_DIR / "fig3"
@@ -377,8 +380,8 @@ Panel C: ?
 """
 
 
-def plot_accuracy_and_steps():
-    out_dir = OUT_DIR / "accuracy_and_steps"
+def plot_performance():
+    out_dir = OUT_DIR / "performance"
     out_dir.mkdir(parents=True, exist_ok=True)
     dataframes = [
         load_eval_stats("dist_agent_1lm"),
@@ -412,12 +415,12 @@ def plot_accuracy_and_steps():
         showmedians=True,
     )
     for body in vp["bodies"]:
-        body.set_facecolor(TBP_COLORS["pink"])
+        body.set_facecolor(TBP_COLORS["purple"])
         body.set_alpha(1.0)
     vp["cmedians"].set_color("black")
     ax2.set_yticks([0, 45, 90, 135, 180])
     ax2.set_ylim(0, 180)
-    ax2.set_ylabel("Error (deg)")
+    ax2.set_ylabel("Rotation Error (deg)")
 
     ax1.set_xticks([0.5, 2.5, 4.5, 6.5])
     ax1.set_xticklabels(conditions, rotation=0, ha="center")
@@ -425,8 +428,8 @@ def plot_accuracy_and_steps():
     ax1.spines["top"].set_visible(False)
     ax2.spines["top"].set_visible(False)
     fig.tight_layout()
-    fig.savefig(out_dir / "accuracy_and_steps.png", dpi=300)
-    fig.savefig(out_dir / "accuracy_and_steps.svg")
+    fig.savefig(out_dir / "performance.png", dpi=300)
+    fig.savefig(out_dir / "performance.svg")
     plt.show()
 
 
@@ -924,3 +927,32 @@ def plot_symmetry_objects():
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
         plt.close()
+
+
+def patch_affinity_svg(path: os.PathLike):
+    with open(path, "r") as f:
+        svg_text = f.read()
+    import re
+
+    """Patch Matplotlib SVG so that it can be read by Affinity Designer."""
+    matches = [x for x in re.finditer("font: ([0-9.]+)px ([^;]+);", svg_text)]
+    svg_pieces = [svg_text[: matches[0].start()]]
+    for i, match in enumerate(matches):
+        # Change "font" style property to separate "font-size" and
+        # "font-family" properties because Affinity ignores "font".
+        font_size_px, font_family = match.groups()
+        new_font_style = (
+            f"font-size: {float(font_size_px):.1f}px; " f"font-family: {font_family};"
+        )
+        svg_pieces.append(new_font_style)
+        if i < len(matches) - 1:
+            svg_pieces.append(svg_text[match.end() : matches[i + 1].start()])
+        else:
+            svg_pieces.append(svg_text[match.end() :])
+    text = "".join(svg_pieces)
+    with open(path, "w") as f:
+        f.write(text)
+
+
+plot_performance()
+# patch_affinity_svg(OUT_DIR / "performance/performance.svg")
