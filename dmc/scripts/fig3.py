@@ -37,7 +37,6 @@ from data_utils import (
 )
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from scipy.spatial.transform import Rotation as R
-from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS
 from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
 # from tbp.monty.frameworks.models.object_model import GraphObjectModel
@@ -431,6 +430,81 @@ def plot_accuracy_and_steps():
     plt.show()
 
 
+def draw_randrot_noise_icons():
+    model = load_object_model("dist_agent_1lm", "mug")
+    model = model - [0, 1.5, 0]
+    fig, axes = plt.subplots(1, 4, figsize=(8, 4), subplot_kw={"projection": "3d"})
+
+    # Params
+    params = {
+        "alpha": 0.45,
+        "edgecolors": "none",
+        "s": 2.5,
+    }
+
+    # Use bluementa as base color.
+    hex = TBP_COLORS["blue"].lstrip("#")
+    rgba = np.array([int(hex[i : i + 2], 16) / 255 for i in (0, 2, 4)] + [1.0])
+    rgba = np.tile(rgba, (len(model.x), 1))
+
+    # Make noisy color.
+    rgba_noise = rgba.copy()
+    rgba_noise = rgba_noise + 0.3 * np.random.randn(len(rgba_noise), 4)
+    rgba_noise = np.clip(rgba_noise, 0, 1)
+    rgba_noise[:, 3] = 1
+
+    # - draw base model
+    ax = axes[0]
+    ax.scatter(model.x, model.y, model.z, color=rgba, **params)
+
+    # - draw noise
+    rot = R.from_euler("xyz", [45, 10, 30], degrees=True)
+    rot_model = model.rotated(rot)
+    ax = axes[1]
+    ax.scatter(
+        model.x,
+        model.y,
+        model.z,
+        color=rgba_noise,
+        **params,
+    )
+
+    # - draw random rotation
+    rot = R.from_euler("xyz", [45, 10, 30], degrees=True)
+    rot_model = model.rotated(rot)
+    ax = axes[2]
+    ax.scatter(
+        rot_model.x,
+        rot_model.y,
+        rot_model.z,
+        color=rgba,
+        **params,
+    )
+
+    # - draw radom rotation + noise
+    rot = R.from_euler("xyz", [25, 30, -135], degrees=True)
+    rot_model = model.rotated(rot)
+    ax = axes[3]
+    ax.scatter(
+        rot_model.x,
+        rot_model.y,
+        rot_model.z,
+        color=rgba_noise,
+        **params,
+    )
+
+    # Clean up
+    for ax in axes:
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(90, -90)
+        ax.axis("off")
+
+    plt.show()
+    fig.savefig(OUT_DIR / "randrot_noise_icons.png", dpi=300)
+    fig.savefig(OUT_DIR / "randrot_noise_icons.svg")
+
+
 """
 --------------------------------------------------------------------------------
 Panel D: Symmetrical rotations
@@ -590,238 +664,6 @@ def get_relative_rotation(
     return theta, axis
 
 
-def plot_symmetrical_rotations_qualitative(episode: int):
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-    episode_params = {
-        6: {
-            "other_index": 5,
-            "random_rotation": np.array([98, 86, 134]),
-            "elev": 30,
-            "azim": -90,
-        },
-        130: {
-            "other_index": 5,
-            "random_rotation": np.array([98, 86, 134]),
-            "elev": 30,
-            "azim": -10,
-        },
-        309: {
-            "other_index": 17,
-            "random_rotation": np.array([172, 68, -25]),
-            "elev": 30,
-            "azim": -90,
-        },
-    }
-
-    params = episode_params.get(episode, {})
-
-    row = eval_stats.iloc[episode]
-    primary_target_object = row.primary_target_object
-    target = SimpleNamespace(
-        rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
-    )
-
-    # Load rotations, compute rotation error for each, and sort them by error.
-    episode_stats = detailed_stats[episode]
-    rotations = load_symmetry_rotations(episode_stats)
-    for r in rotations:
-        theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
-        r.theta = theta
-        r.axis = axis
-    rotations = sorted(rotations, key=lambda x: x.theta)
-
-    # Get rotation with lowest error and any other symmetrical rotation.
-    best = rotations[0]
-    other_index = params.get("other_index", np.random.randint(1, len(rotations)))
-    other = rotations[other_index]
-
-    # Get a random rotation, and compute its error.
-    random_rotation = params.get(
-        "random_rotation", np.random.randint(0, 360, size=(3,))
-    )
-    rot_random = R.from_euler("xyz", random_rotation, degrees=True)
-    random = SimpleNamespace(rot=rot_random)
-    theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
-    random.theta = theta
-    random.axis = axis
-
-    base_model = load_object_model("dist_agent_1lm", primary_target_object)
-    base_model = base_model.centered()
-
-    target.model = base_model.rotated(target.rot)
-    best.model = base_model.rotated(best.rot)
-    other.model = base_model.rotated(other.rot)
-    random.model = base_model.rotated(random.rot)
-
-    fig, axes = plt.subplots(2, 3, figsize=(5, 4), subplot_kw={"projection": "3d"})
-    objects = [best, other, random]
-    elev, azim = params.get("elev", 30), params.get("azim", -90)
-    for i in range(3):
-        obj = objects[i]
-
-        # Plot object.
-        ax = axes[0, i]
-        model = obj.model
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color=model.rgba,
-            alpha=0.5,
-            edgecolors="none",
-            s=10,
-        )
-        axes3d_clean(ax)
-        axes3d_set_aspect_equal(ax)
-        ax.view_init(elev, azim)
-
-        # Plot basis vectors.
-        ax = axes[1, i]
-        mat = obj.rot.as_matrix()
-        origin = np.array([0, 0, 0])
-        colors = ["red", "green", "blue"]
-        axis_names = ["x", "y", "z"]
-        for i in range(3):
-            ax.quiver(
-                *origin,
-                *mat[:, i],
-                color=colors[i],
-                length=1,
-                arrow_length_ratio=0.2,
-                normalize=True,
-            )
-            getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
-        axes3d_clean(ax)
-        axes3d_set_aspect_equal(ax)
-        ax.view_init(elev, azim)
-        ax.axis("off")
-
-    plt.show()
-    out_dir = OUT_DIR / "symmetrical_plot"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
-    fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
-    plt.close()
-
-
-def plot_symmetrical_rotations_qualitative_all() -> None:
-    for episode in (6, 130, 309):
-        plot_symmetrical_rotations_qualitative(episode)
-
-
-def plot_symmetrical_distances():
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-    stat_arrays = {
-        "L2": {"best": [], "other": [], "random": []},
-        "EMD": {"best": [], "other": [], "random": []},
-        "Chamfer": {"best": [], "other": [], "random": []},
-    }
-
-    for episode, episode_stats in enumerate(detailed_stats):
-        sym_rots = episode_stats["LM_0"]["symmetric_rotations"]
-        if sym_rots is None or len(sym_rots) < 2:
-            continue
-        print(f"Episode {episode}")
-        experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
-        detailed_stats = DetailedJSONStatsInterface(
-            experiment_dir / "detailed_run_stats.json"
-        )
-        eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-        row = eval_stats.iloc[episode]
-        primary_target_object = row.primary_target_object
-        target = SimpleNamespace(
-            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
-        )
-
-        # Load rotations, compute rotation error for each, and sort them by error.
-        rotations = load_symmetry_rotations(episode_stats)
-        for r in rotations:
-            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
-            r.theta = theta
-            r.axis = axis
-        rotations = sorted(rotations, key=lambda x: x.theta)
-
-        # Get rotation with lowest error and any other symmetrical rotation.
-        best = rotations[0]
-        other_index = np.random.randint(1, len(rotations))
-        other = rotations[other_index]
-
-        # Get a random rotation, and compute its error.
-        random_rotation = np.random.randint(0, 360, size=(3,))
-        random = R.from_euler("xyz", random_rotation, degrees=True)
-        random = SimpleNamespace(rot=random)
-        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
-        random.theta = theta
-        random.axis = axis
-
-        # Get object models, rotated accordingly.
-        base_model = load_object_model("dist_agent_1lm", primary_target_object)
-        base_model = base_model.centered()
-        target.model = base_model.rotated(target.rot)
-        best.model = base_model.rotated(best.rot)
-        other.model = base_model.rotated(other.rot)
-        random.model = base_model.rotated(random.rot)
-
-        objects = {"best": best, "other": other, "random": random}
-        metrics = {
-            "L2": get_l2_distance,
-            "EMD": get_emd_distance,
-            "Chamfer": get_chamfer_distance,
-        }
-        for metric_name, metric_func in metrics.items():
-            for obj_name, obj in objects.items():
-                stat_arrays[metric_name][obj_name].append(
-                    metric_func(obj.model, target.model)
-                )
-
-    for metric_name in stat_arrays:
-        for obj_name in stat_arrays[metric_name]:
-            arr = np.array(stat_arrays[metric_name][obj_name])
-            print(
-                f"{metric_name} {obj_name}: min={arr.min():.4f}, max={arr.max():.4f}, "
-                + f"mean={arr.mean():.4f}, median={np.median(arr):.4f}"
-            )
-            stat_arrays[metric_name][obj_name] = np.array(arr)
-
-    metric_names = ["L2", "EMD", "Chamfer"]
-    object_names = ["best", "other", "random"]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["pink"], TBP_COLORS["green"]]
-
-    fig, ax = plt.subplots(1, 3, figsize=(4, 2))
-    for i, ax in enumerate(ax):
-        array_dict = stat_arrays[metric_names[i]]
-        arrays = [array_dict[name] for name in object_names]
-        ymax = max(np.percentile(arr, 95) for arr in arrays)
-        vp = ax.violinplot(
-            arrays,
-            showextrema=False,
-            showmedians=True,
-        )
-        for j, body in enumerate(vp["bodies"]):
-            body.set_facecolor(colors[j])
-            body.set_alpha(1.0)
-        vp["cmedians"].set_color("black")
-        ax.set_title(metric_names[i])
-        ax.set_xticks(list(range(1, len(object_names) + 1)))
-        ax.set_xticklabels(object_names, rotation=45)
-        ax.set_ylim(0, ymax)
-    fig.tight_layout()
-    plt.show()
-    fig.savefig(OUT_DIR / "distances.png", dpi=300)
-    fig.savefig(OUT_DIR / "distances.svg")
-
-
 def get_symmetry_stats(
     experiment: os.PathLike = "fig3_symmetry_run",
 ) -> Mapping:
@@ -963,8 +805,122 @@ def plot_symmetry_stats():
     fig.savefig(out_dir / "symmetry_stats.svg")
 
 
-"""
---------------------------------------------------------------------------------
-Exploratory (OK to delete or archive later)
---------------------------------------------------------------------------------
-"""
+def plot_symmetry_objects():
+    """Render symmetric objects and their rotations."""
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    episode_params = {
+        # clamp - god. 180 degree rotation.
+        130: {
+            "other_index": 1,
+            "random_rotation": np.array([98, 86, 134]),
+            "elev": 55,
+            "azim": 0,
+        },
+        # bowl - good
+        309: {
+            "other_index": 1,
+            "random_rotation": np.array([172, 68, -25]),
+            "elev": 30,
+            "azim": -90,
+        },
+        # mug - not totally symmetric, mixed messages
+        154: {
+            "other_index": 1,
+            "random_rotation": np.array([172, 68, -25]),
+            "elev": -70,
+            "azim": -80,
+        },
+    }
+    for episode in episode_params.keys():
+        params = episode_params.get(episode, {})
+
+        row = eval_stats.iloc[episode]
+        primary_target_object = row.primary_target_object
+        target = SimpleNamespace(
+            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+        )
+
+        # Load rotations, compute rotation error for each, and sort them by error.
+        stats = detailed_stats[episode]
+        rotations = load_symmetry_rotations(stats)
+        for r in rotations:
+            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
+            r.theta = theta
+            r.axis = axis
+        rotations = sorted(rotations, key=lambda x: x.theta)
+
+        # Get rotation with lowest error and any other symmetrical rotation.
+        best = rotations[0]
+        mlh = sorted(rotations, key=lambda x: x.evidence)[-1]
+        other_index = params.get("other_index", np.random.randint(1, len(rotations)))
+        other = rotations[other_index]
+
+        # Get a random rotation, and compute its error.
+        random_euler = params.get(
+            "random_rotation", np.random.randint(0, 360, size=(3,))
+        )
+        random = SimpleNamespace(rot=R.from_euler("xyz", random_euler, degrees=True))
+        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
+        random.theta = theta
+        random.axis = axis
+
+        base_model = load_object_model("dist_agent_1lm", primary_target_object)
+        base_model = base_model - [0, 1.5, 0]
+
+        poses = dict(target=target, best=best, mlh=mlh, other=other, random=random)
+        for name, obj in poses.items():
+            obj.model = base_model.rotated(obj.rot)
+
+        fig, axes = plt.subplots(2, 5, figsize=(8, 4), subplot_kw={"projection": "3d"})
+        elev, azim = params.get("elev", 30), params.get("azim", -90)
+
+        for i, (name, obj) in enumerate(poses.items()):
+            # Plot object.
+            ax = axes[0, i]
+            model = obj.model
+            ax.scatter(
+                model.x,
+                model.y,
+                model.z,
+                color=model.rgba,
+                alpha=0.5,
+                edgecolors="none",
+                s=10,
+            )
+            axes3d_clean(ax, grid=False)
+            axes3d_set_aspect_equal(ax)
+            ax.view_init(elev, azim)
+
+            # Plot basis vectors.
+            ax = axes[1, i]
+            mat = obj.rot.as_matrix()
+            origin = np.array([0, 0, 0])
+            colors = ["red", "green", "blue"]
+            axis_names = ["x", "y", "z"]
+            for i in range(3):
+                ax.quiver(
+                    *origin,
+                    *mat[:, i],
+                    color=colors[i],
+                    length=1,
+                    arrow_length_ratio=0.2,
+                    normalize=True,
+                )
+                getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+            axes3d_clean(ax)
+            axes3d_set_aspect_equal(ax)
+            ax.view_init(elev, azim)
+            ax.axis("off")
+            ax.set_title(name)
+
+        plt.show()
+        out_dir = OUT_DIR / "symmetry"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
+        fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
+        plt.close()
