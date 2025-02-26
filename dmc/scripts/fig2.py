@@ -30,7 +30,7 @@ from data_utils import (
     load_object_model,
 )
 from PIL import Image
-from plot_utils import axes3d_clean
+from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from render_view_finder_images import VIEW_FINDER_DIR
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig2"
@@ -203,3 +203,69 @@ def put_image_on_gray_background(image: np.ndarray) -> np.ndarray:
     return blended
 
 
+def remove_svg_groups(input_svg, output_svg, group_prefix="axis3d"):
+    """Removes <g> elements with an id starting with `group_prefix` while preserving the rest of the SVG."""
+    import xml.etree.ElementTree as ET
+
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
+    ET.register_namespace("cc", "http://creativecommons.org/ns#")
+    ET.register_namespace("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+    # Parse the SVG file
+    tree = ET.parse(input_svg)
+    root = tree.getroot()
+
+    # Define the SVG namespace
+    ns = {"svg": "http://www.w3.org/2000/svg"}
+
+    # Store elements to remove (to avoid modifying the tree while iterating)
+    to_remove = []
+
+    for parent in root.findall(".//svg:g/..", namespaces=ns):
+        for g in parent.findall("svg:g", namespaces=ns):
+            group_id = g.get("id", "")
+
+            # ✅ Ensure <defs> elements are NOT removed
+            if g.tag.endswith("defs"):
+                continue  # Skip <defs> elements
+
+            # ✅ Remove only groups that start with the given prefix
+            if group_id.startswith(group_prefix):
+                to_remove.append((parent, g))
+
+    # Safely remove elements
+    for parent, g in to_remove:
+        parent.remove(g)
+
+    # Write the modified SVG while preserving formatting
+    tree.write(output_svg, encoding="utf-8", xml_declaration=True, method="xml")
+
+
+out_dir = OUT_DIR / "pretraining_epochs"
+out_dir.mkdir(parents=True, exist_ok=True)
+fig, axes = plt.subplots(2, 7, figsize=(15, 5), subplot_kw={"projection": "3d"})
+
+axes = axes.flatten()
+for i, ax in enumerate(axes.flatten()):
+    obj = load_object_model(
+        "dist_agent_1lm_checkpoints", "potted_meat_can", checkpoint=i + 1
+    )
+    obj -= np.array([0.0, 1.5, 0.0])
+    color = TBP_COLORS["blue"]
+    ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+    axes3d_clean(ax, grid=False)
+    axes3d_set_aspect_equal(ax)
+    ax.view_init(120, -45, 40)
+    ax.set_xlim(-0.055, 0.055)
+    ax.set_ylim(-0.055, 0.055)
+    ax.set_zlim(-0.055, 0.055)
+fig.tight_layout()
+fig.savefig(out_dir / "pretraining_epochs.png", bbox_inches="tight", dpi=300)
+fig.savefig(out_dir / "pretraining_epochs.svg", bbox_inches="tight", pad_inches=0)
+plt.show()
+
+
+input_file = out_dir / "pretraining_epochs.svg"
+output_file = out_dir / "pretraining_epochs.svg"
+remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
