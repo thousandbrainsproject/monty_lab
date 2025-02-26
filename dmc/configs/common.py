@@ -8,13 +8,15 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 import copy
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Mapping, Optional, Tuple
 
 import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
+    EvalEvidenceLMLoggingConfig,
     MotorSystemConfigCurInformedSurfaceGoalStateDriven,
     MotorSystemConfigInformedGoalStateDriven,
     ParallelEvidenceLMLoggingConfig,
@@ -23,13 +25,19 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
     RandomRotationObjectInitializer,
 )
-from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
+from tbp.monty.frameworks.loggers.monty_handlers import (
+    BasicCSVStatsHandler,
+    DetailedJSONHandler,
+    ReproduceEpisodeHandler,
+)
+from tbp.monty.frameworks.models.buffer import BufferEncoder
 from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
 from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     FeatureChangeSM,
 )
+from tbp.monty.frameworks.utils.logging_utils import maybe_rename_existing_file
 
 # - Path Settings
 DMC_ROOT_DIR = Path(os.environ.get("DMC_ROOT_DIR", "~/tbp/results/dmc")).expanduser()
@@ -53,23 +61,6 @@ RANDOM_ROTATIONS_5 = [
 """
 Custom classes
 """
-
-
-@dataclass
-class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
-    """Logging config with DMC-specific output directory and wandb group.
-
-    This config also drops the reproduce episode handler which is included
-    as a default handler in `ParallelEvidenceLMLoggingConfig`.
-    """
-
-    output_dir: str = str(DMC_RESULTS_DIR)
-    wandb_group: str = "dmc"
-    monty_handlers: List = field(
-        default_factory=lambda: [
-            BasicCSVStatsHandler,
-        ]
-    )
 
 
 """
@@ -486,3 +477,215 @@ def make_randrot_all_noise_variant(template: dict, color: bool = True) -> dict:
     config["logging_config"].run_name = f"{run_name}_randrot_all_noise"
 
     return config
+
+
+"""
+Logging
+--------------------------------------------------------------------------------
+"""
+
+
+class SelectiveEvidenceHandler(DetailedJSONHandler):
+    """Detailed Logger that only saves evidence LM data and limited sensor data.
+
+    Saves the following LM data:
+     - current_mlh
+     - evidences
+     - lm_processed_steps
+     - possible_locations
+     - possible_rotations
+     - possible_matches
+     - symmetry_evidence
+     - symmetric_locations
+     - symmetric_rotations
+
+    For sensor modules, only data is saved for steps where an LM has processed data.
+
+    This class extends `DetailedJSONHandler` by breaking up the logic of
+    `report_episode` into two parts:
+     - `init_buffer_data`: Initialize the buffer data dict.
+     - `save`: Save the buffer data to a file.
+
+    This is intended to make it easier for subclasses to modify the data saved
+    by overriding `init_buffer_data` or dropping buffer data after its initialized
+    during `report_episode`.
+
+    This class also can take a `selective_handler_args` which can be used to exclude
+    certain items from the stored data. For example,
+    ```
+    selector_handler_args = {"exclude": ["SM_0", "SM_1"]}
+    ```
+    will exclude data for `SM_0` and `SM_1` entirely. Supply `selective_handler_args`
+    by setting the `selective_handler_args` attribute in a logging config.
+    """
+
+    def __init__(self, selective_handler_args: Optional[Mapping] = None):
+        super().__init__()
+        self.handler_args = (
+            dict(selective_handler_args) if selective_handler_args else {}
+        )
+
+    def report_episode(
+        self,
+        data: Mapping,
+        output_dir: str,
+        episode: int,
+        mode: str = "train",
+        **kwargs,
+    ):
+        """Report episode data.
+
+        Args:
+            data (dict): Data to report. Contains keys "BASIC" and "DETAILED".
+            output_dir (str): Directory to save the report.
+            episode (int): Episode number within the epoch.
+            mode (str): Either "train" or "eval".
+            **kwargs: Additional keyword arguments.
+
+        Changed name to report episode since we are currently running with
+        reporting and flushing exactly once per episode.
+        """
+        # Initialize buffer data, using only certain LM data and only sensor data
+        # for steps where an LM has processed data.
+        episode_total, buffer_data = self.init_buffer_data(
+            data, episode, mode, **kwargs
+        )
+
+        # Save data.
+        self.save(episode_total, buffer_data, output_dir)
+
+    def save(self, episode_total: int, buffer_data: Mapping, output_dir: str) -> None:
+        """Save data to a file.
+
+        Args:
+            data (Mapping): Data to save.
+            output_dir (str): Directory to save the data.
+        """
+        save_stats_path = os.path.join(output_dir, "detailed_run_stats.json")
+        maybe_rename_existing_file(save_stats_path, ".json", self.report_count)
+        with open(save_stats_path, "a") as f:
+            json.dump({episode_total: buffer_data}, f, cls=BufferEncoder)
+            f.write(os.linesep)
+
+        print("Stats appended to " + save_stats_path)
+        self.report_count += 1
+
+    def init_buffer_data(
+        self,
+        data: Mapping,
+        episode: int,
+        mode: str,
+        **kwargs,
+    ) -> Tuple[int, Mapping]:
+        """Initialize the output data dict.
+
+        Args:
+            data (Mapping): Data from the episode.
+            episode (int): Episode number.
+            mode (str): Either "train" or "eval".
+
+        Returns:
+            Tuple[int, Mapping]: The episode number and the data to save.
+        """
+
+        # Get basic and detailed data.
+        if mode == "train":
+            episode_total = kwargs["train_episodes_to_total"][episode]
+        elif mode == "eval":
+            episode_total = kwargs["eval_episodes_to_total"][episode]
+        detailed = data["DETAILED"][episode_total]
+
+        buffer_data = dict()
+
+        # Add LM data.
+        lm_ids = [key for key in detailed if key.startswith("LM")]
+        for lm_id in lm_ids:
+            lm_dict = {
+                "current_mlh": detailed[lm_id]["current_mlh"],
+                "evidences": detailed[lm_id]["evidences"],
+                "lm_processed_steps": detailed[lm_id]["lm_processed_steps"],
+                "possible_locations": detailed[lm_id]["possible_locations"],
+                "possible_rotations": detailed[lm_id]["possible_rotations"],
+                "possible_matches": detailed[lm_id]["possible_matches"],
+                "symmetry_evidence": detailed[lm_id]["symmetry_evidence"],
+                "symmetric_locations": detailed[lm_id]["symmetric_locations"],
+                "symmetric_rotations": detailed[lm_id]["symmetric_rotations"],
+            }
+            buffer_data[lm_id] = lm_dict
+
+        # Add SM data, but only where LMs have processed data.
+        sm_ids = [key for key in detailed if key.startswith("SM")]
+        lm_processed_steps = self.find_lm_processed_steps(detailed)
+        for sm_id in sm_ids:
+            sm_dict = dict()
+            for name in [
+                "raw_observations",
+                "processed_observations",
+                "sm_properties",
+            ]:
+                if name in detailed[sm_id]:
+                    lst = [detailed[sm_id][name][step] for step in lm_processed_steps]
+                    sm_dict[name] = lst
+            buffer_data[sm_id] = sm_dict
+
+        # Handle excludes.
+        exclude = self.handler_args.get("exclude", [])
+        for key in exclude:
+            buffer_data.pop(key, None)
+
+        # Finalize output data.
+        return episode_total, buffer_data
+
+    def find_lm_processed_steps(self, detailed: Mapping) -> np.ndarray:
+        """Find steps where any LM has processed data.
+
+        Args:
+            detailed (Mapping): Data from a single episode.
+
+        Returns:
+            np.ndarray: Int array of indices where at least one LM processed data.
+        """
+        lm_ids = [key for key in detailed if key.startswith("LM")]
+        if len(lm_ids) == 1:
+            return np.argwhere(detailed[lm_ids[0]]["lm_processed_steps"]).squeeze()
+
+        n_monty_steps = len(detailed[lm_ids[0]]["lm_processed_steps"])
+        lm_processed_steps = np.zeros(n_monty_steps, dtype=bool)
+        for step in range(n_monty_steps):
+            processed = [detailed[key]["lm_processed_steps"][step] for key in lm_ids]
+            lm_processed_steps[step] = any(processed)
+        return np.argwhere(lm_processed_steps).squeeze()
+
+    def close(self):
+        pass
+
+
+@dataclass
+class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
+    monty_handlers: List = field(
+        default_factory=lambda: [
+            BasicCSVStatsHandler,
+            SelectiveEvidenceHandler,
+            ReproduceEpisodeHandler,
+        ]
+    )
+    wandb_handlers: list = field(default_factory=list)
+    monty_log_level: str = "DETAILED"
+    selective_handler_args: dict = field(default_factory=dict)
+
+
+@dataclass
+class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
+    """Logging config with DMC-specific output directory and wandb group.
+
+    This config also drops the reproduce episode handler which is included
+    as a default handler in `ParallelEvidenceLMLoggingConfig`.
+    """
+
+    output_dir: str = str(DMC_RESULTS_DIR)
+    wandb_group: str = "dmc"
+    monty_handlers: List = field(
+        default_factory=lambda: [
+            BasicCSVStatsHandler,
+        ]
+    )
