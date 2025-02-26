@@ -78,7 +78,6 @@ Config "Getter" Functions for Evaluation Experiments.
 
 def get_dist_lm_config(
     sensor_module_id: str = "patch",
-    max_nneighbors: int = 5,
     color: bool = True,
 ) -> dict:
     """Get default distant evidence learning module config for evaluation.
@@ -107,17 +106,10 @@ def get_dist_lm_config(
                     "hsv": np.array([1, 0.5, 0.5]),
                 }
             },
-            # use_multithreading=False,
-            # Most likely hypothesis needs to have 20% more evidence than the others
-            # to be considered certain enough to trigger a terminal condition (match).
-            x_percent_threshold=20,
-            # look at 10 closest features stored in the search radius at most.
-            max_nneighbors=max_nneighbors,
-            # Update all hypotheses with evidence > x_percent_threshold (faster)
-            evidence_update_threshold="x_percent_threshold",
-            # NOTE: Currently not used when loading pretrained graphs.
-            max_graph_size=0.3,  # 30cm
-            num_model_voxels_per_dim=100,
+            # Update all hypotheses with evidence > 80% of max evidence (faster)
+            evidence_update_threshold="80%",
+            # Look at 5 closest features stored in the search radius at most.
+            max_nneighbors=5,
             # Goal state generator which is used for model-based action suggestions.
             gsg_class=EvidenceGoalStateGenerator,
             gsg_args=dict(
@@ -141,7 +133,6 @@ def get_dist_lm_config(
 
 def get_surf_lm_config(
     sensor_module_id: str = "patch",
-    max_nneighbors: int = 5,
     color: bool = True,
 ) -> dict:
     """Get default surface evidence learning module config.
@@ -169,16 +160,10 @@ def get_surf_lm_config(
                     "hsv": np.array([1, 0.5, 0.5]),
                 }
             },
-            # Most likely hypothesis needs to have 20% more evidence than the others
-            # to be considered certain enough to trigger a terminal condition (match).
-            x_percent_threshold=20,
-            # look at 10 closest features stored in the search radius at most.
-            max_nneighbors=max_nneighbors,
-            # Update all hypotheses with evidence > x_percent_threshold (faster)
-            evidence_update_threshold="x_percent_threshold",
-            # NOTE: Currently not used when loading pretrained graphs.
-            max_graph_size=0.3,  # 30cm
-            num_model_voxels_per_dim=100,
+            # look at 5 closest features stored in the search radius at most.
+            max_nneighbors=5,
+            # Update all hypotheses with evidence > 80% of max evidence (faster)
+            evidence_update_threshold="80%",
             # Goal state generator which is used for model-based action suggestions.
             gsg_class=EvidenceGoalStateGenerator,
             gsg_args=dict(
