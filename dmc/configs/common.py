@@ -23,7 +23,6 @@ from tbp.monty.frameworks.config_utils.config_args import (
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
-    RandomRotationObjectInitializer,
 )
 from tbp.monty.frameworks.loggers.monty_handlers import (
     BasicCSVStatsHandler,
@@ -58,34 +57,49 @@ RANDOM_ROTATIONS_5 = [
     [259, 193, 172],
 ]
 
-"""
-Custom classes
-"""
-
 
 """
-Config "Getter" Functions for Evaluation Experiments.
+Config Functions for Creating/Modifying Evaluation Experiments Configs
+----------------------------------------------------------------------
+Note: See `pretraining_experiments.py` for functions that return/modify configs
+suitable for pretraining experiments.
+
 """
+
 
 def get_dist_lm_config(
     sensor_module_id: str = "patch",
     color: bool = True,
-) -> dict:
-    """Get default distant evidence learning module config for evaluation.
+) -> Mapping:
+    """Create a learning module config for a distant agent.
+
+    This function returns a learning module config that uses default settings for
+    DMC distant agent evaluation experiments. It is identical to the surface agent LM
+    config (see `get_surf_lm_config`) except for the goal state generator's
+    `desired_object_distance` argument (which is set to 0.03 meters, rather than
+    0.025 meters as in the surface agent LM config).
+
+    NOTE: Separate functions for getting distant vs surface agent LM configs were
+    created for development purposes, but they may be merged in the future given
+    that their respective defaults have not diverged.
 
     Args:
-        sensor_module_id: ID of the sensor module this LM is associated with.
-        max_nneighbors: Maximum number of neighbors to consider when matching features.
-        color: Whether to include color (HSV) features in matching.
+        sensor_module_id (str): The sensor module this LM receives input from.
+          Defaults to "patch" which is appropriate for single-LM experiments.
+        color (bool): Whether to include color (HSV) features. Defaults to True. If
+          False, then color-related parameters are removed.
 
     Returns:
-        dict: Learning module configuration with EvidenceGraphLM class and arguments
-              including matching tolerances, feature weights, and goal state settings.
+        dict: A dictionry with two items:
+            - "learning_module_class": The EvidenceGraphLM class.
+            - "learning_module_args": A dictionary of arguments for the EvidenceGraphLM
+              class.
     """
     out = dict(
         learning_module_class=EvidenceGraphLM,
         learning_module_args=dict(
-            max_match_distance=0.01,  # =1cm
+            # Specify graph matching thresholds and tolerances.
+            max_match_distance=0.01,  # 1 cm
             tolerances={
                 sensor_module_id: {
                     "hsv": np.array([0.1, 0.2, 0.2]),
@@ -97,10 +111,11 @@ def get_dist_lm_config(
                     "hsv": np.array([1, 0.5, 0.5]),
                 }
             },
-            # Update all hypotheses with evidence > 80% of max evidence (faster)
+            # Update all hypotheses with evidence > 80% of max evidence.
             evidence_update_threshold="80%",
-            # Look at 5 closest features stored in the search radius at most.
-            max_nneighbors=5,
+            x_percent_threshold=80,
+            # Look at 10 closest points stored in the search radius (at most).
+            max_nneighbors=10,
             # Goal state generator which is used for model-based action suggestions.
             gsg_class=EvidenceGoalStateGenerator,
             gsg_args=dict(
@@ -111,7 +126,7 @@ def get_dist_lm_config(
                 elapsed_steps_factor=10,
                 # Number of necessary steps for a hypothesis goal-state to be considered
                 min_post_goal_success_steps=5,
-                desired_object_distance=0.03,
+                desired_object_distance=0.03,  # Further than surface agent.
             ),
         ),
     )
@@ -125,21 +140,36 @@ def get_dist_lm_config(
 def get_surf_lm_config(
     sensor_module_id: str = "patch",
     color: bool = True,
-) -> dict:
-    """Get default surface evidence learning module config.
+) -> Mapping:
+    """Create a learning module config for a surface agent.
+
+    This function returns a learning module config that uses default settings for
+    DMC surface agent evaluation experiments. It is identical to the distant agent LM
+    config (see `get_dist_lm_config`) except for the goal state generator's
+    `desired_object_distance` argument (which is set to 0.025 meters, rather than
+    0.03 meters as in the distant agent LM config).
+
+    NOTE: Separate functions for getting distant vs surface agent LM configs were
+    created for development purposes, but they may be merged in the future given
+    that their respective defaults have not diverged.
 
     Args:
-        sensor_module_id: ID of the sensor module this LM receives input from.
-        max_nneighbors: Maximum number of neighbors to consider when matching features.
-        color: Whether to include color (HSV) features.
+        sensor_module_id (str): The sensor module this LM receives input from.
+          Defaults to "patch" which is appropriate for single-LM experiments.
+        color (bool): Whether to include color (HSV) features. Defaults to True. If
+          False, then color-related parameters are removed.
 
     Returns:
-        dict: Learning module config dictionary containing class and args.
+        dict: A dictionry with two items:
+            - "learning_module_class": The EvidenceGraphLM class.
+            - "learning_module_args": A dictionary of arguments for the EvidenceGraphLM
+              class.
     """
     out = dict(
         learning_module_class=EvidenceGraphLM,
         learning_module_args=dict(
-            max_match_distance=0.01,  # =1cm
+            # Specify graph matching thresholds and tolerances.
+            max_match_distance=0.01,  # 1 cm
             tolerances={
                 sensor_module_id: {
                     "hsv": np.array([0.1, 0.2, 0.2]),
@@ -151,10 +181,11 @@ def get_surf_lm_config(
                     "hsv": np.array([1, 0.5, 0.5]),
                 }
             },
-            # look at 5 closest features stored in the search radius at most.
-            max_nneighbors=5,
-            # Update all hypotheses with evidence > 80% of max evidence (faster)
+            # Update all hypotheses with evidence > 80% of max evidence.
             evidence_update_threshold="80%",
+            x_percent_threshold=80,
+            # Look at 10 closest points stored in the search radius (at most).
+            max_nneighbors=10,
             # Goal state generator which is used for model-based action suggestions.
             gsg_class=EvidenceGoalStateGenerator,
             gsg_args=dict(
@@ -165,7 +196,7 @@ def get_surf_lm_config(
                 elapsed_steps_factor=10,
                 # Number of necessary steps for a hypothesis goal-state to be considered
                 min_post_goal_success_steps=5,
-                desired_object_distance=0.025,
+                desired_object_distance=0.025,  # Closer than distant agent.
             ),
         ),
     )
@@ -179,7 +210,7 @@ def get_surf_lm_config(
 def get_dist_patch_config(
     sensor_module_id: str = "patch",
     color: bool = True,
-) -> dict:
+) -> Mapping:
     """Get default feature-change sensor module config for distant agent.
 
     Args:
@@ -221,7 +252,7 @@ def get_dist_patch_config(
 def get_surf_patch_config(
     sensor_module_id: str = "patch",
     color: bool = True,
-) -> dict:
+) -> Mapping:
     """Get default feature-change sensor module config for surface agent.
 
     Args:
@@ -265,7 +296,7 @@ def get_surf_patch_config(
     return out
 
 
-def get_view_finder_config() -> dict:
+def get_view_finder_config() -> Mapping:
     """Get default view finder sensor module config for evaluation.
 
     The view finder sensor module is used to log detailed observations during
@@ -287,7 +318,7 @@ def get_view_finder_config() -> dict:
 
 
 def get_dist_motor_config() -> MotorSystemConfigInformedGoalStateDriven:
-    """Get default distant motor config for evaluation.
+    """Get default motor system config for distant agent evaluation experiments.
 
     Returns:
         MotorSystemConfigInformedGoalStateDriven: Motor system configuration for
@@ -297,7 +328,7 @@ def get_dist_motor_config() -> MotorSystemConfigInformedGoalStateDriven:
 
 
 def get_surf_motor_config() -> MotorSystemConfigCurInformedSurfaceGoalStateDriven:
-    """Get default surface motor config for evaluation.
+    """Get default motor system config for surface agent evaluation experiments.
 
     Returns:
         MotorSystemConfigCurInformedSurfaceGoalStateDriven: Motor system configuration
@@ -308,13 +339,13 @@ def get_surf_motor_config() -> MotorSystemConfigCurInformedSurfaceGoalStateDrive
 
 
 """
-Functions used for generating experiment variants.
---------------------------------------------------------------------------------
+Functions for generating variations of existing configs.
+--------------------------------------------------------
 """
 
 
 def add_sensor_noise(
-    config: dict,
+    config: Mapping,
     color: bool = True,
     pose_vectors: float = 2.0,
     hsv: float = 0.1,
@@ -322,17 +353,15 @@ def add_sensor_noise(
     pose_fully_defined: float = 0.01,
     location: float = 0.002,
 ) -> None:
-    """Add default sensor noise to an experiment config in-place.
+    """Add sensor noise to an experiment config. Modifies the config in-place.
 
     Applies noise parameters to all sensor modules except the view finder. The
     `color` parameter controls whether to add 'hsv' noise. Set this to `False` for
-    touch experiments and experiments using the pretrained touch model.
+    touch agent experiments or when a a monty model uses a pretrained model
+    constructed with a touch agent (i.e., for multimodal experiments).
 
     Args:
-        config: Experiment config to add sensor noise to.
-
-    Returns:
-        None: Modifies the input config in-place.
+        config (dict): Experiment config to add sensor noise to.
     """
     noise_params = {
         "pose_vectors": pose_vectors,
@@ -351,131 +380,97 @@ def add_sensor_noise(
         sm_args["noise_params"] = noise_params
 
 
-def make_noise_variant(template: dict, color: bool = True) -> dict:
-    """Create an experiment config with added sensor noise.
+def make_noise_variant(
+    template: Mapping,
+    color: bool = True,
+    run_name: Optional[str] = None,
+) -> Mapping:
+    """Create a copy of an experiment config with added sensor noise.
 
     Args:
-        template: Experiment config to copy.
+        template (Mapping): Experiment config to copy.
+        color (bool): Whether to add noise to color features. Defaults to True.
+        run_name (str, optional): Name of the new experiment. By default, this
+          function will add "_noise" to the template config's run name (if possible),
+          but the run name can be specified directly via this parameter.
 
     Returns:
-        dict: Copy of `template` with added sensor noise and with the
-          "_noise" suffix appended to the logging config's `run_name`.
-
-    Raises:
-        ValueError: If experiment config does not have a run name.
-
+        Mapping: Copy of `template` with added sensor noise.
     """
     config = copy.deepcopy(template)
-    run_name = config["logging_config"].run_name
-    if not run_name:
-        raise ValueError("Experiment must have a run name to make a noisy version.")
 
-    config["logging_config"].run_name = f"{run_name}_noise"
+    # Optionally, use the provided run name. Otherwise, append "_noise" to the
+    # existing run name (if one exists).
+    if run_name:
+        config["logging_config"].run_name = run_name
+    else:
+        template_name = config["logging_config"].run_name
+        if template_name:
+            config["logging_config"].run_name = f"{template_name}_noise"
+
+    # Add sensor noise. Modifies `config` in-place.
     add_sensor_noise(config, color=color)
 
     return config
 
 
-def make_randrot_all_variant(template: dict) -> dict:
-    """Create an config with a random object rotations.
+def make_randrot_variant(
+    template: Mapping,
+    run_name: Optional[str] = None,
+) -> Mapping:
+    """Create a copy of an experiment config that uses the 5 "random" rotations.
 
     Args:
-        template: Experiment config to copy.
+        template (Mapping): Experiment config to copy.
+        run_name (str, optional): Name of the new experiment. By default, this
+          function will add "_randrot" to the template config's run name (if possible),
+          but the run name can be specified directly via this parameter.
 
     Returns:
-        dict: Copy of `template` with a random rotation object initializer and the
-          "_randrot" suffix appended to the logging config's `run_name`.
-
-    Raises:
-        ValueError: If experiment config does not have a run name.
+        Mapping: Copy of `template` that uses the 5 "random" rotations.
     """
+
     config = copy.deepcopy(template)
-    run_name = config["logging_config"].run_name
-    if not run_name:
-        raise ValueError(
-            "Experiment must have a run name to make a random rotation version."
-        )
-    config["logging_config"].run_name = f"{run_name}_randrot_all"
-    config[
-        "eval_dataloader_args"
-    ].object_init_sampler = RandomRotationObjectInitializer()
 
-    return config
+    # Optionally, use the provided run name. Otherwise, append "_noise" to the
+    # existing run name (if one exists).
+    if run_name:
+        config["logging_config"].run_name = run_name
+    else:
+        template_name = config["logging_config"].run_name
+        if template_name:
+            config["logging_config"].run_name = f"{template_name}_randrot"
 
-
-def make_randrot_variant(template: dict) -> dict:
-    """Create an experiment config using the 5 predefined "random" rotations.
-
-    Args:
-        template: Experiment config to copy.
-
-    Returns:
-        dict: Copy of `template` with a PredefinedObjectInitializer set to
-        use the 5 predefined rotations. Add the "_randrot" suffix to the
-        logging config's `run_name`.
-    Raises:
-        ValueError: If experiment config does not have a run name.
-    """
-    config = copy.deepcopy(template)
-    run_name = config["logging_config"].run_name
-    if not run_name:
-        raise ValueError(
-            "Experiment must have a run name to make a random rotation version."
-        )
-    config["logging_config"].run_name = f"{run_name}_randrot"
-
-    # Set eval dataloader args.
+    # Set up with 5 "random" rotations, and update the number of epochs.
     config["eval_dataloader_args"].object_init_sampler = PredefinedObjectInitializer(
         rotations=RANDOM_ROTATIONS_5
     )
-
-    # Update the number of epochs.
     config["experiment_args"].n_eval_epochs = len(RANDOM_ROTATIONS_5)
 
     return config
 
 
-def make_randrot_noise_variant(template: dict, color: bool = True) -> dict:
-    """Creates a variant of an experiment with both random rotations and sensor noise.
+def make_randrot_noise_variant(
+    template: Mapping,
+    color: bool = True,
+    run_name: Optional[str] = None,
+) -> Mapping:
+    """Create a copy of an experiment config w/ sensor noise and  5 "random" rotations.
 
     Args:
-        template: Dictionary containing experiment configuration.
-        noise_params: Dictionary of noise parameters to add to sensor modules.
-            Defaults to DEFAULT_NOISE_PARAMS.
-        color: Whether to add noise to color features. Defaults to True.
+        template (Mapping): Experiment config to copy.
+        color (bool): Whether to add noise to color features. Defaults to True.
+        run_name (str, optional): Name of the new experiment. By default, this
+          function will add "_randrot_noise" to the template config's run name (if
+          possible), but the run name can be specified directly via this parameter.
 
     Returns:
-        dict: Copy of `template` with sensor noise and a random rotation object
-            initializer. The logging config's `run_name` has the original run name
-            plus the suffix "_randrot_noise".
+        Mapping: Copy of `template` that uses the 5 "random" rotations and has
+        added sensor noise.
     """
-    run_name = template["logging_config"].run_name
+
     config = make_randrot_variant(template)
-    config = make_noise_variant(config, color=color)
-    config["logging_config"].run_name = f"{run_name}_randrot_noise"
-
-    return config
-
-
-def make_randrot_all_noise_variant(template: dict, color: bool = True) -> dict:
-    """Creates a variant of an experiment with both random rotations and sensor noise.
-
-    Args:
-        template: Dictionary containing experiment configuration.
-        noise_params: Dictionary of noise parameters to add to sensor modules.
-            Defaults to DEFAULT_NOISE_PARAMS.
-        color: Whether to add noise to color features. Defaults to True.
-
-    Returns:
-        dict: Copy of `template` with sensor noise and a random rotation object
-            initializer. The logging config's `run_name` has the original run name
-            plus the suffix "_randrot_all_noise".
-    """
-    run_name = template["logging_config"].run_name
-    config = make_randrot_all_variant(template)
-    config = make_noise_variant(config, color=color)
-    config["logging_config"].run_name = f"{run_name}_randrot_all_noise"
-
+    config = make_noise_variant(config, color=color, run_name=run_name)
     return config
 
 
@@ -486,43 +481,42 @@ Logging
 
 
 class SelectiveEvidenceHandler(DetailedJSONHandler):
-    """Detailed Logger that only saves evidence LM data and limited sensor data.
+    """Detailed JSON Logger that saves limited LM and SM data for evidence logging.
 
-    Saves the following LM data:
-     - current_mlh
-     - evidences
-     - lm_processed_steps
-     - possible_locations
-     - possible_rotations
-     - possible_matches
-     - symmetry_evidence
-     - symmetric_locations
-     - symmetric_rotations
+    This handler stores the following subset of LM data:
+     - `current_mlh`
+     - `evidences`
+     - `lm_processed_steps`
+     - `possible_locations`
+     - `possible_rotations`
+     - `possible_matches`
+     - `symmetry_evidence`
+     - `symmetric_locations`
+     - `symmetric_rotations`
 
-    For sensor modules, only data is saved for steps where an LM has processed data.
-
-    This class extends `DetailedJSONHandler` by breaking up the logic of
-    `report_episode` into two parts:
-     - `init_buffer_data`: Initialize the buffer data dict.
-     - `save`: Save the buffer data to a file.
-
-    This is intended to make it easier for subclasses to modify the data saved
-    by overriding `init_buffer_data` or dropping buffer data after its initialized
-    during `report_episode`.
-
-    This class also can take a `selective_handler_args` which can be used to exclude
-    certain items from the stored data. For example,
+    By default, all sensor module data is saved but only for steps where an LM
+    has processed data which greatly reduces storage requirements. Furthermore,
+    sensor module data can be omitted entirely via the `selective_handler_args`
+    argument. For example, if the supplied argument for `selective_handler_args`
+    is like:
     ```
     selector_handler_args = {"exclude": ["SM_0", "SM_1"]}
     ```
-    will exclude data for `SM_0` and `SM_1` entirely. Supply `selective_handler_args`
-    by setting the `selective_handler_args` attribute in a logging config.
+    then all sensor module data for `SM_0` and `SM_1` will be omitted.
+
+    Though not otherwise used (to my knowledge), Monty does have a mechanism for
+    passing arguments to a handler's `__init__` function. If the parent `LoggingConfig`
+    has an attribute whose name matches a parameter in a handler's `__init__`, then
+    that attribute will be supplied to the handler's `__init__`. To do so, use the
+    `SelectiveEvidenceLoggingConfig` class and set the `selective_handler_args`
+    attribute.
+
     """
 
     def __init__(self, selective_handler_args: Optional[Mapping] = None):
         super().__init__()
         self.handler_args = (
-            dict(selective_handler_args) if selective_handler_args else {}
+            copy.deepcopy(selective_handler_args) if selective_handler_args else {}
         )
 
     def report_episode(
@@ -545,21 +539,23 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         Changed name to report episode since we are currently running with
         reporting and flushing exactly once per episode.
         """
-        # Initialize buffer data, using only certain LM data and only sensor data
-        # for steps where an LM has processed data.
+        # Initialize buffer data with limited LM and SM data.
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
 
-        # Save data.
+        # Subclasses could modify behavior by adding a few lines here.
+
+        # Finally, write the data.
         self.save(episode_total, buffer_data, output_dir)
 
     def save(self, episode_total: int, buffer_data: Mapping, output_dir: str) -> None:
-        """Save data to a file.
+        """Save data to a JSON file.
 
         Args:
-            data (Mapping): Data to save.
-            output_dir (str): Directory to save the data.
+            episode_total (int): Cumulative episode number (not within epoch).
+            buffer_data (Mapping): Data to save.
+            output_dir (str): Directory to save the data to.
         """
         save_stats_path = os.path.join(output_dir, "detailed_run_stats.json")
         maybe_rename_existing_file(save_stats_path, ".json", self.report_count)
@@ -578,6 +574,9 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         **kwargs,
     ) -> Tuple[int, Mapping]:
         """Initialize the output data dict.
+
+        Populates the `buffer_data` dict with limited LM and SM data, but also
+        removes any keys specified in `self.handler_args["exclude"]`.
 
         Args:
             data (Mapping): Data from the episode.
@@ -635,17 +634,17 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         for key in exclude:
             buffer_data.pop(key, None)
 
-        # Finalize output data.
+        # Return cumulative episode number and buffer data.
         return episode_total, buffer_data
 
     def find_lm_processed_steps(self, detailed: Mapping) -> np.ndarray:
         """Find steps where any LM has processed data.
 
         Args:
-            detailed (Mapping): Data from a single episode.
+            detailed (Mapping): Detailed stats.
 
         Returns:
-            np.ndarray: Int array of indices where at least one LM processed data.
+            np.ndarray: Integer array of indices where at least one LM processed data.
         """
         lm_ids = [key for key in detailed if key.startswith("LM")]
         if len(lm_ids) == 1:
@@ -664,6 +663,13 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
 
 @dataclass
 class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
+    """Logging config best used with `SelectiveEvidenceHandler`.
+
+    Other than using a `SelectiveEvidenceHandler` by default, this config also
+    has the `selective_handler_args` attribute which can be supplied to the
+    `SelectiveEvidenceHandler`'s `__init__` method.
+    """
+
     output_dir: str = str(DMC_RESULTS_DIR)
     monty_handlers: List = field(
         default_factory=lambda: [
