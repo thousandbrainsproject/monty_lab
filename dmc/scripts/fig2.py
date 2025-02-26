@@ -22,6 +22,7 @@ at 14 training rotations.
 import json
 import os
 from pathlib import Path
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,9 +30,14 @@ from data_utils import (
     DMC_ANALYSIS_DIR,
     load_object_model,
 )
-from PIL import Image
+from matplotlib.figure import Figure
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from render_view_finder_images import VIEW_FINDER_DIR
+
+plt.rcParams["font.size"] = 8
+plt.rcParams["font.family"] = "Arial"
+plt.rcParams["svg.fonttype"] = "none"
+
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig2"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -133,7 +139,7 @@ def plot_agent_models_potted_meat_can():
     fig.savefig(out_dir / "potted_meat_can_touch_agent.svg", pad_inches=0)
 
 
-def plot_potted_meat_can_views():
+def plot_object_views(object_name: str, **kw) -> None:
     """
     Loads view finder images of the potted meat can at 14 training rotations,
     and saves them as individual PNG and SVG files.
@@ -141,8 +147,8 @@ def plot_potted_meat_can_views():
 
     # Initialize input and output paths.
     data_dir = VIEW_FINDER_DIR / "view_finder_base/view_finder_rgbd"
-    png_dir = OUT_DIR / "potted_meat_can_views/png"
-    svg_dir = OUT_DIR / "potted_meat_can_views/svg"
+    png_dir = OUT_DIR / f"object_views/{object_name}/png"
+    svg_dir = OUT_DIR / f"object_views/{object_name}/svg"
     png_dir.mkdir(parents=True, exist_ok=True)
     svg_dir.mkdir(parents=True, exist_ok=True)
 
@@ -152,13 +158,14 @@ def plot_potted_meat_can_views():
         for line in f:
             episode = json.loads(line)
             episode_num = episode["episode"]
-            object_name = episode["object"]
-            if object_name != "potted_meat_can":
+            name = episode["object"]
+            if name != object_name:
                 continue
             rotation = episode["rotation"]
             episodes.append((episode_num, object_name, rotation))
 
     # Plot each image as its own figure.
+    out = []
     for i, episode in enumerate(episodes):
         episode_number = episode[0]
 
@@ -173,50 +180,23 @@ def plot_potted_meat_can_views():
         rgba[masked[:, 0], masked[:, 1], 3] = 0
 
         # Put the image on the gray background, and plot it.
-        image = put_image_on_gray_background(rgba)
-        fig, ax = plt.subplots(figsize=(1, 1))
+        fn_kw = {key: kw[key] for key in kw if key in ["vmin", "vmax"]}
+        image = put_image_on_gray_gradient(rgba, **fn_kw)
+        # image = rgba
+        # fig, ax = plt.subplots(figsize=(1, 1))
+        fig = Figure(figsize=(1, 1))
+        ax = fig.add_subplot(1, 1, 1)
         ax.imshow(image)
         ax.axis("off")
-        fig.tight_layout()
-
-        fig.savefig(png_dir / f"{i}.png", bbox_inches="tight", dpi=300)
+        fig.tight_layout(pad=0)
+        # fig.savefig(png_dir / f"{i}.png", dpi=300, pad_inches=0)
+        fig.savefig(png_dir / f"{i}.png", dpi=300)
         fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
 
-        plt.show()
 
-
-def blend_rgba_images(img1: np.ndarray, img2: np.ndarray) -> np.ndarray:
-    """
-    Blends two RGBA image arrays using alpha compositing.
-
-    Parameters:
-    - img1: NumPy array (H, W, 4) - First image (background)
-    - img2: NumPy array (H, W, 4) - Second image (foreground)
-
-    Returns:
-    - Blended image as an RGBA NumPy array.
-    """
-    assert img1.shape == img2.shape, "Images must have the same shape"
-    assert img1.shape[2] == 4, "Images must be RGBA (H, W, 4)"
-
-    # Extract RGB and Alpha channels
-    rgb1, alpha1 = img1[..., :3], img1[..., 3:]
-    rgb2, alpha2 = img2[..., :3], img2[..., 3:]
-
-    # Compute blended alpha
-    alpha_out = alpha1 + alpha2 * (1 - alpha1)
-
-    # Compute blended RGB
-    rgb_out = (rgb1 * alpha1 + rgb2 * alpha2 * (1 - alpha1)) / np.maximum(
-        alpha_out, 1e-8
-    )
-
-    # Stack RGB and alpha back together
-    blended = np.dstack((rgb_out, alpha_out)) * 255  # Convert back to 0-255 range
-    return blended.astype(np.uint8)
-
-
-def put_image_on_gray_background(image: np.ndarray) -> np.ndarray:
+def put_image_on_gray_gradient(
+    image: np.ndarray, vmin: float = 0.2, vmax: float = 0.5
+) -> np.ndarray:
     """
     Puts an image on a random (grayscale) gradient background.
 
@@ -237,19 +217,59 @@ def put_image_on_gray_background(image: np.ndarray) -> np.ndarray:
     gradient = (X * np.cos(theta) + Y * np.sin(theta)) / np.sqrt(width**2 + height**2)
 
     # Scale gradient to desired range, and put in an RGBA array.
-    vmin, vmax = 0.2, 0.5
     gradient = vmin + (vmax - vmin) * gradient[..., np.newaxis]
     bg = np.clip(gradient, vmin, vmax)
     bg = np.dstack((bg, bg, bg, np.ones((width, height))))
 
     # - Finally, blend the image with the background.
-    blended = blend_rgba_images(image, bg)
+    blended = blend_rgba_images(bg, image)
 
     return blended
 
 
-def remove_svg_groups(input_svg, output_svg, group_prefix="axis3d"):
-    """Removes <g> elements with an id starting with `group_prefix` while preserving the rest of the SVG."""
+def blend_rgba_images(background: np.ndarray, foreground: np.ndarray) -> np.ndarray:
+    """
+    Blends two RGBA image arrays using alpha compositing.
+
+    Args:
+        img1: NumPy array (H, W, 4) - First image (background)
+        img2: NumPy array (H, W, 4) - Second image (foreground)
+
+    Returns:
+    - Blended image as an RGBA NumPy array.
+    """
+    assert background.shape == foreground.shape, "Images must have the same shape"
+    assert background.shape[2] == 4, "Images must be RGBA (H, W, 4)"
+    image_1, image_2 = foreground, background
+
+    # Ensure 0-1 floats.
+    if image_1.max() > 1:
+        image_1 = image_1 / 255.0
+    if image_2.max() > 1:
+        image_2 = image_2 / 255.0
+
+    # Extract RGB and Alpha channels
+    rgb_1, alpha_1 = image_1[..., :3], image_1[..., 3:]
+    rgb_2, alpha_2 = image_2[..., :3], image_2[..., 3:]
+
+    # Compute blended alpha
+    alpha_out = alpha_1 + alpha_2 * (1 - alpha_1)
+
+    # Compute blended RGB
+    rgb_out = (rgb_1 * alpha_1 + rgb_2 * alpha_2 * (1 - alpha_1)) / np.maximum(
+        alpha_out, 1e-8
+    )
+
+    # Stack RGB and alpha back together
+    return np.dstack((rgb_out, alpha_out))
+
+
+def remove_svg_groups(
+    input_svg: os.PathLike,
+    output_svg: Optional[os.PathLike] = None,
+    group_prefix: str = "axis3d",
+):
+    """Removes <g> elements with an id starting with `group_prefix`."""
     import xml.etree.ElementTree as ET
 
     ET.register_namespace("", "http://www.w3.org/2000/svg")
@@ -271,11 +291,11 @@ def remove_svg_groups(input_svg, output_svg, group_prefix="axis3d"):
         for g in parent.findall("svg:g", namespaces=ns):
             group_id = g.get("id", "")
 
-            # ✅ Ensure <defs> elements are NOT removed
+            # Ensure <defs> elements are NOT removed
             if g.tag.endswith("defs"):
                 continue  # Skip <defs> elements
 
-            # ✅ Remove only groups that start with the given prefix
+            # Remove only groups that start with the given prefix
             if group_id.startswith(group_prefix):
                 to_remove.append((parent, g))
 
@@ -285,6 +305,7 @@ def remove_svg_groups(input_svg, output_svg, group_prefix="axis3d"):
 
     # Write the modified SVG while preserving formatting
     tree.write(output_svg, encoding="utf-8", xml_declaration=True, method="xml")
+
 
 def plot_pretraining_epochs():
     out_dir = OUT_DIR / "pretraining_epochs"
@@ -313,3 +334,7 @@ def plot_pretraining_epochs():
     input_file = out_dir / "pretraining_epochs.svg"
     output_file = out_dir / "pretraining_epochs.svg"
     remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
+
+
+rgba_lst = plot_object_views("potted_meat_can", vmin=0.2, vmax=0.5)
+image = rgba_lst[0]
