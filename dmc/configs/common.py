@@ -591,11 +591,13 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         # Get basic and detailed data.
         if mode == "train":
             episode_total = kwargs["train_episodes_to_total"][episode]
+            basic = data["BASIC"]["train_stats"][episode]
         elif mode == "eval":
             episode_total = kwargs["eval_episodes_to_total"][episode]
+            basic = data["BASIC"]["eval_stats"][episode]
         detailed = data["DETAILED"][episode_total]
 
-        buffer_data = dict()
+        buffer_data = copy.deepcopy(basic)
 
         # Add LM data.
         lm_ids = [key for key in detailed if key.startswith("LM")]
@@ -669,6 +671,7 @@ class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
             ReproduceEpisodeHandler,
         ]
     )
+    wandb_group: str = "dmc"
     wandb_handlers: list = field(default_factory=list)
     monty_log_level: str = "DETAILED"
     selective_handler_args: dict = field(default_factory=dict)
@@ -683,9 +686,9 @@ class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
     """
 
     output_dir: str = str(DMC_RESULTS_DIR)
-    wandb_group: str = "dmc"
     monty_handlers: List = field(
         default_factory=lambda: [
             BasicCSVStatsHandler,
         ]
     )
+    wandb_group: str = "dmc"
