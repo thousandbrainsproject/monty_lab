@@ -664,6 +664,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
 
 @dataclass
 class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
+    output_dir: str = str(DMC_RESULTS_DIR)
     monty_handlers: List = field(
         default_factory=lambda: [
             BasicCSVStatsHandler,
