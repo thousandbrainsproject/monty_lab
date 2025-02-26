@@ -340,23 +340,6 @@ fig3_symmetry_run.update(
     )
 )
 
-fig3_symmetry_run_5 = deepcopy(fig3_symmetry_run)
-fig3_symmetry_run_5["logging_config"].run_name = "fig3_symmetry_run_5"
-fig3_symmetry_run_5["monty_config"].learning_module_configs["learning_module_0"][
-    "learning_module_args"
-]["required_symmetry_evidence"] = 5
-
-fig3_symmetry_run_10 = deepcopy(fig3_symmetry_run)
-fig3_symmetry_run_10["logging_config"].run_name = "fig3_symmetry_run_10"
-fig3_symmetry_run_10["monty_config"].learning_module_configs["learning_module_0"][
-    "learning_module_args"
-]["required_symmetry_evidence"] = 10
-
-fig3_symmetry_run_20 = deepcopy(fig3_symmetry_run)
-fig3_symmetry_run_20["logging_config"].run_name = "fig3_symmetry_run_20"
-fig3_symmetry_run_20["monty_config"].learning_module_configs["learning_module_0"][
-    "learning_module_args"
-]["required_symmetry_evidence"] = 20
 
 """
 Figure 4
@@ -399,8 +382,5 @@ dataset_args.__post_init__()
 CONFIGS = {
     "fig3_evidence_run": fig3_evidence_run,
     "fig3_symmetry_run": fig3_symmetry_run,
-    "fig3_symmetry_run_5": fig3_symmetry_run_5,
-    "fig3_symmetry_run_10": fig3_symmetry_run_10,
-    "fig3_symmetry_run_20": fig3_symmetry_run_20,
     "fig4_visualize_8lm_patches": fig4_visualize_8lm_patches,
 }
