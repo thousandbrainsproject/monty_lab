@@ -57,7 +57,15 @@ VISUALIZATION_RESULTS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
 class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
     """Logging handler that only saves final evidence data no sensor data.
 
-    A lean logger handler for the symmetry experiment (which are full-length).
+    A lean logger handler for the symmetry experiment (which are full-length runs,
+    and so we need to be very selective about which data to log).
+
+    A few LM items are reduced to only their final values.
+     - `evidences` -> `evidences_ls`
+     - `possible_locations` -> `possible_locations_ls`
+     - `possible_rotations` -> `possible_rotations_ls`
+
+    All sensor module data is removed.
     """
 
     def report_episode(
@@ -68,6 +76,9 @@ class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
         mode: str = "train",
         **kwargs,
     ) -> None:
+        """Store only final evidence data and no sensor data."""
+
+        # Initialize output data.
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
@@ -96,15 +107,18 @@ class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
         for sm_id in sm_ids:
             buffer_data.pop(sm_id)
 
-        # Save data.
+        # Store data.
         self.save(episode_total, buffer_data, output_dir)
 
 
 """
 Figure 3
+-------------------------------------------------------------------------------
 """
 
-
+# `fig3_evidence_run`: Experiment for collecting detailed evidence values and sensor
+# data for one episode only. Used in `scripts/fig3.py` to generate evidence graphs
+# and visualize the path taken by the sensor/agent.
 fig3_evidence_run = deepcopy(dist_agent_1lm)
 fig3_evidence_run.update(
     dict(
@@ -128,9 +142,9 @@ fig3_evidence_run.update(
 )
 fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
 
-# ----
-# Experiment for visualizing symmetric poses
-
+# `fig3_symmetry_run`: Experiment for collecting data on symmetric rotations, the
+# results of which are used in `scripts/fig3.py` to investigate rotation error
+# metrics when Monty has detected symmetry.
 fig3_symmetry_run = deepcopy(dist_agent_1lm_randrot_noise)
 fig3_symmetry_run.update(
     dict(
@@ -149,10 +163,13 @@ fig3_symmetry_run.update(
 
 
 """
-Figure 4
+Figure 3
+-------------------------------------------------------------------------------
 """
 
-
+# `fig4_visualize_8lm_patches`: An experiment that runs one eval step with the 8-LM
+# the 8-LM model so we can collect enough sensor data to visualize the arrangement
+# of the sensors patches on the object. Used in `scripts/fig4.py`.
 fig4_visualize_8lm_patches = deepcopy(dist_agent_8lm_half_lms_match)
 fig4_visualize_8lm_patches.update(
     dict(
