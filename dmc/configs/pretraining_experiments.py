@@ -59,7 +59,7 @@ avoid accidental conflicts:
 
 """
 
-import copy
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -341,7 +341,7 @@ def make_10distinctobj_variant(template: dict) -> dict:
             The logging config's `run_name` is appended with "_10distinctobj".
 
     """
-    config = copy.deepcopy(template)
+    config = deepcopy(template)
     run_name = f"{config['logging_config'].run_name}_10distinctobj"
     config["logging_config"].run_name = run_name
     config["train_dataloader_args"].object_names = DISTINCT_OBJECTS

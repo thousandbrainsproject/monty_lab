@@ -7,9 +7,9 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-import copy
 import json
 import os
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Mapping, Optional, Tuple
@@ -397,7 +397,7 @@ def make_noise_variant(
     Returns:
         Mapping: Copy of `template` with added sensor noise.
     """
-    config = copy.deepcopy(template)
+    config = deepcopy(template)
 
     # Optionally, use the provided run name. Otherwise, append "_noise" to the
     # existing run name (if one exists).
@@ -430,7 +430,7 @@ def make_randrot_variant(
         Mapping: Copy of `template` that uses the 5 "random" rotations.
     """
 
-    config = copy.deepcopy(template)
+    config = deepcopy(template)
 
     # Optionally, use the provided run name. Otherwise, append "_noise" to the
     # existing run name (if one exists).
@@ -516,7 +516,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
     def __init__(self, selective_handler_args: Optional[Mapping] = None):
         super().__init__()
         self.handler_args = (
-            copy.deepcopy(selective_handler_args) if selective_handler_args else {}
+            deepcopy(selective_handler_args) if selective_handler_args else {}
         )
 
     def report_episode(
@@ -596,7 +596,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
             basic = data["BASIC"]["eval_stats"][episode]
         detailed = data["DETAILED"][episode_total]
 
-        buffer_data = copy.deepcopy(basic)
+        buffer_data = deepcopy(basic)
 
         # Add LM data.
         lm_ids = [key for key in detailed if key.startswith("LM")]
