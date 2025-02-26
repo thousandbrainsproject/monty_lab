@@ -51,7 +51,7 @@ from .fig4_rapid_inference_with_voting import (
 )
 
 # Main output directory for visualization experiment results.
-VISUALIZATION_RESULTS_DIR = os.path.join(DMC_ROOT_DIR, "visualizations")
+VISUALIZATION_RESULTS_DIR = DMC_ROOT_DIR / "visualizations"
 
 
 class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
@@ -169,7 +169,7 @@ Figure 3
 
 # `fig4_visualize_8lm_patches`: An experiment that runs one eval step with the 8-LM
 # the 8-LM model so we can collect enough sensor data to visualize the arrangement
-# of the sensors patches on the object. Used in `scripts/fig4.py`.
+# of the sensors patches on the object. Used in `scripts/fig4.py`. Run in serial.
 fig4_visualize_8lm_patches = deepcopy(dist_agent_8lm_half_lms_match)
 fig4_visualize_8lm_patches.update(
     dict(
