@@ -28,8 +28,8 @@ This means performance is evaluated with:
 
 """
 
-import copy
 import time
+from copy import deepcopy
 from pathlib import Path
 
 import torch
@@ -128,7 +128,7 @@ class PretrainingExperimentWithCheckpointing(
         torch.save(model_state_dict, model_path)
 
 
-pretrain_dist_agent_1lm_checkpoints = copy.deepcopy(pretrain_dist_agent_1lm)
+pretrain_dist_agent_1lm_checkpoints = deepcopy(pretrain_dist_agent_1lm)
 pretrain_dist_agent_1lm_checkpoints.update(
     dict(
         experiment_class=PretrainingExperimentWithCheckpointing,

@@ -27,7 +27,7 @@ NOTE: random rotation variants use the random object initializer and 14 rotation
 is defined in `fig4_rapid_inference_with_voting.py`.
 """
 
-import copy
+from copy import deepcopy
 
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
@@ -111,7 +111,7 @@ dist_agent_1lm = dict(
 dist_agent_1lm_noise = make_noise_variant(dist_agent_1lm)
 
 # - Random rotation variant (14 random rotations)
-dist_agent_1lm_randrot_all = copy.deepcopy(dist_agent_1lm)
+dist_agent_1lm_randrot_all = deepcopy(dist_agent_1lm)
 dist_agent_1lm_randrot_all["logging_config"].run_name = "dist_agent_1lm_randrot_all"
 dist_agent_1lm_randrot_all["eval_dataloader_args"].object_init_sampler = (
     RandomRotationObjectInitializer(),

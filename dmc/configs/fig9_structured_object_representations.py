@@ -23,14 +23,14 @@ This module defines the following experiments:
  - Probably best run in serial.
 """
 
-import copy
+from copy import deepcopy
 
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 
 from .common import SelectiveEvidenceLoggingConfig
 from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
-dist_agent_1lm_randrot_noise_10simobj = copy.deepcopy(dist_agent_1lm_randrot_noise)
+dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
     SelectiveEvidenceLoggingConfig(
         run_name="dist_agent_1lm_randrot_noise_10simobj",
