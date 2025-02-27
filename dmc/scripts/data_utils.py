@@ -225,7 +225,7 @@ class DetailedJSONStatsInterface:
 
 
 class ObjectModel:
-    """Mutable wrapper for object model.
+    """Mutable wrapper for object models.
 
     Args:
         points (ArrayLike): The points of the object model as a sequence of points
