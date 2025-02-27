@@ -60,6 +60,7 @@ avoid accidental conflicts:
 """
 
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -109,6 +110,16 @@ NUM_EXPLORATORY_STEPS_SURF = 1000
 
 # - Define 14 training rotations. Views from enclosing cube faces plus its corners.
 TRAIN_ROTATIONS = get_cube_face_and_corner_views_rotations()
+
+"""
+Custom Classes
+--------------------------------------------------------------------------------
+"""
+
+
+@dataclass
+class DMCPretrainLoggingConfig(PretrainLoggingConfig):
+    output_dir: str = str(DMC_PRETRAIN_DIR)
 
 
 """
@@ -359,7 +370,7 @@ pretrain_dist_agent_1lm = dict(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_1lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_1lm"),
     monty_config=PatchAndViewMontyConfig(
         monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
         learning_module_configs=dict(
@@ -388,7 +399,7 @@ pretrain_surf_agent_1lm = dict(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="surf_agent_1lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="surf_agent_1lm"),
     monty_config=SurfaceAndViewMontyConfig(
         monty_args=MontyFeatureGraphArgs(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
@@ -419,7 +430,7 @@ pretrain_touch_agent_1lm = dict(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="touch_agent_1lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="touch_agent_1lm"),
     monty_config=SurfaceAndViewMontyConfig(
         monty_args=MontyFeatureGraphArgs(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
@@ -488,7 +499,7 @@ pretrain_dist_agent_2lm = dict(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_2lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_2lm"),
     monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
@@ -511,7 +522,7 @@ pretrain_dist_agent_4lm = dict(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_4lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_4lm"),
     monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
@@ -535,7 +546,7 @@ pretrain_dist_agent_8lm = dict(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_8lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_8lm"),
     monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
@@ -557,8 +568,9 @@ pretrain_dist_agent_16lm = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
         n_train_epochs=len(TRAIN_ROTATIONS),
+        do_eval=False,
     ),
-    logging_config=PretrainLoggingConfig(run_name="dist_agent_16lm"),
+    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_16lm"),
     monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
@@ -593,17 +605,8 @@ CONFIGS = {
 # Perform sanity checks and
 _output_paths = []
 for exp in CONFIGS.values():
-    # Add dummy eval dataloader. Required but not used.
-    exp["eval_dataloader_class"] = ED.InformedEnvironmentDataLoader
-    exp["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
-    )
-    # Configure output directory..
-    exp["logging_config"].output_dir = str(DMC_PRETRAIN_DIR)
-
     # Make sure eval is disabled.
-    exp["experiment_args"].do_eval = False
+    assert exp["experiment_args"].do_eval is False
 
     # CHECK: output path must be unique.
     _path = Path(exp["logging_config"].output_dir) / exp["logging_config"].run_name
