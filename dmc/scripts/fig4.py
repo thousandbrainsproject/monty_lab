@@ -11,10 +11,6 @@
 Figure 4: Visualize 8-patch view finder
 """
 
-import json
-import os
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage
@@ -23,15 +19,24 @@ from data_utils import (
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
 )
-from plot_utils import axes3d_clean, axes3d_set_aspect_equal
+from plot_utils import axes3d_set_aspect_equal
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig4"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def plot_8lm_patches():
-    """
-    Plot the 8-patch view finder on the object.
+    """Plot the 8-SM + view_finder visualization for figure 4.
+
+    Uses data from the experiment `fig4_visualize_8lm_patches` defined in
+    `configs/visualizations.py`. This function renders the sensor module
+    RGBA data in the scene (in 3D) and overlays the sensor module's patch
+    boundaries.
+
+    Creates:
+     - $DMC_ANALYSIS_DIR/fig4/8lm_patches.png
+     - $DMC_ANALYSIS_DIR/fig4/8lm_patches.svg
+
     """
 
     # Load the detailed stats.
@@ -103,11 +108,13 @@ def plot_8lm_patches():
         )
 
         # Draw the patch boundaries (complicated).
+        n_rows, n_cols = on_object_2d.shape
+        row_mid, col_mid = n_rows // 2, n_cols // 2
         n_pix_on_object = on_object_2d.sum()
+
         if n_pix_on_object == 0:
             contours = []
         elif n_pix_on_object == on_object_2d.size:
-            n_rows, n_cols = on_object_2d.shape
             temp = np.zeros((n_rows, n_cols), dtype=bool)
             temp[0, :] = True
             temp[-1, :] = True
@@ -121,11 +128,10 @@ def plot_8lm_patches():
             contours = [] if contours is None else contours
 
         for ct in contours:
-            n_rows, n_cols = on_object_2d.shape
             row_mid, col_mid = n_rows // 2, n_cols // 2
 
-            # Contour may be float point (fractional indices). Round
-            # row/column indices towards the center of the patch.
+            # Contour may be floating point (fractional indices from scipy). If so,
+            # round rows/columns towards the center of the patch.
             if not np.issubdtype(ct.dtype, np.integer):
                 # Round towards the center.
                 rows, cols = ct[:, 0], ct[:, 1]
@@ -146,7 +152,8 @@ def plot_8lm_patches():
 
             # In order to plot the boundary as a line, we need the points to
             # be in order. We can order them by associating each point with its
-            # angle from the center of the patch.
+            # angle from the center of the patch. This isn't a general solution,
+            # but it works here.
             Y, X = row_mid - ct[:, 0], ct[:, 1] - col_mid  # pixel to X/Y coords.
             theta = np.arctan2(Y, X)
             sort_order = np.argsort(theta)
@@ -156,7 +163,6 @@ def plot_8lm_patches():
             xyz = pos_2d[ct[:, 0], ct[:, 1]]
             ax.plot(xyz[:, 0], xyz[:, 1], xyz[:, 2], c="k", linewidth=3, zorder=20)
 
-    axes3d_clean(ax)
     axes3d_set_aspect_equal(ax)
     ax.axis("off")
     plt.show()
@@ -165,4 +171,14 @@ def plot_8lm_patches():
     fig.savefig(OUT_DIR / "8lm_patches.svg")
 
 
-plot_8lm_patches()
+experiments = [
+    "dist_agent_1lm_randrot_noise",
+    "dist_agent_2lm_half_lms_match_randrot_noise",
+    "dist_agent_4lm_half_lms_match_randrot_noise",
+    "dist_agent_8lm_half_lms_match_randrot_noise",
+    "dist_agent_16lm_half_lms_match_randrot_noise",
+    "dist_agent_2lm_fixed_min_lms_match_randrot_noise",
+    "dist_agent_4lm_fixed_min_lms_match_randrot_noise",
+    "dist_agent_8lm_fixed_min_lms_match_randrot_noise",
+    "dist_agent_16lm_fixed_min_lms_match_randrot_noise",
+]
