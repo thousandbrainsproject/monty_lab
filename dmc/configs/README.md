@@ -118,7 +118,7 @@ There are two sets of experiments, one using hypothesis testing and another usin
 
 **Notes:**
 
-- For the first 5 experiments above, `x_percent_threshold` determines the threshold at which the LM determines it has converged. In addition, we explicitly set `evidence_update_threshold="80%"`.
+- For the 12 experiments above, `x_percent_threshold` determines the threshold at which the LM determines it has converged. In addition, we explicitly set `evidence_update_threshold="80%".
 
 This performance is evaluated with:
 
