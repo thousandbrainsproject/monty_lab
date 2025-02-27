@@ -47,6 +47,7 @@ from .fig5_rapid_inference_with_model_based_policies import (
 def update_x_percent_threshold_in_config(
     template: dict,
     x_percent_threshold: int,
+    evidence_update_threshold: str = "80%",
 ) -> dict:
     """Update the x_percent threshold in the config.
     This function modifies the config in-place.
@@ -54,6 +55,7 @@ def update_x_percent_threshold_in_config(
     Args:
         template (dict): The config to update.
         x_percent_threshold (int): The percentage of the threshold to update.
+        evidence_update_threshold (str): The evidence update threshold to set.
 
     Returns:
         dict: The updated config.
@@ -66,10 +68,10 @@ def update_x_percent_threshold_in_config(
         "x_percent_threshold"
     ] = x_percent_threshold
 
-    # Explicitly set the evidence update to "80%"
+    # Set the evidence update to "80%"
     lm_config_dict["learning_module_0"]["learning_module_args"][
         "evidence_update_threshold"
-    ] = "80%"
+    ] = evidence_update_threshold
 
     # Update the logging run name
     config[
