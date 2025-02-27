@@ -160,7 +160,7 @@ def flop_main(all_configs, experiments=None):
             exp_config["logging_config"]["run_name"] = experiment
         exp_config["logging_config"]["output_dir"] = os.path.join(
             exp_config["logging_config"]["output_dir"],
-            exp_config["logging_config"]["run_name"],
+            f"{exp_config['logging_config']['run_name']}_floppy",
         )
 
         # Add Floppy configs to exp_config
