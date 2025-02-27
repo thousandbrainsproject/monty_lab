@@ -68,6 +68,7 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     else:
         # Given a run name. Look in DMC folder.
         df = pd.read_csv(DMC_RESULTS_DIR / path / "eval_stats.csv", index_col=0)
+        df.attrs["name"] = path.name
 
     # Collect basic info, like number of LMs, objects, number of episodes, etc.
     n_lms = len(np.unique(df["lm_id"]))
