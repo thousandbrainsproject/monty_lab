@@ -1,8 +1,8 @@
 """
 This script reads the raw results from FLOPs measurements and accuracy and rotation errors and combines them together for easy visualization.
 
-FLOPs results are stored in `~/tbp/results/dmc/results/floppy/flops_aws/*.csv`
-Rotation error results are stored in `~/tbp/results/dmc/results/floppy/results/predictions.csv`
+FLOPs results are stored in `~/tbp/results/dmc/results/perf/monty/raw/{experiment}.csv`
+Eval Stats results are stored in `/tbp/results/dmc/results/perf/monty/raw/{experiment}/eval_stats.csv`
 """
 
 import os
@@ -33,9 +33,9 @@ def compute_rotation_error(predictions_df: pd.DataFrame) -> Tuple[float, float]:
     return mean_rotation_error, std_rotation_error
 
 
-def compute_flops(flops_df: pd.DataFrame) -> Tuple[float, float]:
+def compute_flops(flops_df: pd.DataFrame) -> float:
     """
-    Compute mean and std of flops from flops dataframe from perf stat
+    Compute total flops from flops dataframe from perf stat
     """
     flops_per_operation = {
         "fp_arith_inst_retired.128b_packed_double": 2,
@@ -47,61 +47,66 @@ def compute_flops(flops_df: pd.DataFrame) -> Tuple[float, float]:
         "fp_arith_inst_retired.scalar_double": 1,
         "fp_arith_inst_retired.scalar_single": 1,
     }
-    # Compute weighted sum of flops, the count is in first column, the operation in 3rd column, and weights in the dict
-    total_flops = 0
-    for index, row in flops_df.iterrows():
-        count = row[0]
-        operation = row[2]
-        if count > 0:
-            if operation in flops_per_operation:
-                total_flops += count * flops_per_operation[operation]
-            else:
-                print(f"Operation {operation} not found in flops_per_operation")
+
+    total_flops = sum(
+        row[0] * flops_per_operation[row[2]]
+        for _, row in flops_df.iterrows()
+        if row[0] > 0 and row[2] in flops_per_operation
+    )
     return total_flops
 
 
 def main():
-    save_dir = "~/tbp/results/dmc/results/floppy/flops_aws"
+    base_dir = Path("~/tbp/results/dmc/results").expanduser().resolve()
+    save_dir = base_dir / "perf/monty/raw"
+    save_dir.mkdir(parents=True, exist_ok=True)
+
     experiments = [
-        "dist_agent_1lm_randrot_x_percent_5p",
-        "dist_agent_1lm_randrot_x_percent_10p",
-        "dist_agent_1lm_randrot_x_percent_20p",
-        "dist_agent_1lm_randrot_x_percent_30p",
-        "dist_agent_1lm_randrot_nohyp_x_percent_5p",
-        "dist_agent_1lm_randrot_nohyp_x_percent_10p",
-        # "dist_agent_1lm_randrot_nohyp_x_percent_20p",
-        "dist_agent_1lm_randrot_nohyp_x_percent_30p",
+        "dist_agent_1lm_randrot_x_percent_5",
+        "dist_agent_1lm_randrot_x_percent_10",
+        "dist_agent_1lm_randrot_x_percent_20",
+        "dist_agent_1lm_randrot_x_percent_40",
+        "dist_agent_1lm_randrot_x_percent_60",
+        "dist_agent_1lm_randrot_x_percent_80",
+        "dist_agent_1lm_randrot_nohyp_x_percent_5",
+        "dist_agent_1lm_randrot_nohyp_x_percent_10",
+        "dist_agent_1lm_randrot_nohyp_x_percent_20",
+        "dist_agent_1lm_randrot_nohyp_x_percent_40",
+        "dist_agent_1lm_randrot_nohyp_x_percent_60",
+        "dist_agent_1lm_randrot_nohyp_x_percent_80",
     ]
 
-    results = pd.DataFrame()
+    results = []
     for experiment in experiments:
-        # if experiment doesn't exist, skip
-        flops_path = (
-            Path(f"~/tbp/results/dmc/results/floppy/flops_aws/{experiment}.csv")
-            .expanduser()
-            .resolve()
-        )
-        eval_path = (
-            Path(f"~/tbp/results/dmc/results/{experiment}_perf/eval_stats.csv")
-            .expanduser()
-            .resolve()
-        )
-        if not flops_path.exists():
-            print(f"{flops_path} does not exist")
-            continue
-        flops_df = pd.read_csv(flops_path, comment="#", header=None)
-        eval_df = pd.read_csv(eval_path)
-        result = {}
-        result["experiment"] = experiment
-        result["accuracy_mean"], result["accuracy_std"] = compute_accuracy(eval_df)
-        result["rotation_error_mean"], result["rotation_error_std"] = (
-            compute_rotation_error(eval_df)
-        )
-        result["total_train_flops_per_epoch"] = compute_flops(flops_df)
-        # Concatenate results
-        results = pd.concat([results, pd.DataFrame([result])])
+        flops_path = base_dir / "perf/monty/raw" / f"{experiment}p.csv"
+        eval_path = base_dir / "perf/monty/raw" / experiment / "eval_stats.csv"
 
-    results.to_csv(f"{save_dir}/floppy_flops_accuracy_rotation_error.csv", index=False)
+        if not all(p.exists() for p in [flops_path, eval_path]):
+            print(f"Skipping {experiment}: required files not found")
+            continue
+
+        try:
+            flops_df = pd.read_csv(flops_path, comment="#", header=None)
+            eval_df = pd.read_csv(eval_path)
+
+            results.append(
+                {
+                    "experiment": experiment,
+                    "accuracy_mean": compute_accuracy(eval_df)[0],
+                    "accuracy_std": compute_accuracy(eval_df)[1],
+                    "rotation_error_mean": compute_rotation_error(eval_df)[0],
+                    "rotation_error_std": compute_rotation_error(eval_df)[1],
+                    "total_train_flops_per_epoch": compute_flops(flops_df),
+                }
+            )
+        except Exception as e:
+            print(f"Error processing {experiment}: {str(e)}")
+            continue
+
+    results_df = pd.DataFrame(results)
+    output_path = save_dir / "aws_perf_flops_accuracy_rotation_error.csv"
+    results_df.to_csv(output_path, index=False)
+    print(f"Results saved to {output_path}")
 
 
 if __name__ == "__main__":
