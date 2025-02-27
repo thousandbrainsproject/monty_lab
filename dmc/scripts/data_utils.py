@@ -37,17 +37,21 @@ DMC_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
-    """Load `eval_stats.csv`
+    """Load `eval_stats.csv` files.
 
-    Convenience function for loading `eval_stats.csv` from a DMC experiment name.
+    This function has 3 main purposes:
+     - Load `eval_stats.csv` given just a DMC experiment name since this function
+       is aware of DMC result paths.
+     - Coerce loaded values into expected types. For example, some columns contain
+       arrays, but they're loaded as strings (e.g., "[1.34, 232.33, 123.44]").
+     - Add some useful columns to the dataframe (`"episode"`, `"epoch"`).
 
     Args:
         exp (os.PathLike): Name of a DMC experiment, a directory containing
-        `eval_stats.csv`, or a complete path to `eval_stats.csv`.
+          `eval_stats.csv`, or a complete path to an `.csv` file.
 
     Returns:
-        pd.DataFrame: The loaded dataframe. Includes generated columns `episode` and
-        `epoch`.
+        pd.DataFrame
     """
 
     path = Path(exp).expanduser()
