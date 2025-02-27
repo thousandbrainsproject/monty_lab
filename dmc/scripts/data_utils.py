@@ -8,19 +8,17 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 """
-Data I/O, filesystem, and other utilities.
+Data I/O, paths, and other utilities.
 """
 
 import json
 import os
 from copy import deepcopy
-from numbers import Number
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Iterable, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
-import scipy
 import torch
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation as R
@@ -223,6 +221,14 @@ class DetailedJSONStatsInterface:
 
 
 class ObjectModel:
+    """Mutable wrapper for object model.
+
+    Args:
+        points (ArrayLike): The points of the object model as a sequence of points
+          (i.e., has shape (n_points, 3)).
+        features (Optional[Mapping]): The features of the object model. For
+          convenience, the features become attributes of the ObjectModel instance.
+    """
     def __init__(
         self,
         points: ArrayLike,
@@ -247,6 +253,7 @@ class ObjectModel:
 
     @property
     def pos(self) -> np.ndarray:
+        """Alias for `points` for compatibility with `GraphObjectModel` objects."""
         return self.points
 
     @pos.setter
@@ -267,22 +274,19 @@ class ObjectModel:
         self,
         rotation: Union[R, ArrayLike],
         degrees: bool = False,
-        world: bool = False,
     ) -> "ObjectModel":
         """Rotate the object model.
 
         Args:
-            rotation (Union[R, ArrayLike]): Rotation to apply. May be
+            rotation: Rotation to apply. May be one of
               - A `scipy.spatial.transform.Rotation` object.
               - A 3x3 rotation matrix.
               - A 3-element array of x, y, z euler angles.
-            degrees (bool, optional): Whether Euler angles are in degrees. Ignored
+            degrees (bool): Whether Euler angles are in degrees. Ignored
                 if `rotation` is not a 1D array.
-            world (bool, optional): If True, rotate the object in world coordinates.
-                If False, rotate the object about its own center.
 
         Returns:
-            ObjectModel: _description_
+            ObjectModel: The rotated object model.
         """
         if isinstance(rotation, R):
             rot = rotation
@@ -295,58 +299,11 @@ class ObjectModel:
             else:
                 raise ValueError(f"Invalid rotation argument: {rotation}")
 
-        if world:
-            center = self.get_center()
-            points = rot.apply(self.points - center)
-            points = points + center
-        else:
-            points = rot.apply(self.points)
-
+        points = rot.apply(self.points)
         out = self.copy()
         out.points = points
 
         return out
-
-    # def rotated(self, pitch: Number, roll: Number, yaw: Number) -> "ObjectModel":
-    #     # Convert angles to radians
-    #     pitch = np.radians(pitch)
-    #     roll = np.radians(roll)
-    #     yaw = np.radians(yaw)
-
-    #     # Create rotation matrices
-    #     Rx = np.array(
-    #         [
-    #             [1, 0, 0],
-    #             [0, np.cos(pitch), -np.sin(pitch)],
-    #             [0, np.sin(pitch), np.cos(pitch)],
-    #         ]
-    #     )
-    #     Ry = np.array(
-    #         [
-    #             [np.cos(yaw), 0, np.sin(yaw)],
-    #             [0, 1, 0],
-    #             [-np.sin(yaw), 0, np.cos(yaw)],
-    #         ]
-    #     )
-    #     Rz = np.array(
-    #         [
-    #             [np.cos(roll), -np.sin(roll), 0],
-    #             [np.sin(roll), np.cos(roll), 0],
-    #             [0, 0, 1],
-    #         ]
-    #     )
-    #     # Combine rotations
-    #     R = Rz @ Ry @ Rx
-
-    #     # Undo translation, rotate, and reapply translation.
-    #     centered = self.points - self.translation
-    #     rotated = centered @ R.T
-    #     points = rotated + self.translation
-
-    #     # Assign points to the new object, and return it.
-    #     out = deepcopy(self)
-    #     out.points = points
-    #     return out
 
     def __add__(self, translation: ArrayLike) -> "ObjectModel":
         translation = np.asarray(translation)
@@ -359,23 +316,50 @@ class ObjectModel:
         return self + (-translation)
 
 
+def get_center(points: ArrayLike, method: str = "bbox") -> np.ndarray:
+    """Get the center of a set of points.
+
+    Args:
+        points (ArrayLike): The points to get the center of.
+        method (str): The method to use to get the center. One of
+            - "mean": The mean of the points.
+            - "bbox": The center of the bounding box of the points.
+    """
+    points = np.asarray(points)
+    if method == "mean":
+        return np.mean(points, axis=0)
+    elif method == "bbox":
+        return (np.min(points, axis=0) + np.max(points, axis=0)) / 2
+    else:
+        raise ValueError(f"Invalid method: {method}")
+
+
 def load_object_model(
     model_name: str,
     object_name: str,
     features: Optional[Iterable[str]] = ("rgba",),
     checkpoint: Optional[int] = None,
     lm_id: int = 0,
-) -> "ObjectModel":
-    """Load an object model from a checkpoint.
+) -> ObjectModel:
+    """Load an object model from a pretraining experiment.
 
     Args:
-        model_name (str): The name of the model to load.
-        object_name (str): The name of the object to load.
-        checkpoint (Optional[int]): The checkpoint to load. Defaults to None.
+        model_name (str): The name of the model to load (e.g., `dist_agent_1lm`).
+        object_name (str): The name of the object to load (e.g., `mug`).
+        checkpoint (Optional[int]): The checkpoint to load. Defaults to None. Most
+          pretraining experiments aren't checkpointed, so this is usually None.
         lm_id (int): The ID of the LM to load. Defaults to 0.
 
     Returns:
         ObjectModel: The loaded object model.
+
+    Example:
+        >>> model = load_object_model("dist_agent_1lm", "mug")
+        >>> model -= [0, 1.5, 0]
+        >>> rotation = R.from_euler("xyz", [0, 90, 0], degrees=True)
+        >>> rotated = model.rotated(rotation)
+        >>> print(model.rgba.shape)
+        (1354, 4)
     """
     if checkpoint is None:
         model_path = DMC_PRETRAIN_DIR / model_name / "pretrained/model.pt"
@@ -401,23 +385,4 @@ def load_object_model(
                 feature_data = feature_data / 255.0
             feature_dict[feature] = feature_data
 
-    out = ObjectModel(points, features=feature_dict)
-    return out
-
-
-def get_center(points: ArrayLike, method: str = "bbox") -> np.ndarray:
-    """Get the center of a set of points.
-
-    Args:
-        points (ArrayLike): The points to get the center of.
-        method (str): The method to use to get the center. One of
-            - "centroid": The mean of the points.
-            - "bbox": The center of the bounding box of the points.
-    """
-    points = np.asarray(points)
-    if method == "mean":
-        return np.mean(points, axis=0)
-    elif method == "bbox":
-        return (np.min(points, axis=0) + np.max(points, axis=0)) / 2
-    else:
-        raise ValueError(f"Invalid method: {method}")
+    return ObjectModel(points, features=feature_dict)
