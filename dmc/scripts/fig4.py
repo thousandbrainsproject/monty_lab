@@ -10,9 +10,16 @@
 """
 Figure 4: Visualize 8-patch view finder
 """
+<<<<<<< Updated upstream
 import fnmatch
 import functools
 from typing import Mapping, Optional
+=======
+
+import fnmatch
+import functools
+from typing import Iterable, List, Mapping, Optional
+>>>>>>> Stashed changes
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -209,80 +216,145 @@ def plot_8lm_patches():
 #     experiments[name] = load_eval_stats(name)
 
 
+<<<<<<< Updated upstream
 specs = [
     {
         "name": "dist_agent_1lm_randrot_noise",
         "group": "half_lms_match",
         "min_n_lms_match": 1,
+=======
+all_experiments = [
+    {
+        "name": "dist_agent_1lm_randrot_noise",
+        "group": "half_lms_match",
+        "min_lms_match": 1,
+>>>>>>> Stashed changes
         "n_lms": 1,
     },
     {
         "name": "dist_agent_2lm_half_lms_match_randrot_noise",
         "group": "half_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 1,
+=======
+        "min_lms_match": 1,
+>>>>>>> Stashed changes
         "n_lms": 2,
     },
     {
         "name": "dist_agent_4lm_half_lms_match_randrot_noise",
         "group": "half_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 2,
+=======
+        "min_lms_match": 2,
+>>>>>>> Stashed changes
         "n_lms": 4,
     },
     {
         "name": "dist_agent_8lm_half_lms_match_randrot_noise",
         "group": "half_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 4,
+=======
+        "min_lms_match": 4,
+>>>>>>> Stashed changes
         "n_lms": 8,
     },
     {
         "name": "dist_agent_16lm_half_lms_match_randrot_noise",
         "group": "half_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 8,
+=======
+        "min_lms_match": 8,
+>>>>>>> Stashed changes
         "n_lms": 16,
     },
     {
         "name": "dist_agent_1lm_randrot_noise",
         "group": "fixed_min_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 1,
+=======
+        "min_lms_match": 1,
+>>>>>>> Stashed changes
         "n_lms": 1,
     },
     {
         "name": "dist_agent_2lm_fixed_min_lms_match_randrot_noise",
         "group": "fixed_min_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 2,
+=======
+        "min_lms_match": 2,
+>>>>>>> Stashed changes
         "n_lms": 2,
     },
     {
         "name": "dist_agent_4lm_fixed_min_lms_match_randrot_noise",
         "group": "fixed_min_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 2,
+=======
+        "min_lms_match": 2,
+>>>>>>> Stashed changes
         "n_lms": 4,
     },
     {
         "name": "dist_agent_8lm_fixed_min_lms_match_randrot_noise",
         "group": "fixed_min_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 2,
+=======
+        "min_lms_match": 4,
+>>>>>>> Stashed changes
         "n_lms": 8,
     },
     {
         "name": "dist_agent_16lm_fixed_min_lms_match_randrot_noise",
         "group": "fixed_min_lms_match",
+<<<<<<< Updated upstream
         "min_n_lms_match": 2,
         "n_lms": 16,
     },
 ]
+=======
+        "min_lms_match": 8,
+        "n_lms": 16,
+    },
+]
+
+
+def query(
+    experiments: Optional[Iterable[Mapping]] = None, get=None, apply=None, **filters
+):
+    out = experiments if experiments is not None else all_experiments
+    for key, val in filters.items():
+        out = [obj for obj in out if obj.get(key, None) == val]
+    if get:
+        out = [obj.get(get) for obj in out]
+    if apply:
+        out = [apply(obj) for obj in out]
+    return out
+
+
+>>>>>>> Stashed changes
 for entry in specs:
     entry["eval_stats"] = load_eval_stats(entry["name"])
 
 db = specs
 
 
+<<<<<<< Updated upstream
 import functools
 import operator
 from functools import partial
 from typing import KeysView, ValuesView
 
 
+=======
+>>>>>>> Stashed changes
 def multi(fn):
     """
     Decorator to run a function multiple times and return the results.
@@ -300,6 +372,7 @@ def multi(fn):
     return wrapper
 
 
+<<<<<<< Updated upstream
 def query(*args, get=None, apply=None, **kw):
     def filt(entries, key, val):
         if callable(val):
@@ -316,6 +389,8 @@ def query(*args, get=None, apply=None, **kw):
     return out
 
 
+=======
+>>>>>>> Stashed changes
 @multi
 def get_attr(obj: Mapping, key: str, default=None):
     return getattr(obj, key, default)
@@ -339,12 +414,64 @@ def get_num_steps(df, performance: Optional[str] = None):
     # return sub_df.monty_matching_steps
 
 
+<<<<<<< Updated upstream
 @multi
 def get_percent_correct(df, performance: str = "correct*"):
     n_matches = len(fnmatch.filter(df.primary_performance, performance))
     return 100 * n_matches / len(df)
 
 
+=======
+def get_num_steps(df, performance: Optional[str] = None):
+    # if performance is None:
+    #     sub_df = df
+    # else:
+    #     tf = [fnmatch.fnmatch(val, performance) for val in df.primary_performance]
+    #     sub_df = df[np.array(tf)]
+    n_lms = len(df.index.unique())
+    obj = df.monty_matching_steps[::n_lms]
+    return obj
+
+
+@multi
+def get_percent_correct(df: pd.DataFrame, primary_performance: str = "correct*"):
+    """Get the percentage of correct performances.
+
+    Args:
+        df (pd.DataFrame): The dataframe containing the `primary_performance` column.
+        primary_performance (str): Which primary_performance values to count as correct.
+            Should be one of:
+         - "correct": primary performance must be "correct"
+         - "correct_mlh": primary performance must be "correct_mlh"
+         - "correct*": primary performance may be "correct" or "correct_mlh".
+
+    Returns:
+        float: The percentage of correct performances (between 0 and 100).
+    """
+    n_rows = len(df)
+    value_counts = df.primary_performance.value_counts()
+    if primary_performance == "correct":
+        return 100 * value_counts["correct"] / n_rows
+    elif primary_performance == "correct_mlh":
+        return 100 * value_counts["correct_mlh"] / n_rows
+    elif primary_performance == "correct*":
+        return 100 * (value_counts["correct"] + value_counts["correct_mlh"]) / n_rows
+    else:
+        raise ValueError(f"Invalid primary_performance: {primary_performance}")
+
+
+performance_options = [
+    "patch_off_object",
+    "no_label",
+    "pose_time_out",
+    "time_out",
+    "confused_mlh",
+    "correct_mlh",
+    "no_match",
+    "confused",
+    "correct",
+]
+>>>>>>> Stashed changes
 eval_stats = load_eval_stats("dist_agent_8lm_half_lms_match_randrot_noise")
 
 episode = 0
@@ -352,6 +479,7 @@ episode = 0
 # ts_step = df["individual_ts_reached_at_step"]
 # ts_performance = df["individual_ts_performance"]
 df = eval_stats
+<<<<<<< Updated upstream
 g = df.groupby("episode")
 n_episodes = len(g)
 
@@ -359,10 +487,28 @@ primary_perf = g.primary_performance.unique()
 ts_perf = g.individual_ts_performance.unique()
 # timed_out =
 arr = np.array(["time_out"], dtype=object)
+=======
+groups = eval_stats.groupby("episode")
+n_episodes = len(groups)
+
+primary_perf = groups.primary_performance.unique()
+ts_perf = groups.individual_ts_performance.unique()
+>>>>>>> Stashed changes
 
 
 result = np.zeros(n_episodes, dtype=object)
 time_out = np.zeros(n_episodes, dtype=bool)
+<<<<<<< Updated upstream
+=======
+# Columns for the result dataframe.
+columns = {
+    "primary_performance": np.zeros(n_episodes, dtype=object),
+    "monty_matching_steps": np.zeros(n_episodes, dtype=int),
+    "time_out": np.zeros(n_episodes, dtype=bool),
+}
+use_first = ["monty_matching_steps"]
+
+>>>>>>> Stashed changes
 for i in range(n_episodes):
     primary_perf_set = set(primary_perf[i])
     ts_perf_set = set(ts_perf[i])
@@ -387,7 +533,11 @@ for i in range(n_episodes):
         result[i] = list(primary_perf_set)[0]
     elif len(primary_perf_set) == 2:
         assert time_out_i
+<<<<<<< Updated upstream
         result[i] = "mixed"  # majority rule?
+=======
+        result[i] = "mixed"  # majority rule? use min_lms_match?
+>>>>>>> Stashed changes
     else:
         raise ValueError(
             f"Unexpected number of primary performances: {len(primary_perf_set)}"
@@ -456,6 +606,7 @@ result_df = pd.DataFrame({"result": result, "time_out": time_out})
 # - Prepare data
 
 # groups = [query(group="half_lms_match"), query(group="fixed_min_lms_match")]
+<<<<<<< Updated upstream
 group_a = [d for d in db if d["group"] == "half_lms_match"]
 group_b = [d for d in db if d["group"] == "fixed_min_lms_match"]
 groups = [group_a, group_b]
@@ -522,3 +673,73 @@ for ax in axes:
 fig.tight_layout()
 plt.show()
 
+=======
+"""_summary_
+"""
+pass
+# group_a = [d for d in db if d["group"] == "half_lms_match"]
+# group_b = [d for d in db if d["group"] == "fixed_min_lms_match"]
+# groups = [group_a, group_b]
+# names = ["half_match", "fixed_match"]
+# colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+
+# data = []
+# for i, g in enumerate(groups):
+#     d = {}
+#     d["name"] = names[i]
+#     d["eval_stats"] = eval_stats = list(map(lambda obj: obj["eval_stats"], g))
+#     d["percent_correct"] = [get_percent_correct(df, "correct*") for df in eval_stats]
+#     d["num_steps"] = [get_num_steps(df, "correct") for df in eval_stats]
+#     d["conditions"] = list(map(lambda obj: obj["n_lms"], g))
+#     d["x_positions"] = np.arange(len(g) * 2)[::2] + i
+#     d["color"] = colors[i]
+#     data.append(d)
+
+
+# fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+
+# # Plot accuracy bars
+# ax = axes[0]
+# for i, d in enumerate(data):
+#     ax.bar(
+#         d["x_positions"],
+#         d["percent_correct"],
+#         color=d["color"],
+#         width=0.8,
+#     )
+# ax.set_ylim(0, 100)
+# ax.set_ylabel("% Correct")
+# # Put a legend on with labels "half_match" and "fixed_match" and colors
+# # 'blue' and 'purple'
+# ax.legend(names, loc="upper right")
+
+# # Plot num steps
+# ax = axes[1]
+# for i, d in enumerate(data):
+#     vp = ax.violinplot(
+#         d["num_steps"],
+#         positions=d["x_positions"],
+#         showextrema=False,
+#         showmedians=True,
+#     )
+#     for body in vp["bodies"]:
+#         body.set_facecolor(d["color"])
+#         body.set_alpha(1.0)
+#     vp["cmedians"].set_color("black")
+
+# ax.set_yticks([0, 100, 200, 300, 400, 500])
+# ax.set_ylim(0, 500)
+# ax.set_ylabel("Steps")
+
+# for ax in axes:
+#     xticks = np.mean(
+#         np.vstack([data[0]["x_positions"], data[1]["x_positions"]]), axis=0
+#     )
+#     ax.set_xticks(xticks)
+#     ax.set_xticklabels(data[0]["conditions"], ha="center")
+#     ax.spines["top"].set_visible(False)
+#     ax.spines["top"].set_visible(False)
+
+# fig.tight_layout()
+# plt.show()
+>>>>>>> Stashed changes
