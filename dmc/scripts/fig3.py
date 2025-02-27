@@ -536,15 +536,16 @@ def get_emd_distance(
     pc1: Union[np.ndarray, ObjectModel],
     pc2: Union[np.ndarray, ObjectModel],
 ) -> float:
-    """
-    Computes the Earth Mover's Distance (EMD) between two point clouds.
+    """Computes the Earth Mover's Distance (EMD) between two point clouds.
 
-    Parameters:
-    pc1, pc2 : np.ndarray of shape (N, 3) - Two point clouds with the same number of points.
+    Args:
+        pc1: A numpy array of shape (N, 3) representing the first point cloud.
+        pc2: A numpy array of shape (N, 3) representing the second point cloud.
 
     Returns:
-    float : EMD distance.
+        float: The EMD distance between the two point clouds.
     """
+
     pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
     pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
     # Compute pairwise distances
