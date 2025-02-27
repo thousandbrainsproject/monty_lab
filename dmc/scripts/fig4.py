@@ -18,6 +18,7 @@ from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
+    load_eval_stats,
 )
 from plot_utils import axes3d_set_aspect_equal
 
@@ -171,14 +172,27 @@ def plot_8lm_patches():
     fig.savefig(OUT_DIR / "8lm_patches.svg")
 
 
-experiments = [
-    "dist_agent_1lm_randrot_noise",
-    "dist_agent_2lm_half_lms_match_randrot_noise",
-    "dist_agent_4lm_half_lms_match_randrot_noise",
-    "dist_agent_8lm_half_lms_match_randrot_noise",
-    "dist_agent_16lm_half_lms_match_randrot_noise",
-    "dist_agent_2lm_fixed_min_lms_match_randrot_noise",
-    "dist_agent_4lm_fixed_min_lms_match_randrot_noise",
-    "dist_agent_8lm_fixed_min_lms_match_randrot_noise",
-    "dist_agent_16lm_fixed_min_lms_match_randrot_noise",
-]
+half_lms_match = {
+    "dist_agent_1lm_randrot_noise": {"n_lms_match": 1},
+    "dist_agent_2lm_half_lms_match_randrot_noise": {"n_lms_match": 1},
+    "dist_agent_4lm_half_lms_match_randrot_noise": {"n_lms_match": 2},
+    "dist_agent_8lm_half_lms_match_randrot_noise": {"n_lms_match": 4},
+    "dist_agent_16lm_half_lms_match_randrot_noise": {"n_lms_match": 8},
+}
+
+fixed_min_lms_match = {
+    "dist_agent_1lm_randrot_noise": {"n_lms_match": 1},
+    "dist_agent_2lm_fixed_min_lms_match_randrot_noise": {"n_lms_match": 2},
+    "dist_agent_4lm_fixed_min_lms_match_randrot_noise": {"n_lms_match": 2},
+    "dist_agent_8lm_fixed_min_lms_match_randrot_noise": {"n_lms_match": 2},
+    "dist_agent_16lm_fixed_min_lms_match_randrot_noise": {"n_lms_match": 2},
+}
+
+groups = {
+    "half_lms_match": half_lms_match,
+    "fixed_min_lms_match": fixed_min_lms_match,
+}
+
+for g in groups.values():
+    for experiment, dct in g.items():
+        dct["dataframe"] = load_eval_stats(experiment)
