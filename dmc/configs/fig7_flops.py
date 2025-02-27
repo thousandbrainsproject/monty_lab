@@ -9,56 +9,58 @@
 # https://opensource.org/licenses/MIT.
 
 """Configs for Figure 7: Flops Comparison.
+
 This module defines the following experiments:
  - `dist_agent_1lm_randrot_nohyp_x_percent_5p`
  - `dist_agent_1lm_randrot_nohyp_x_percent_10p`
  - `dist_agent_1lm_randrot_nohyp_x_percent_20p`
- - `dist_agent_1lm_randrot_nohyp_x_percent_30p`
- - `dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_40p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_60p`
+ - `dist_agent_1lm_randrot_nohyp_x_percent_80p`
+ - `dist_agent_1lm_randrot_x_percent_5p`
+ - `dist_agent_1lm_randrot_x_percent_10p`
+ - `dist_agent_1lm_randrot_x_percent_20p`
+ - `dist_agent_1lm_randrot_x_percent_40p`
+ - `dist_agent_1lm_randrot_x_percent_60p`
+ - `dist_agent_1lm_randrot_x_percent_80p`
 
 Experiments use:
  - 77 objects
  - 5 random rotations
- - No sensor noise*
- - No hypothesis testing*
+ - No sensor noise
  - No voting
 
- The main output measure is accuracy and FLOPs as a function of x-percent threshold.
+The main output measure is accuracy and FLOPs as a function of x-percent threshold and whether
+hypothesis testing is used.
 """
-# TODO: Set use_multithreading to False for thread-safety
-# TODO: Turn off Monty logging in Monty Configs
-# TODO: Turn off Python logging in Monty Configs
-# TODO: Add tests *with hypothesis testing*
-# TODO: Add pretraining experiment with 77 objects and 1 rotation
-
-# TODO test
 
 import copy
 
+from .fig4_rapid_inference_with_voting import (
+    dist_agent_1lm_randrot_noise,  # With hypothesis testing
+)
 from .fig5_rapid_inference_with_model_based_policies import (
     dist_agent_1lm_randrot_noise_nohyp,
-)
+)  # No hypothesis testing
 
 
 def update_x_percent_threshold_in_config(
-    config, x_percent_threshold, evidence_update_threshold="x_percent_threshold"
-):
+    template: dict,
+    x_percent_threshold: int,
+    evidence_update_threshold: str = "80%",
+) -> dict:
     """Update the x_percent threshold in the config.
     This function modifies the config in-place.
 
     Args:
-        config (dict): The config to update.
-        x_percent_threshold (float): The percentage of the threshold to update.
-        evidence_update_threshold (str): How to decide which hypotheses should be updated.
-            In [int, float, 'mean', 'median', 'all', 'x_percent_threshold'].
+        template (dict): The config to update.
+        x_percent_threshold (int): The percentage of the threshold to update.
+        evidence_update_threshold (str): The evidence update threshold to set.
 
     Returns:
         dict: The updated config.
     """
-    # Update the run name
-    config[
-        "logging_config"
-    ].run_name = f"dist_agent_1lm_randrot_nohyp_x_percent_{x_percent_threshold}p"
+    config = copy.deepcopy(template)
 
     # Update the x_percent_threshold
     lm_config_dict = config["monty_config"].learning_module_configs
@@ -66,13 +68,40 @@ def update_x_percent_threshold_in_config(
         "x_percent_threshold"
     ] = x_percent_threshold
 
-    # Update the string value for evidence_update_threshold
+    # Set the evidence update to "80%"
     lm_config_dict["learning_module_0"]["learning_module_args"][
         "evidence_update_threshold"
     ] = evidence_update_threshold
+
+    # Update the logging run name
+    config[
+        "logging_config"
+    ].run_name = f"{config['logging_config'].run_name}_x_percent_{x_percent_threshold}"
+
     return config
 
 
+################
+# Base Configs #
+################
+"""Creates two base configurations:
+
+1. dist_agent_1lm_randrot_nohyp:
+   - Based on dist_agent_1lm_randrot_noise_nohyp
+   - Disables sensor noise
+   - No hypothesis testing
+   
+2. dist_agent_1lm_randrot:
+   - Based on dist_agent_1lm_randrot_noise
+   - Disables sensor noise
+   - Includes hypothesis testing
+
+Both configurations serve as templates for the various x-percent threshold experiments
+that follow. The main difference between them is the presence/absence of hypothesis
+testing functionality.
+"""
+
+# Define dist_agent_1lm_randrot_nohyp
 dist_agent_1lm_randrot_nohyp = copy.deepcopy(dist_agent_1lm_randrot_noise_nohyp)
 for sm_dict in dist_agent_1lm_randrot_nohyp[
     "monty_config"
@@ -81,53 +110,73 @@ for sm_dict in dist_agent_1lm_randrot_nohyp[
     if sm_args["sensor_module_id"] == "view_finder":
         continue
     sm_args["noise_params"] = {}  # Set noise_param to empty dictionary to remove noise
+dist_agent_1lm_randrot_nohyp["logging_config"].run_name = "dist_agent_1lm_randrot_nohyp"
 
-dist_agent_1lm_randrot_nohyp_x_percent_5p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
-)
+# Define dist_agent_1lm_randrot
+dist_agent_1lm_randrot = copy.deepcopy(dist_agent_1lm_randrot_noise)
+for sm_dict in dist_agent_1lm_randrot["monty_config"].sensor_module_configs.values():
+    sm_args = sm_dict["sensor_module_args"]
+    if sm_args["sensor_module_id"] == "view_finder":
+        continue
+    sm_args["noise_params"] = {}  # Set noise_param to empty dictionary to remove noise
+dist_agent_1lm_randrot["logging_config"].run_name = "dist_agent_1lm_randrot"
+
+#####################################################################
+# No Hypothesis Testing Configs with different x percent thresholds #
+#####################################################################
 dist_agent_1lm_randrot_nohyp_x_percent_5p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_5p, 5, "x_percent_threshold"
-)
-
-dist_agent_1lm_randrot_nohyp_x_percent_10p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+    dist_agent_1lm_randrot_nohyp, 5
 )
 dist_agent_1lm_randrot_nohyp_x_percent_10p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_10p, 10, "x_percent_threshold"
-)
-
-dist_agent_1lm_randrot_nohyp_x_percent_20p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+    dist_agent_1lm_randrot_nohyp, 10
 )
 dist_agent_1lm_randrot_nohyp_x_percent_20p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_20p, 20, "x_percent_threshold"
+    dist_agent_1lm_randrot_nohyp, 20
+)
+dist_agent_1lm_randrot_nohyp_x_percent_40p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot_nohyp, 40
+)
+dist_agent_1lm_randrot_nohyp_x_percent_60p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot_nohyp, 60
+)
+dist_agent_1lm_randrot_nohyp_x_percent_80p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot_nohyp, 80
 )
 
-dist_agent_1lm_randrot_nohyp_x_percent_30p = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
+##################################################################
+# Hypothesis Testing Configs with different x percent thresholds #
+##################################################################
+dist_agent_1lm_randrot_x_percent_5p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 5
 )
-dist_agent_1lm_randrot_nohyp_x_percent_30p = update_x_percent_threshold_in_config(
-    dist_agent_1lm_randrot_nohyp_x_percent_30p, 30, "x_percent_threshold"
+dist_agent_1lm_randrot_x_percent_10p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 10
+)
+dist_agent_1lm_randrot_x_percent_20p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 20
+)
+dist_agent_1lm_randrot_x_percent_40p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 40
+)
+dist_agent_1lm_randrot_x_percent_60p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 60
+)
+dist_agent_1lm_randrot_x_percent_80p = update_x_percent_threshold_in_config(
+    dist_agent_1lm_randrot, 80
 )
 
-dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all = copy.deepcopy(
-    dist_agent_1lm_randrot_noise_nohyp
-)
-dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all = (
-    update_x_percent_threshold_in_config(
-        dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all,
-        30,
-        "all",
-    )
-)
-dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all"
 
 CONFIGS = {
     "dist_agent_1lm_randrot_nohyp_x_percent_5p": dist_agent_1lm_randrot_nohyp_x_percent_5p,
     "dist_agent_1lm_randrot_nohyp_x_percent_10p": dist_agent_1lm_randrot_nohyp_x_percent_10p,
     "dist_agent_1lm_randrot_nohyp_x_percent_20p": dist_agent_1lm_randrot_nohyp_x_percent_20p,
-    "dist_agent_1lm_randrot_nohyp_x_percent_30p": dist_agent_1lm_randrot_nohyp_x_percent_30p,
-    "dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all": dist_agent_1lm_randrot_nohyp_x_percent_30p_evidence_update_all,
+    "dist_agent_1lm_randrot_nohyp_x_percent_40p": dist_agent_1lm_randrot_nohyp_x_percent_40p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_60p": dist_agent_1lm_randrot_nohyp_x_percent_60p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_80p": dist_agent_1lm_randrot_nohyp_x_percent_80p,
+    "dist_agent_1lm_randrot_x_percent_5p": dist_agent_1lm_randrot_x_percent_5p,
+    "dist_agent_1lm_randrot_x_percent_10p": dist_agent_1lm_randrot_x_percent_10p,
+    "dist_agent_1lm_randrot_x_percent_20p": dist_agent_1lm_randrot_x_percent_20p,
+    "dist_agent_1lm_randrot_x_percent_40p": dist_agent_1lm_randrot_x_percent_40p,
+    "dist_agent_1lm_randrot_x_percent_60p": dist_agent_1lm_randrot_x_percent_60p,
+    "dist_agent_1lm_randrot_x_percent_80p": dist_agent_1lm_randrot_x_percent_80p,
 }
