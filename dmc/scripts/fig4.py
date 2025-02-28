@@ -273,6 +273,9 @@ all_experiments = [
     },
 ]
 
+for dct in all_experiments:
+    dct["eval_stats"] = load_eval_stats(dct["name"])
+
 
 def query(
     experiments: Optional[Iterable[Mapping]] = None, get=None, apply=None, **filters
@@ -287,40 +290,6 @@ def query(
     return out
 
 
-for entry in specs:
-    entry["eval_stats"] = load_eval_stats(entry["name"])
-
-db = specs
-
-
-def multi(fn):
-    """
-    Decorator to run a function multiple times and return the results.
-    """
-
-    def wrapper(obj, *args, **kwargs):
-        if isinstance(obj, dict):
-            out = {key: fn(val, *args, **kwargs) for key, val in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            out = [fn(val, *args, **kwargs) for val in obj]
-        else:
-            out = fn(obj, *args, **kwargs)
-        return out
-
-    return wrapper
-
-
-@multi
-def get_attr(obj: Mapping, key: str, default=None):
-    return getattr(obj, key, default)
-
-
-@multi
-def get_item(obj: Mapping, key: str, default=None):
-    return obj.get(key, default)
-
-
-@multi
 def get_num_steps(df, performance: Optional[str] = None):
     # if performance is None:
     #     sub_df = df
@@ -344,7 +313,6 @@ def get_num_steps(df, performance: Optional[str] = None):
     return obj
 
 
-@multi
 def get_percent_correct(df: pd.DataFrame, primary_performance: str = "correct*"):
     """Get the percentage of correct performances.
 
@@ -383,60 +351,63 @@ performance_options = [
     "correct",
 ]
 eval_stats = load_eval_stats("dist_agent_8lm_half_lms_match_randrot_noise")
+n_episodes = eval_stats.episode.max()
+episodes = np.arange(n_episodes + 1)
+# sanity check
+assert np.array_equal(eval_stats.episode.unique(), episodes)
 
 episode = 0
+df = eval_stats[eval_stats.episode == episode]
+
 # df = eval_stats[eval_stats.episode == episode]
 # ts_step = df["individual_ts_reached_at_step"]
 # ts_performance = df["individual_ts_performance"]
-df = eval_stats
-groups = eval_stats.groupby("episode")
-n_episodes = len(groups)
 
-primary_perf = groups.primary_performance.unique()
-ts_perf = groups.individual_ts_performance.unique()
+# groups = eval_stats.groupby("episode")
+# n_episodes = len(groups)
 
+# primary_perf = groups.primary_performance.unique()
+# ts_perf = groups.individual_ts_performance.unique()
 
-result = np.zeros(n_episodes, dtype=object)
-time_out = np.zeros(n_episodes, dtype=bool)
 # Columns for the result dataframe.
-columns = {
-    "primary_performance": np.zeros(n_episodes, dtype=object),
-    "monty_matching_steps": np.zeros(n_episodes, dtype=int),
-    "time_out": np.zeros(n_episodes, dtype=bool),
-}
-use_first = ["monty_matching_steps"]
+# columns = {
+#     "primary_performance": np.zeros(n_episodes, dtype=object),
+#     "monty_matching_steps": np.zeros(n_episodes, dtype=int),
+#     "time_out": np.zeros(n_episodes, dtype=bool),
+# }
+# use_first = ["monty_matching_steps"]
 
-for i in range(n_episodes):
-    primary_perf_set = set(primary_perf[i])
-    ts_perf_set = set(ts_perf[i])
+# for i in range(n_episodes):
+#     primary_perf_set = set(primary_perf[i])
+#     ts_perf_set = set(ts_perf[i])
 
-    if "patch_off_object" in primary_perf_set:
-        primary_perf_set.remove("patch_off_object")
-    if "patch_off_object" in ts_perf_set:
-        ts_perf_set.remove("patch_off_object")
+#     if "patch_off_object" in primary_perf_set:
+#         primary_perf_set.remove("patch_off_object")
+#     if "patch_off_object" in ts_perf_set:
+#         ts_perf_set.remove("patch_off_object")
 
-    time_out_i = len(ts_perf_set) == 1 and list(ts_perf_set)[0] == "time_out"
-    time_out[i] = time_out_i
-    if "correct" in primary_perf_set:
-        result[i] = "correct"
-        assert not time_out_i
-        continue
-    if "confused" in primary_perf_set:
-        result[i] = "confused"
-        assert not time_out_i
-        continue
-    if len(primary_perf_set) == 1:
-        assert time_out_i
-        result[i] = list(primary_perf_set)[0]
-    elif len(primary_perf_set) == 2:
-        assert time_out_i
-        result[i] = "mixed"  # majority rule? use min_lms_match?
-    else:
-        raise ValueError(
-            f"Unexpected number of primary performances: {len(primary_perf_set)}"
-        )
+#     time_out_i = len(ts_perf_set) == 1 and list(ts_perf_set)[0] == "time_out"
+#     time_out[i] = time_out_i
+#     if "correct" in primary_perf_set:
+#         result[i] = "correct"
+#         assert not time_out_i
+#         continue
+#     if "confused" in primary_perf_set:
+#         result[i] = "confused"
+#         assert not time_out_i
+#         continue
+#     if len(primary_perf_set) == 1:
+#         assert time_out_i
+#         result[i] = list(primary_perf_set)[0]
+#     elif len(primary_perf_set) == 2:
+#         assert time_out_i
+#         result[i] = "mixed"  # majority rule? use min_lms_match?
+#     else:
+#         raise ValueError(
+#             f"Unexpected number of primary performances: {len(primary_perf_set)}"
+#         )
 
-result_df = pd.DataFrame({"result": result, "time_out": time_out})
+# result_df = pd.DataFrame({"result": result, "time_out": time_out})
 
 # a = get_item(lst, "eval_stats")
 # df2 = db[]
