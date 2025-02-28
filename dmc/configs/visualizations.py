@@ -12,11 +12,16 @@
 This file contains configs defined solely for making visualizations that go into
 paper figures. The configs defined are:
 
-- `fig3_evidence_run`: A one-episode experiment used to collect evidence data
-   at every step of the episode. The output is read and plotted by `scripts/fig3.py`.
+- `fig3_evidence_run`: A one-episode experiment used to collect evidence
+   and sensor data for every step. The output is read and plotted by functions in
+    `scripts/fig3.py`.
+- `fig3_symmetry_run`: Runs `dist_agent_1lm_randrot_noise` with storage of
+   evidence and symmetry including symmetry data for the MLH object only, and only
+   for the terminal step of each episode. The output is read and plotted by
+   functions in `scripts/fig3.py`.
 - `fig4_visualize_8lm_patches`: An one-episode, one-step experiment that is used to
   collect one set of observations for the 8-LM model. The output is read and plotted
-  by `scripts/fig4.py` to show how the sensors patches fall on the object.
+  by functions in `scripts/fig4.py` to show how the sensors patches fall on the object.
 
 All experiments save their results to subdirectories of `DMC_ROOT` / `visualizations`.
 
