@@ -49,7 +49,7 @@ from tbp.monty.frameworks.experiments.pretraining_experiments import (
 
 from .common import DMC_PRETRAIN_DIR, make_randrot_variant
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
-from .pretraining_experiments import pretrain_dist_agent_1lm
+from .pretraining_experiments import DMCPretrainLoggingConfig, pretrain_dist_agent_1lm
 
 """
 Rapid Learning Config (for storing checkpoints)
@@ -135,10 +135,7 @@ pretrain_dist_agent_1lm_checkpoints.update(
             n_train_epochs=len(TRAIN_ROTATIONS),
             do_eval=False,
         ),
-        logging_config=PretrainLoggingConfig(
-            output_dir=str(DMC_PRETRAIN_DIR),
-            run_name="dist_agent_1lm_checkpoints",
-        ),
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_1lm_checkpoints"),
         train_dataloader_class=ED.InformedEnvironmentDataLoader,
         train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=SHUFFLED_YCB_OBJECTS,
