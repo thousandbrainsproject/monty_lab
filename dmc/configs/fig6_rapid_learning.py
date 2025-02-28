@@ -120,7 +120,6 @@ class PretrainingExperimentWithCheckpointing(
 
         # Save the model.
         checkpoints_dir = Path(self.output_dir) / "checkpoints"
-        # checkpoints_dir = Path(self.output_dir).parent / "checkpoints"
         output_dir = checkpoints_dir / f"{self.train_epochs}"
         output_dir.mkdir(parents=True, exist_ok=True)
         model_path = output_dir / "model.pt"
@@ -155,10 +154,17 @@ Evaluation Configs
 
 
 def make_partially_trained_eval_config(n_rot: int) -> dict:
-    """Make a config for a partially trained model.
+    """Make an eval config that loads a pretrained model checkpoint.
+
+    The returned config specifies a 1-LM distant agent that evaluates on
+      - All 77 YCB objects
+      - 5 (predetermined) random rotations
+      - no sensor noise
+      - no hypothesis-driven actions
+    and loads a model pretrained after `n_rot` observations per object.
 
     Args:
-        n_rot (int): Number of rotations trained on.
+        n_rot (int): Number of training rotations.
 
     Returns:
         dict: Config for a partially trained model.

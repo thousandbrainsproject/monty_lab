@@ -455,7 +455,7 @@ pretrain_touch_agent_1lm = dict(
     ),
 )
 
-# Make 10distinctobj variants
+# Make 10distinctobj variants. Used in `fig8.py` eval experiments.
 pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
     pretrain_dist_agent_1lm
 )
@@ -557,7 +557,7 @@ CONFIGS = {
     "pretrain_dist_agent_16lm": pretrain_dist_agent_16lm,
 }
 
-# Perform sanity checks and
+# TODO: Remove these sanity checks before publishing.
 _output_paths = []
 for exp in CONFIGS.values():
     # Make sure eval is disabled.
