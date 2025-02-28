@@ -15,24 +15,17 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 """
 
 import os
-from numbers import Number
-from pathlib import Path
 from types import SimpleNamespace
-from typing import Iterable, List, Mapping, Optional, Tuple, Type, Union
+from typing import List, Mapping, Tuple, Union
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import scipy
 from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
     ObjectModel,
-    describe_dict,
-    get_frequency,
-    get_percent_correct,
     load_eval_stats,
     load_object_model,
 )
@@ -749,6 +742,7 @@ def get_symmetry_stats(
 
     return stat_arrays
 
+
 def plot_symmetry_stats():
     """Plot the symmetry stats."""
     stat_arrays = get_symmetry_stats()
@@ -918,7 +912,3 @@ def plot_symmetry_objects():
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
         plt.close()
-
-
-
-plot_performance()
