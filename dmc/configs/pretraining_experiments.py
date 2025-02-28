@@ -305,7 +305,7 @@ def get_view_finder_config() -> dict:
         sensor_module_class=DetailedLoggingSM,
         sensor_module_args=dict(
             sensor_module_id="view_finder",
-            save_raw_obs=True,
+            save_raw_obs=False,
         ),
     )
 
