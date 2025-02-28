@@ -275,14 +275,14 @@ class DetailedJSONStatsInterface:
         self._check_initialized()
         return len(self._index)
 
-    def __getitem__(self, episode: int) -> Mapping:
+    def __getitem__(self, episode: int) -> dict:
         """Get the stats for a given episode.
 
         Args:
             episode (int): The episode number.
 
         Returns:
-            Mapping: The stats for the episode.
+            dict: The stats for the episode.
         """
         return self.read_episode(episode)
 
