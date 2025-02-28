@@ -148,12 +148,12 @@ def get_dist_lm_config(
     out = dict(
         learning_module_class=DisplacementGraphLM,
         learning_module_args=dict(
-            k=5,
+            k=10,
             match_attribute="displacement",
             tolerance=np.ones(3) * 0.0001,
             graph_delta_thresholds={
                 sensor_module_id: dict(
-                    distance=0.001,  # 1 mm 0.01 on ycb v9
+                    distance=0.001,
                     pose_vectors=[np.pi / 8, np.pi * 2, np.pi * 2],
                     principal_curvatures_log=[1, 1],
                     hsv=[0.1, 1, 1],
