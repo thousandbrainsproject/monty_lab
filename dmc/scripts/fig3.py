@@ -196,8 +196,6 @@ def plot_evidence_graphs_and_patches():
     steps = np.arange(41)
     n_steps = len(steps)
 
-    # steps = np.arange(0, 40)
-    # steps = np.arange(0, 41, 20)
     n_rows = n_cols = 64
     center_loc = n_rows // 2 * n_cols + n_cols // 2
     centers = np.zeros((n_steps, 3))
@@ -270,16 +268,6 @@ def plot_evidence_graphs_and_patches():
 
         for j, obj in enumerate(objects.values()):
             ax = axes[j + 1]
-            # ax.scatter(
-            #     obj.x,
-            #     obj.y,
-            #     obj.z,
-            #     color="gray",
-            #     alpha=0.1,
-            #     s=1,
-            #     linewidths=0,
-            # )
-
             locations = obj.locations[step]
             n_points = locations.shape[0] // 2
             locations = locations[:n_points]
