@@ -89,12 +89,6 @@ surf_agent_1lm = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(),
-    ),
 )
 
 # Distant agent: No hypothesis-testing

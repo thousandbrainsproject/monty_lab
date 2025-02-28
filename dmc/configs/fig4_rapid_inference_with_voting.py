@@ -107,12 +107,6 @@ dist_agent_2lm_half_lms_match = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
-    ),
 )
 
 dist_agent_4lm_half_lms_match = dict(
@@ -133,12 +127,6 @@ dist_agent_4lm_half_lms_match = dict(
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
-    ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
     ),
 )
 
@@ -161,12 +149,6 @@ dist_agent_8lm_half_lms_match = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
-    ),
 )
 
 dist_agent_16lm_half_lms_match = dict(
@@ -187,12 +169,6 @@ dist_agent_16lm_half_lms_match = dict(
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
-    ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(),
     ),
 )
 
