@@ -8,6 +8,7 @@ from typing import Iterable, Mapping, Optional, Union
 import numpy as np
 import pandas as pd
 import torch
+from data_utils import load_eval_stats
 from numpy.typing import ArrayLike
 from scipy.spatial.transform import Rotation as R
 
@@ -22,3 +23,14 @@ DMC_ANALYSIS_DIR = Path(
     os.environ.get("DMC_ANALYSIS_DIR", "~/tbp/results/dmc_analysis")
 ).expanduser()
 DMC_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+dataframes = [
+    load_eval_stats("dist_agent_1lm"),
+    load_eval_stats("dist_agent_1lm_noise"),
+    load_eval_stats("dist_agent_1lm_randrot_all"),
+    load_eval_stats("dist_agent_1lm_randrot_all_noise"),
+]
+
+match = ["correct"]
+a = dataframes[0]

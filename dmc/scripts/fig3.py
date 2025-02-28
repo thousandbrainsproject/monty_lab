@@ -31,6 +31,7 @@ from data_utils import (
     DetailedJSONStatsInterface,
     ObjectModel,
     describe_dict,
+    get_frequency,
     get_percent_correct,
     load_eval_stats,
     load_object_model,
@@ -366,7 +367,7 @@ Panel C: ?
 """
 
 
-def plot_performance():
+def plot_performance() -> None:
     out_dir = OUT_DIR / "performance"
     out_dir.mkdir(parents=True, exist_ok=True)
     dataframes = [
@@ -375,10 +376,12 @@ def plot_performance():
         load_eval_stats("dist_agent_1lm_randrot_all"),
         load_eval_stats("dist_agent_1lm_randrot_all_noise"),
     ]
-    conditions = ["base", "noise", "RR", "noise + RR"]
-
-    percent_correct = [get_percent_correct(df) for df in dataframes]
-    rotation_errors = [np.rad2deg(df.rotation_error.dropna()) for df in dataframes]
+    percent_correct = np.zeros(len(dataframes))
+    rotation_errors = np.zeros(len(dataframes), dtype=object)
+    for i, df in enumerate(dataframes):
+        sub_df = df[df.primary_performance.isin(["correct", "correct_mlh"])]
+        percent_correct[i] = 100 * len(sub_df) / len(df)
+        rotation_errors[i] = np.degrees(sub_df.rotation_error)
 
     fig, ax1 = plt.subplots(1, 1, figsize=(3, 2))
 
@@ -409,7 +412,8 @@ def plot_performance():
     ax2.set_ylabel("Rotation Error (deg)")
 
     ax1.set_xticks([0.5, 2.5, 4.5, 6.5])
-    ax1.set_xticklabels(conditions, rotation=0, ha="center")
+    xticklabels = ["base", "noise", "RR", "noise + RR"]
+    ax1.set_xticklabels(xticklabels, rotation=0, ha="center")
 
     ax1.spines["top"].set_visible(False)
     ax2.spines["top"].set_visible(False)
@@ -565,7 +569,7 @@ def get_chamfer_distance(
 
 
 def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
-    """Load symmetric rotations.
+    """Load symmetric rotations for the MLH.
 
     Returns:
         List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
@@ -916,30 +920,5 @@ def plot_symmetry_objects():
         plt.close()
 
 
-def patch_affinity_svg(path: os.PathLike):
-    with open(path, "r") as f:
-        svg_text = f.read()
-    import re
-
-    """Patch Matplotlib SVG so that it can be read by Affinity Designer."""
-    matches = [x for x in re.finditer("font: ([0-9.]+)px ([^;]+);", svg_text)]
-    svg_pieces = [svg_text[: matches[0].start()]]
-    for i, match in enumerate(matches):
-        # Change "font" style property to separate "font-size" and
-        # "font-family" properties because Affinity ignores "font".
-        font_size_px, font_family = match.groups()
-        new_font_style = (
-            f"font-size: {float(font_size_px):.1f}px; " f"font-family: {font_family};"
-        )
-        svg_pieces.append(new_font_style)
-        if i < len(matches) - 1:
-            svg_pieces.append(svg_text[match.end() : matches[i + 1].start()])
-        else:
-            svg_pieces.append(svg_text[match.end() :])
-    text = "".join(svg_pieces)
-    with open(path, "w") as f:
-        f.write(text)
-
 
 plot_performance()
-# patch_affinity_svg(OUT_DIR / "performance/performance.svg")

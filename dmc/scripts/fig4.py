@@ -13,7 +13,7 @@ Figure 4: Visualize 8-patch view finder
 
 import fnmatch
 import functools
-from typing import Iterable, List, Mapping, Optional
+from typing import Any, Iterable, List, Mapping, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,9 +23,10 @@ from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
-    get_percent_correct,
+    get_frequency,
     load_eval_stats,
 )
+from matplotlib.lines import Line2D
 from plot_utils import TBP_COLORS, axes3d_set_aspect_equal, violinplot
 
 plt.rcParams["font.size"] = 8
@@ -273,148 +274,273 @@ all_experiments = [
     },
 ]
 
-for dct in all_experiments:
-    dct["eval_stats"] = load_eval_stats(dct["name"])
 
-
-def query(
-    experiments: Optional[Iterable[Mapping]] = None, get=None, apply=None, **filters
-):
-    out = experiments if experiments is not None else all_experiments
+def get_experiments(load: bool = True, **filters) -> List[Mapping]:
+    experiments = all_experiments
     for key, val in filters.items():
-        out = [obj for obj in out if obj.get(key, None) == val]
-    if get:
-        out = [obj.get(get) for obj in out]
-    if apply:
-        out = [apply(obj) for obj in out]
-    return out
+        experiments = [dct for dct in experiments if dct.get(key, None) == val]
+    if load:
+        for dct in experiments:
+            dct["eval_stats"] = load_eval_stats(dct["name"])
+            dct["summary"] = reduce_eval_stats(dct["eval_stats"])
+    return experiments
 
 
-def get_num_steps(df, performance: Optional[str] = None):
-    # if performance is None:
-    #     sub_df = df
-    # else:
-    #     tf = [fnmatch.fnmatch(val, performance) for val in df.primary_performance]
-    #     sub_df = df[np.array(tf)]
-    n_lms = len(df.index.unique())
-    obj = df.monty_matching_steps[::n_lms]
-    return obj
-    # return sub_df.monty_matching_steps
+def reduce_eval_stats(eval_stats: pd.DataFrame):
+    """_summary_
+
+    Args:
+        eval_stats (pd.DataFrame): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    n_episodes = eval_stats.episode.max() + 1
+    episodes = np.arange(n_episodes)
+    assert np.array_equal(eval_stats.episode.unique(), episodes)  # sanity check
+
+    # Initialize output data.
+    summary = {
+        "result": np.zeros(n_episodes, dtype=object),
+        "monty_matching_steps": np.zeros(n_episodes, dtype=int),
+        "time_out": np.zeros(n_episodes, dtype=bool),
+        "n_steps": np.zeros(n_episodes, dtype=int),
+    }
+    performance_options = [
+        "correct",
+        "confused",
+        "no_match",
+        "correct_mlh",
+        "confused_mlh",
+        "time_out",
+        "pose_time_out",
+        "no_label",
+        "patch_off_object",
+    ]
+    for name in performance_options:
+        summary[f"n_{name}"] = np.zeros(n_episodes, dtype=int)
+
+    for episode in episodes:
+        df = eval_stats[eval_stats.episode == episode]
+
+        # Find one result given many LM results.
+        perf_counts = {key: 0 for key in performance_options}
+        perf_counts.update(df.primary_performance.value_counts())
+        found = []
+        for name in performance_options:
+            summary[f"n_{name}"][episode] = perf_counts[name]
+            if perf_counts[name] > 0:
+                found.append(name)
+
+        result = found[0]
+
+        # Require a majority of correct performances for 'correct' classification.
+        if result == "correct":
+            if perf_counts["confused"] >= perf_counts["correct"]:
+                result = "confused"
+
+        # Choose number of steps taken.
+        lm_inds = np.where(df.primary_performance == result)[0]
+        n_steps = df.num_steps.iloc[lm_inds].mean()
+        summary["n_steps"][episode] = n_steps
+
+        summary["result"][episode] = result
+        summary["result"][episode] = result
+        summary["time_out"][episode] = (
+            perf_counts["correct"] + perf_counts["confused"]
+        ) == 0
+
+    # Add episode data not specific to the LM.
+    groups = eval_stats.groupby("episode")
+    summary["monty_matching_steps"] = groups.monty_matching_steps.first().values
+    summary["primary_target_object"] = groups.primary_target_object.first().values
+
+    n_correct, n_confused = summary["n_correct"], summary["n_confused"]
+    summary["mixed"] = (n_correct > 0) & (n_confused > 0)
+
+    return pd.DataFrame(summary)
 
 
-def get_num_steps(df, performance: Optional[str] = None):
-    # if performance is None:
-    #     sub_df = df
-    # else:
-    #     tf = [fnmatch.fnmatch(val, performance) for val in df.primary_performance]
-    #     sub_df = df[np.array(tf)]
-    n_lms = len(df.index.unique())
-    obj = df.monty_matching_steps[::n_lms]
-    return obj
+def get_num_steps(
+    df: pd.DataFrame,
+    result: Optional[Union[str, List[str]]] = None,
+) -> pd.Series:
+    """Get the monty steps"""
+    if result is None:
+        return df.monty_matching_steps
+    result = [result] if isinstance(result, (str, np.str_)) else result
+    matches = df.result.isin(result)
+    sub_df = df[matches]
+    return sub_df.monty_matching_steps
 
 
-def get_percent_correct(df: pd.DataFrame, primary_performance: str = "correct*"):
+def get_frequency(items: Iterable, match: Union[Any, List[Any]]) -> float:
+    """Get the fraction of values that belong to a collection of values.
+
+    Args:
+        items (iterable): The list of items.
+        match: (scalar or list of scalars): One or more values to match against
+          (e.g., `"correct"` or `["correct", "correct_mlh"]`).
+    Returns:
+        float: The frequency that values in `items` belong to `match`.
+    """
+    s = items if isinstance(items, pd.Series) else pd.Series(items)
+    match = np.atleast_1d(match)
+    value_counts = dict(s.value_counts())
+    n_matching = sum([value_counts.get(val, 0) for val in match])
+    return n_matching / len(s)
+
+
+def get_accuracy(df: pd.DataFrame, result: Union[str, List[str]] = "correct") -> float:
     """Get the percentage of correct performances.
 
     Args:
-        df (pd.DataFrame): The dataframe containing the `primary_performance` column.
-        primary_performance (str): Which primary_performance values to count as correct.
-            Should be one of:
-         - "correct": primary performance must be "correct"
-         - "correct_mlh": primary performance must be "correct_mlh"
-         - "correct*": primary performance may be "correct" or "correct_mlh".
-
+        df (pd.DataFrame): The dataframe containing the `result` column.
+        result: (str or list of str): One or more result types (e.g., `"correct"` or
+            `["correct", "correct_mlh"]`).
     Returns:
         float: The percentage of correct performances (between 0 and 100).
     """
     n_rows = len(df)
-    value_counts = df.primary_performance.value_counts()
-    if primary_performance == "correct":
-        return 100 * value_counts["correct"] / n_rows
-    elif primary_performance == "correct_mlh":
-        return 100 * value_counts["correct_mlh"] / n_rows
-    elif primary_performance == "correct*":
-        return 100 * (value_counts["correct"] + value_counts["correct_mlh"]) / n_rows
-    else:
-        raise ValueError(f"Invalid primary_performance: {primary_performance}")
+    value_counts = df["result"].value_counts()
+    result = [result] if isinstance(result, (str, np.str_)) else result
+    count = sum([value_counts[res] for res in result])
+    return 100 * count / n_rows
 
 
-performance_options = [
-    "patch_off_object",
-    "no_label",
-    "pose_time_out",
-    "time_out",
-    "confused_mlh",
-    "correct_mlh",
-    "no_match",
-    "confused",
-    "correct",
+# Plot accuracy and num steps on separate axes.
+# - Prepare data
+
+half = get_experiments(group="half_lms_match")
+fixed = get_experiments(group="fixed_min_lms_match")
+groups = [half, fixed]
+group_names = ["half_match", "fixed_match"]
+group_colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+
+# num steps conditions
+correct_result = ["correct", "correct_mlh"]
+
+
+fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+
+# Plot accuracy
+ax = axes[0]
+big_spacing = 2
+small_spacing = 0.85
+x_positions_0 = big_spacing * np.arange(len(groups[0]))
+x_positions_1 = x_positions_0 + small_spacing
+x_positions = np.vstack([x_positions_0, x_positions_1])
+for i, grp in enumerate(groups):
+    x_pos = x_positions[i].tolist()
+    accuracy = [get_accuracy(dct["summary"], correct_result) for dct in grp]
+    ax.bar(
+        x_pos,
+        accuracy,
+        color=group_colors[i],
+        width=0.8,
+    )
+xticks = np.mean(x_positions, axis=0)
+xticklabels = [str(dct["n_lms"]) for dct in groups[0]]
+ax.set_xticks(xticks)
+ax.set_xticklabels(xticklabels, ha="center")
+ax.set_ylim(50, 100)
+ax.set_ylabel("% Correct")
+
+# Plot num steps
+ax = axes[1]
+
+big_spacing = 2
+small_spacing = 0.6
+x_positions_0 = big_spacing * np.arange(len(groups[0]))
+x_positions_1 = x_positions_0 + small_spacing
+x_positions = np.vstack([x_positions_0, x_positions_1])
+for i, grp in enumerate(groups):
+    x_pos = x_positions[i].tolist()
+    # num_steps = [get_num_steps(dct["summary"], correct_result) for dct in grp]
+    num_steps = []
+    for dct in grp:
+        _df = dct["summary"]
+        _df = _df[_df.result.isin(correct_result)]
+        num_steps.append(_df.n_steps)
+
+    vp = ax.violinplot(
+        num_steps,
+        positions=x_pos,
+        showextrema=False,
+        showmedians=True,
+    )
+    for body in vp["bodies"]:
+        body.set_facecolor(group_colors[i])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+xticks = np.mean(x_positions, axis=0)
+xticklabels = [str(dct["n_lms"]) for dct in groups[0]]
+ax.set_xticks(xticks)
+ax.set_xticklabels(xticklabels, ha="center")
+ax.set_ylim([0, 200])
+ax.set_ylabel("Matching Steps")
+
+for ax in axes:
+    ax.set_xlabel("Number of LMs")
+
+# Create custom legend handles (regular matplotlib legend doesn't work with
+# two violin plots -- both patches end up with the same color).
+legend_handles = [
+    Line2D([0], [0], color=color, lw=4, label=label)
+    for label, color in zip(group_names, group_colors)
 ]
-eval_stats = load_eval_stats("dist_agent_8lm_half_lms_match_randrot_noise")
-n_episodes = eval_stats.episode.max()
-episodes = np.arange(n_episodes + 1)
-# sanity check
-assert np.array_equal(eval_stats.episode.unique(), episodes)
+ax.legend(handles=legend_handles, loc="upper right")
+# plt.show()
 
-episode = 0
-df = eval_stats[eval_stats.episode == episode]
+lst1 = [get_num_steps(dct["summary"], ["correct"]) for dct in grp]
+lst2 = [get_num_steps(dct["summary"], ["correct", "correct_mlh"]) for dct in grp]
+for i in range(len(lst1)):
+    print(np.median(lst1[i]), np.median(lst2[i]))
+    # print(lst1[i].mean(), lst2[i].mean())
+# fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
-# df = eval_stats[eval_stats.episode == episode]
-# ts_step = df["individual_ts_reached_at_step"]
-# ts_performance = df["individual_ts_performance"]
+"""
+NOTES
 
-# groups = eval_stats.groupby("episode")
-# n_episodes = len(groups)
-
-# primary_perf = groups.primary_performance.unique()
-# ts_perf = groups.individual_ts_performance.unique()
-
-# Columns for the result dataframe.
-# columns = {
-#     "primary_performance": np.zeros(n_episodes, dtype=object),
-#     "monty_matching_steps": np.zeros(n_episodes, dtype=int),
-#     "time_out": np.zeros(n_episodes, dtype=bool),
-# }
-# use_first = ["monty_matching_steps"]
-
-# for i in range(n_episodes):
-#     primary_perf_set = set(primary_perf[i])
-#     ts_perf_set = set(ts_perf[i])
-
-#     if "patch_off_object" in primary_perf_set:
-#         primary_perf_set.remove("patch_off_object")
-#     if "patch_off_object" in ts_perf_set:
-#         ts_perf_set.remove("patch_off_object")
-
-#     time_out_i = len(ts_perf_set) == 1 and list(ts_perf_set)[0] == "time_out"
-#     time_out[i] = time_out_i
-#     if "correct" in primary_perf_set:
-#         result[i] = "correct"
-#         assert not time_out_i
-#         continue
-#     if "confused" in primary_perf_set:
-#         result[i] = "confused"
-#         assert not time_out_i
-#         continue
-#     if len(primary_perf_set) == 1:
-#         assert time_out_i
-#         result[i] = list(primary_perf_set)[0]
-#     elif len(primary_perf_set) == 2:
-#         assert time_out_i
-#         result[i] = "mixed"  # majority rule? use min_lms_match?
-#     else:
-#         raise ValueError(
-#             f"Unexpected number of primary performances: {len(primary_perf_set)}"
-#         )
-
-# result_df = pd.DataFrame({"result": result, "time_out": time_out})
-
-# a = get_item(lst, "eval_stats")
-# df2 = db[]
-# names = get_item(query(n_lms=2), "name")
+For deciding num steps:
+ - Should I find the smallest number of steps taken by a terminating LM?
 
 
-# # Plot accuracy and num steps on the same axes.
+"""
+
+# for i, grp in enumerate(groups):
+#     num_steps = [get_num_steps(dct["summary"], correct_result) for dct in grp]
+#     mean_steps = [np.mean(arr) for arr in num_steps]
+#     median_steps = [np.median(arr) for arr in num_steps]
+#     ax.plot(median_steps, color=group_colors[i], label=group_names[i] + " Median")
+#     ax.plot(mean_steps, color=group_colors[i], label=group_names[i] + " Mean", ls="--")
+# xticklabels = [str(dct["n_lms"]) for dct in groups[0]]
+# ax.set_xticks(np.arange(len(xticklabels)))
+# ax.set_xticklabels(xticklabels, ha="center")
+# ax.set_xlabel("Number of LMs")
+# ax.set_ylabel("Matching Steps")
+# ax.legend(loc="upper right")
+# plt.show()
+
+
+# ax.set_yticks([0, 100, 200, 300, 400, 500])
+# ax.set_ylim(0, 500)
+# ax.set_ylabel("Steps")
+
+# for ax in axes:
+#     xticks = np.mean(
+#         np.vstack([data[0]["x_positions"], data[1]["x_positions"]]), axis=0
+#     )
+#     ax.set_xticks(xticks)
+#     ax.set_xticklabels(data[0]["conditions"], ha="center")
+#     ax.spines["top"].set_visible(False)
+#     ax.spines["top"].set_visible(False)
+
+# fig.tight_layout()
+# plt.show()
+
+
+# # Plot accuracy and num steps on the same axes
 # fig, axes = plt.subplots(1, 2, figsize=(5, 2))
 # for i, (group_name, group_dict) in enumerate(groups.items()):
 #     # Aggregate data
@@ -464,77 +590,4 @@ df = eval_stats[eval_stats.episode == episode]
 #     fig.tight_layout()
 
 # plt.show()
-
-
-# Plot accuracy and num steps on separate axes.
-# - Prepare data
-
-# groups = [query(group="half_lms_match"), query(group="fixed_min_lms_match")]
-"""_summary_
-"""
 pass
-# group_a = [d for d in db if d["group"] == "half_lms_match"]
-# group_b = [d for d in db if d["group"] == "fixed_min_lms_match"]
-# groups = [group_a, group_b]
-# names = ["half_match", "fixed_match"]
-# colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-
-# data = []
-# for i, g in enumerate(groups):
-#     d = {}
-#     d["name"] = names[i]
-#     d["eval_stats"] = eval_stats = list(map(lambda obj: obj["eval_stats"], g))
-#     d["percent_correct"] = [get_percent_correct(df, "correct*") for df in eval_stats]
-#     d["num_steps"] = [get_num_steps(df, "correct") for df in eval_stats]
-#     d["conditions"] = list(map(lambda obj: obj["n_lms"], g))
-#     d["x_positions"] = np.arange(len(g) * 2)[::2] + i
-#     d["color"] = colors[i]
-#     data.append(d)
-
-
-# fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-
-# # Plot accuracy bars
-# ax = axes[0]
-# for i, d in enumerate(data):
-#     ax.bar(
-#         d["x_positions"],
-#         d["percent_correct"],
-#         color=d["color"],
-#         width=0.8,
-#     )
-# ax.set_ylim(0, 100)
-# ax.set_ylabel("% Correct")
-# # Put a legend on with labels "half_match" and "fixed_match" and colors
-# # 'blue' and 'purple'
-# ax.legend(names, loc="upper right")
-
-# # Plot num steps
-# ax = axes[1]
-# for i, d in enumerate(data):
-#     vp = ax.violinplot(
-#         d["num_steps"],
-#         positions=d["x_positions"],
-#         showextrema=False,
-#         showmedians=True,
-#     )
-#     for body in vp["bodies"]:
-#         body.set_facecolor(d["color"])
-#         body.set_alpha(1.0)
-#     vp["cmedians"].set_color("black")
-
-# ax.set_yticks([0, 100, 200, 300, 400, 500])
-# ax.set_ylim(0, 500)
-# ax.set_ylabel("Steps")
-
-# for ax in axes:
-#     xticks = np.mean(
-#         np.vstack([data[0]["x_positions"], data[1]["x_positions"]]), axis=0
-#     )
-#     ax.set_xticks(xticks)
-#     ax.set_xticklabels(data[0]["conditions"], ha="center")
-#     ax.spines["top"].set_visible(False)
-#     ax.spines["top"].set_visible(False)
-
-# fig.tight_layout()
-# plt.show()

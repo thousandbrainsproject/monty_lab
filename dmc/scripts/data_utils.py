@@ -15,7 +15,7 @@ import json
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Iterable, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -42,13 +42,21 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     This function has 3 main purposes:
      - Load `eval_stats.csv` given just a DMC experiment name since this function
        is aware of DMC result paths.
-     - Coerce loaded values into expected types. For example, some columns contain
+     - Convert strings of arrays into arrays. For example, some columns contain
        arrays, but they're loaded as strings (e.g., "[1.34, 232.33, 123.44]").
      - Add some useful columns to the dataframe (`"episode"`, `"epoch"`).
 
     Args:
         exp (os.PathLike): Name of a DMC experiment, a directory containing
           `eval_stats.csv`, or a complete path to an `.csv` file.
+
+    NOTE: For added DMC context and motivation, some analyses use rotations from this
+    table, such as symmetry analysis in figure 3 where rotation errors are computed.
+    For this, the the string-represented rotations in the loaded table needed to be
+    converted to numpy arrays. It seemed cleaner to perform that that task here rather
+    than do it in analysis scripts. Similarly, the 'episode' column is useful to have
+    for downstream analyses.
+
 
     Returns:
         pd.DataFrame
@@ -59,16 +67,20 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     if path.exists():
         # Case 1: Given a path to a csv file.
         if path.suffix.lower() == ".csv":
-            df = pd.read_csv(exp, index_col=0)
+            df = pd.read_csv(exp)
         # Case 2: Given a path to a directory containing eval_stats.csv.
         elif (path / "eval_stats.csv").exists():
-            df = pd.read_csv(path / "eval_stats.csv", index_col=0)
+            df = pd.read_csv(path / "eval_stats.csv")
         else:
             raise FileNotFoundError(f"No eval_stats.csv found for {exp}")
     else:
         # Given a run name. Look in DMC folder.
-        df = pd.read_csv(DMC_RESULTS_DIR / path / "eval_stats.csv", index_col=0)
+        df = pd.read_csv(DMC_RESULTS_DIR / path / "eval_stats.csv")
         df.attrs["name"] = path.name
+
+    # Remove redundant first column (which just has LM IDs)
+    if df.columns[0] == "Unnamed: 0":
+        df = df.iloc[:, 1:]
 
     # Collect basic info, like number of LMs, objects, number of episodes, etc.
     n_lms = len(np.unique(df["lm_id"]))
@@ -76,36 +88,57 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     n_objects = len(object_names)
 
     # Add 'episode' column.
-    assert len(df) % n_lms == 0
+    assert len(df) % n_lms == 0  # sanity check
     n_episodes = int(len(df) / n_lms)
     df["episode"] = np.repeat(np.arange(n_episodes), n_lms)
 
     # Add 'epoch' column.
     rows_per_epoch = n_objects * n_lms
-    assert len(df) % rows_per_epoch == 0
+    assert len(df) % rows_per_epoch == 0  # sanity check
     n_epochs = int(len(df) / rows_per_epoch)
     df["epoch"] = np.repeat(np.arange(n_epochs), rows_per_epoch)
 
     # Decode array columns.
-    def decode_arrays(s: str, dtype: type) -> np.ndarray:
+    def decode_arrays(s: Any, dtype: type) -> Any:
+        """Converts a string-represented array to a numpy array.
+
+        NOTE: if the input is not a string-representation of a list/tuple/array, it is
+        returned as-is.
+        """
         if not isinstance(s, str):
             return s
+
+        # Quick out for empty strings.
         if s == "":
             return ""
-        s = s.strip("[]()")
+
+        # Remove the outer brackets and parentheses. If it doesn't have
+        # brackets or parentheses, it's not an array, so just return it as-is.
+        if s.startswith("["):
+            s = s.strip("[]")
+        elif s.startswith("("):
+            s = s.strip("()")
+        else:
+            return s
+
+        # Split the string into a list of elements.
         if "," in s:
+            # list and tuples are comma-separated
             lst = [elt.strip() for elt in s.split(",")]
         else:
+            # numpy arrays are space-separated
             lst = s.split()
 
-        # string arrays are a special case - can return dtype 'object'
+        # arrays of strings are a special case - can return arrays with dtype 'object',
+        # and we also need to strip quotes from each item.
         if np.issubdtype(dtype, np.str_):
             lst = [elt.strip("'\"") for elt in lst]
             if dtype is str:
                 return np.array(lst, dtype=object)
             else:
                 return np.array(lst, dtype=dtype)
-        # must replace 'None' with np.nan for float arrays.
+
+        # Must replace 'None' with np.nan for float arrays.
         if np.issubdtype(dtype, np.floating):
             lst = [np.nan if elt == "None" else dtype(elt) for elt in lst]
         return np.array(lst)
@@ -130,11 +163,30 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     return df
 
 
+def get_frequency(items: Iterable, match: Union[Any, Iterable[Any]]) -> float:
+    """Get the fraction of values that belong to a collection of values.
+
+    Args:
+        items (iterable): The list of items.
+        match: (scalar or list of scalars): One or more values to match against
+          (e.g., `"correct"` or `["correct", "correct_mlh"]`).
+    Returns:
+        float: The frequency that values in `items` belong to `match`.
+    """
+    s = items if isinstance(items, pd.Series) else pd.Series(items)
+    match = np.atleast_1d(match)
+    value_counts = dict(s.value_counts())
+    n_matching = sum([value_counts.get(val, 0) for val in match])
+    return n_matching / len(s)
+
+
 def get_percent_correct(df: pd.DataFrame) -> float:
     """Get percent of correct object recognition for an `eval_stats` dataframe.
 
     Uses the 'primary_performance' column. Values 'correct' or 'correct_mlh' count
     as correct.
+
+    TODO: Update/replace to handle mult-LM cases.
 
     """
     n_correct = df.primary_performance.str.startswith("correct").sum()
@@ -176,18 +228,16 @@ def describe_dict(data: Mapping, level: int = 0):
 class DetailedJSONStatsInterface:
     """Convenience interface to detailed JSON stats.
 
-    This class is a dict-like interface to detailed JSON stats files that loads
-    episodes one at a time. An episode can be loaded via `stats[episode_num]`
-    (or, equivalently `stats.read_episode(episode_num)`), which takes about
-    1.5 - 6.5 seconds per episode. If you plan on loading all episodes eventually,
-    the most efficient method is to iterate over a `DetailedJSONStatsInterface`.
+    This convenience interface to detailed JSON stats files. It's primarily useful for
+    efficiently iterating over episodes.
 
     Example:
         >>> stats = DetailedJSONStatsInterface("detailed_stats.json")
         >>> last_episode_data = stats[-1]  # Get data for the last episode.
-        >>> # Iterate over all episodes.
+        >>> # Iterate over all episodes. Faster than loading individual episodes
+        >>> # via random access.
         >>> for i, episode_data in enumerate(stats):
-        ...     # Process episode data
+        ...     # Do something with episode data.
         ...     pass
     """
 
