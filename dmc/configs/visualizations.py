@@ -21,13 +21,9 @@ paper figures. The configs defined are:
 All experiments save their results to subdirectories of `DMC_ROOT` / `visualizations`.
 
 """
-import os
 from copy import deepcopy
 from typing import Mapping
 
-from tbp.monty.frameworks.config_utils.config_args import (
-    DetailedEvidenceLMLoggingConfig,
-)
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
@@ -54,8 +50,8 @@ from .fig4_rapid_inference_with_voting import (
 VISUALIZATION_RESULTS_DIR = DMC_ROOT_DIR / "visualizations"
 
 
-class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
-    """Logging handler that only saves final evidence data no sensor data.
+class TerminalEvidenceHandler(SelectiveEvidenceHandler):
+    """Logging handler that only saves terminal evidence data for the MLH object.
 
     A lean logger handler for the symmetry experiment (which are full-length runs,
     and so we need to be very selective about which data to log).
@@ -101,11 +97,6 @@ class SelectiveEvidenceHandlerSymmetryRun(SelectiveEvidenceHandler):
             lm_dict.pop("evidences")
             lm_dict.pop("possible_locations")
             lm_dict.pop("possible_rotations")
-
-        # Remove sensor module data.
-        sm_ids = [key for key in buffer_data.keys() if key.startswith("SM")]
-        for sm_id in sm_ids:
-            buffer_data.pop(sm_id)
 
         # Store data.
         self.save(episode_total, buffer_data, output_dir)
@@ -153,7 +144,7 @@ fig3_symmetry_run.update(
             run_name="fig3_symmetry_run",
             monty_handlers=[
                 BasicCSVStatsHandler,
-                SelectiveEvidenceHandlerSymmetryRun,
+                TerminalEvidenceHandler,
                 ReproduceEpisodeHandler,
             ],
             selective_handler_args=dict(exclude=["SM_0", "SM_1"]),
@@ -163,7 +154,7 @@ fig3_symmetry_run.update(
 
 
 """
-Figure 3
+Figure 4
 -------------------------------------------------------------------------------
 """
 

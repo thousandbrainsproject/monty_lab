@@ -686,7 +686,7 @@ class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
 
 @dataclass
 class DMCEvalLoggingConfig(ParallelEvidenceLMLoggingConfig):
-    """Logging config with DMC-specific output directory and wandb group.
+    """Basic logging config with DMC-specific output directory and wandb group.
 
     This config also drops the reproduce episode handler which is included
     as a default handler in `ParallelEvidenceLMLoggingConfig`.
