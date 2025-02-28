@@ -87,20 +87,30 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     df["epoch"] = np.repeat(np.arange(n_epochs), rows_per_epoch)
 
     # Decode array columns.
-    def decode_array_string(s: str, dtype: type = float) -> np.ndarray:
+    def decode_arrays(s: str, dtype: type) -> np.ndarray:
         if not isinstance(s, str):
             return s
-        if s in ("", "None"):
-            return None
-        s = s.strip("[]")
+        if s == "":
+            return ""
+        s = s.strip("[]()")
         if "," in s:
             lst = [elt.strip() for elt in s.split(",")]
         else:
             lst = s.split()
-        lst = [np.nan if elt == "None" else dtype(elt) for elt in lst]
+
+        # string arrays are a special case - can return dtype 'object'
+        if np.issubdtype(dtype, np.str_):
+            lst = [elt.strip("'\"") for elt in lst]
+            if dtype is str:
+                return np.array(lst, dtype=object)
+            else:
+                return np.array(lst, dtype=dtype)
+        # must replace 'None' with np.nan for float arrays.
+        if np.issubdtype(dtype, np.floating):
+            lst = [np.nan if elt == "None" else dtype(elt) for elt in lst]
         return np.array(lst)
 
-    array_cols = [
+    float_array_cols = [
         "primary_target_position",
         "primary_target_rotation_euler",
         "most_likely_rotation",
@@ -112,8 +122,10 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
         "primary_target_rotation_quat",
     ]
     column_order = list(df.columns)
-    for col in array_cols:
-        df[col] = df[col].apply(decode_array_string)
+    df["result"] = df["result"].replace(np.nan, "")
+    df["result"] = df["result"].apply(decode_arrays, args=[str])
+    for col_name in float_array_cols:
+        df[col_name] = df[col_name].apply(decode_arrays, args=[float])
     df = df[column_order]
     return df
 
