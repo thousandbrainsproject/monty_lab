@@ -52,7 +52,7 @@ from .fig3_robust_sensorimotor_inference import dist_agent_1lm
 from .pretraining_experiments import DMCPretrainLoggingConfig, pretrain_dist_agent_1lm
 
 """
-Rapid Learning Config (for storing checkpoints)
+Pretraining Configs
 --------------------------------------------------------------------------------
 """
 
@@ -103,10 +103,7 @@ class PretrainingExperimentWithCheckpointing(
     """
 
     def post_epoch(self):
-        """Save the model.
-        TODO: Check how well this works in parallel runs. Could be problematic.
-        TODO: Save checkpoints every...
-        """
+        """Store a model checkpoint."""
         super().post_epoch()
 
         # Check which epooch?
