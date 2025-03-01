@@ -572,6 +572,11 @@ def get_num_steps(
     sub_df = reduced_stats[reduced_stats["result"].isin(result)]
     return sub_df.n_steps
 
+"""
+-------------------------------------------------------------------------------
+TEMPORARY / EXPLORATORY
+"""
+
 
 def temp_fn():
     pass
@@ -737,12 +742,6 @@ def plot_accuracy_and_num_steps():
     plt.show()
 
 
-"""
--------------------------------------------------------------------------------
-
-"""
-
-
 def save_flipped_eval_stats():
     group = get_experiments()
 
@@ -790,6 +789,50 @@ def save_flipped_eval_stats():
             src = exp.path / "eval_stats.csv"
             dst = out_dir / f"{exp.name}.csv"
             shutil.copy(src, dst)
+
+
+def plot_flipped_eval_stats():
+    out_dir = OUT_DIR / "flipped/plots"
+    out_dir.mkdir(exist_ok=True, parents=True)
+
+    # Initialize groups
+    correct_result = ["correct", "correct_mlh"]
+    for correct_result in ["correct", "correct_mlh"]:
+        half = get_experiments(group="half_lms_match")
+        fixed = get_experiments(group="fixed_min_lms_match")
+        for exp in half + fixed:
+            exp.correct_result = correct_result
+            exp.reduced_stats = reduce_eval_stats(exp.eval_stats, require_majority=True)
+
+        half_no_majority = get_experiments(group="half_lms_match")
+        fixed_no_majority = get_experiments(group="fixed_min_lms_match")
+        for exp in half_no_majority + fixed_no_majority:
+            exp.correct_result = correct_result
+            exp.reduced_stats = reduce_eval_stats(
+                exp.eval_stats, require_majority=False
+            )
+
+        fig, axes = plt.subplots(1, 2, figsize=(7.5, 3.5))
+        colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+        kw = {
+            "colors": colors,
+            "ylim": (50, 100),
+        }
+
+        groups = [half_no_majority, half]
+        labels = ["corr > 0", "corr > conf"]
+        title = "Half LMs Match"
+        plot_accuracy(groups, labels=labels, title=title, ax=axes[0], **kw)
+
+        groups = [fixed_no_majority, fixed]
+        title = "Fixed LMs Match"
+        plot_accuracy(
+            groups, labels=labels, title=title, legend=False, ax=axes[1], **kw
+        )
+        if "correct_mlh" in correct_result:
+            fig.savefig(out_dir / "majority_vs_no_majority_mlh.png", dpi=300)
+        else:
+            fig.savefig(out_dir / "majority_vs_no_majority.png", dpi=300)
 
 
 def plot_acc():
@@ -980,45 +1023,3 @@ def plot_accuracy(
         add_legend(ax, groups, colors=colors, labels=labels, **legend_kw)
 
     return ax
-
-
-# def plot_accuracy_metric_comparison():
-out_dir = OUT_DIR / "flipped/plots"
-out_dir.mkdir(exist_ok=True)
-
-# Initialize groups
-correct_result = ["correct", "correct_mlh"]
-
-half = get_experiments(group="half_lms_match")
-fixed = get_experiments(group="fixed_min_lms_match")
-for exp in half + fixed:
-    exp.correct_result = correct_result
-    exp.reduced_stats = reduce_eval_stats(exp.eval_stats, require_majority=True)
-
-
-half_no_majority = get_experiments(group="half_lms_match")
-fixed_no_majority = get_experiments(group="fixed_min_lms_match")
-for exp in half_no_majority + fixed_no_majority:
-    exp.correct_result = correct_result
-    exp.reduced_stats = reduce_eval_stats(exp.eval_stats, require_majority=False)
-
-
-fig, axes = plt.subplots(1, 2, figsize=(7.5, 3.5))
-colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-kw = {
-    "colors": colors,
-    "ylim": (50, 100),
-}
-
-groups = [half_no_majority, half]
-labels = ["corr > 0", "corr > conf"]
-title = "Half LMs Match"
-ax_0 = plot_accuracy(groups, labels=labels, title=title, ax=axes[0], **kw)
-
-groups = [fixed_no_majority, fixed]
-title = "Fixed LMs Match"
-ax_1 = plot_accuracy(groups, labels=labels, title=title, legend=False, ax=axes[1], **kw)
-if "correct_mlh" in correct_result:
-    fig.savefig(out_dir / "majority_vs_no_majority_mlh.png", dpi=300)
-else:
-    fig.savefig(out_dir / "majority_vs_no_majority.png", dpi=300)
