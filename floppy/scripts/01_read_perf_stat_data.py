@@ -78,8 +78,15 @@ def main():
 
     results = []
     for experiment in experiments:
-        flops_path = base_dir / "perf/monty/raw" / f"{experiment}p.csv"
-        eval_path = base_dir / "perf/monty/raw" / experiment / "eval_stats.csv"
+        flops_path = (
+            base_dir / "perf/monty/raw/max_nneighbors=10" / f"{experiment}p_perf.csv"
+        )
+        eval_path = (
+            base_dir
+            / "perf/monty/raw/max_nneighbors=10"
+            / experiment
+            / "eval_stats.csv"
+        )
 
         if not all(p.exists() for p in [flops_path, eval_path]):
             print(f"Skipping {experiment}: required files not found")

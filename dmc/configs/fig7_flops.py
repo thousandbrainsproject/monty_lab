@@ -179,4 +179,17 @@ CONFIGS = {
     "dist_agent_1lm_randrot_x_percent_40p": dist_agent_1lm_randrot_x_percent_40p,
     "dist_agent_1lm_randrot_x_percent_60p": dist_agent_1lm_randrot_x_percent_60p,
     "dist_agent_1lm_randrot_x_percent_80p": dist_agent_1lm_randrot_x_percent_80p,
+    # Added duplicate entries with "_perf" suffix
+    "dist_agent_1lm_randrot_nohyp_x_percent_5p_perf": dist_agent_1lm_randrot_nohyp_x_percent_5p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_10p_perf": dist_agent_1lm_randrot_nohyp_x_percent_10p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_20p_perf": dist_agent_1lm_randrot_nohyp_x_percent_20p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_40p_perf": dist_agent_1lm_randrot_nohyp_x_percent_40p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_60p_perf": dist_agent_1lm_randrot_nohyp_x_percent_60p,
+    "dist_agent_1lm_randrot_nohyp_x_percent_80p_perf": dist_agent_1lm_randrot_nohyp_x_percent_80p,
+    "dist_agent_1lm_randrot_x_percent_5p_perf": dist_agent_1lm_randrot_x_percent_5p,
+    "dist_agent_1lm_randrot_x_percent_10p_perf": dist_agent_1lm_randrot_x_percent_10p,
+    "dist_agent_1lm_randrot_x_percent_20p_perf": dist_agent_1lm_randrot_x_percent_20p,
+    "dist_agent_1lm_randrot_x_percent_40p_perf": dist_agent_1lm_randrot_x_percent_40p,
+    "dist_agent_1lm_randrot_x_percent_60p_perf": dist_agent_1lm_randrot_x_percent_60p,
+    "dist_agent_1lm_randrot_x_percent_80p_perf": dist_agent_1lm_randrot_x_percent_80p,
 }
