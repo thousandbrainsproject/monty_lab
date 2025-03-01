@@ -15,7 +15,7 @@ import json
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Container, Iterable, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -76,7 +76,6 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     else:
         # Given a run name. Look in DMC folder.
         df = pd.read_csv(DMC_RESULTS_DIR / path / "eval_stats.csv")
-        df.attrs["name"] = path.name
 
     # Remove redundant first column (which just has LM IDs)
     if df.columns[0] == "Unnamed: 0":
@@ -163,7 +162,7 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     return df
 
 
-def get_frequency(items: Iterable, match: Union[Any, Iterable[Any]]) -> float:
+def get_frequency(items: Iterable, match: Union[Any, Container[Any]]) -> float:
     """Get the fraction of values that belong to a collection of values.
 
     Args:
