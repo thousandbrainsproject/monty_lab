@@ -113,8 +113,8 @@ def get_dist_lm_config(
             },
             # Update all hypotheses with evidence > 80% of max evidence.
             evidence_update_threshold="80%",
-            x_percent_threshold=80,
-            # Look at 10 closest points stored in the search radius (at most).
+            x_percent_threshold=20,
+            # Look at `n` closest points stored in the search radius (at most).
             max_nneighbors=10,
             # Goal state generator which is used for model-based action suggestions.
             gsg_class=EvidenceGoalStateGenerator,
@@ -183,8 +183,8 @@ def get_surf_lm_config(
             },
             # Update all hypotheses with evidence > 80% of max evidence.
             evidence_update_threshold="80%",
-            x_percent_threshold=80,
-            # Look at 10 closest points stored in the search radius (at most).
+            x_percent_threshold=20,
+            # Look at `n` closest points stored in the search radius (at most).
             max_nneighbors=10,
             # Goal state generator which is used for model-based action suggestions.
             gsg_class=EvidenceGoalStateGenerator,
