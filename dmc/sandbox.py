@@ -3,6 +3,7 @@ from tbp.monty.frameworks.run_env import setup_env
 setup_env()
 
 # Load all experiment configurations from local project
+import pandas as pd
 from configs import CONFIGS  # noqa: E402
 from configs.common import DMC_PRETRAIN_DIR
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
@@ -14,23 +15,24 @@ from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS
 from tbp.monty.frameworks.run import main  # noqa: E402
 from tbp.monty.frameworks.utils.dataclass_utils import config_to_dict
 
-# class Filter:
-#     def __init__(self, filt):
-#         self.multi = False
-#         if isinstance(filt, str):
-#             self.multi = "*" in filt
-#         elif isinstance(filt, (list, tuple)):
-#             filt = tuple(filt)
-#             self.multi = True
+path = "/Users/sknudstrup/tbp/results/dmc/results/dist_agent_1lm/eval_stats.csv"
+df = pd.read_csv(path)
+n_episodes = len(df)
+vc = dict(df["primary_performance"].value_counts())
+print(f"Correct: {100 * vc['correct'] / n_episodes}")
+print(f"Correct MLH: {100 * vc['correct_mlh'] / n_episodes}")
+print(f"Correct*: {100 * (vc['correct'] + vc['correct_mlh']) / n_episodes}")
 
-#     def filter(self, data):
-#         pass
+path = "/Users/sknudstrup/tbp/results/dmc/results.old/dist_agent_1lm/eval_stats.csv"
+df = pd.read_csv(path)
+n_episodes = len(df)
+vc = dict(df["primary_performance"].value_counts())
+print(f"Correct: {100 * vc['correct'] / n_episodes}")
+print(f"Correct MLH: {100 * vc['correct_mlh'] / n_episodes}")
+print(f"Correct*: {100 * (vc['correct'] + vc['correct_mlh']) / n_episodes}")
 
 
-# data = {"LM_0": {"evidences": {"object_0": {}}}}
-
-
-experiment_name = "fig4_visualize_8lm_patches"
+# experiment_name = "fig4_visualize_8lm_patches"
 
 # config = CONFIGS[experiment_name]
 # config_dict = config_to_dict(config)
@@ -57,4 +59,4 @@ pass
 #         ),
 #     )
 # )
-main(all_configs=CONFIGS, experiments=[experiment_name])
+# main(all_configs=CONFIGS, experiments=[experiment_name])
