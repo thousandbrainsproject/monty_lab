@@ -17,7 +17,17 @@ import os
 import shutil
 from collections import UserList
 from pathlib import Path
-from typing import Any, Callable, Container, Iterable, List, Mapping, Optional, Union
+from typing import (
+    Any,
+    Callable,
+    Container,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import matplotlib.legend
 import matplotlib.patches as patches
@@ -951,14 +961,14 @@ def add_legend(
 
 
 def plot_accuracy(
-    groups,
-    colors=None,
-    labels=None,
+    groups: Sequence[ExperimentGroup],
+    colors: Optional[Sequence] = None,
+    labels: Optional[Sequence[str]] = None,
     legend: bool = True,
-    ax=None,
+    ax: Optional[plt.Axes] = None,
     **kw,
 ) -> plt.Axes:
-    """_summary_
+    """Make a double-bar plot of accuracy for two groups of experiments.
 
     Args:
         groups (_type_): _description_
