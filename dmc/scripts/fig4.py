@@ -335,10 +335,12 @@ class Experiment:
             setattr(self, key, val)
 
     def get_accuracy(
-        self, result: Optional[Union[str, Container[str]]] = None
+        self, primary_performance: Optional[Union[str, Container[str]]] = None
     ) -> float:
-        result = self.correct_result if result is None else result
-        return 100 * get_frequency(self.reduced_stats["result"], result)
+        result = (
+            self.correct_result if primary_performance is None else primary_performance
+        )
+        return 100 * get_frequency(self.reduced_stats["primary_performance"], result)
 
     def get_n_steps(
         self, result: Optional[Union[str, Container[str]]] = None
@@ -484,7 +486,7 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
 
     # Columns of output dataframe.
     output_data = {
-        "result": np.zeros(n_episodes, dtype=object),
+        "primary_performance": np.zeros(n_episodes, dtype=object),
         "n_steps": np.zeros(n_episodes, dtype=int),
     }
     for name in PERFORMANCE_OPTIONS:
@@ -506,20 +508,20 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
             row[f"n_{name}"] = perf_counts[name]
             if perf_counts[name] > 0:
                 found.append(name)
-        result = found[0]
+        performance = found[0]
 
         # Require a majority of correct performances for 'correct' classification.
         if require_majority:
-            if result == "correct":
+            if performance == "correct":
                 if row["n_confused"] >= row["n_correct"]:
-                    result = "confused"
-            elif result == "correct_mlh":
+                    performance = "confused"
+            elif performance == "correct_mlh":
                 if row["n_confused_mlh"] >= row["n_correct_mlh"]:
-                    result = "confused_mlh"
+                    performance = "confused_mlh"
 
-        row["result"] = result
+        row["primary_performance"] = performance
         # Choose number of steps taken.
-        lm_inds = np.where(df.primary_performance == result)[0]
+        lm_inds = np.where(df.primary_performance == performance)[0]
         n_steps = df.num_steps.iloc[lm_inds].mean()
         row["n_steps"] = n_steps
 
@@ -552,7 +554,7 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
 
 
 def get_accuracy(
-    reduced_stats: pd.DataFrame, result: Union[str, List[str]] = "correct"
+    reduced_stats: pd.DataFrame, primary_performance: Union[str, List[str]] = "correct"
 ) -> float:
     """Get the percentage of correct performances.
 
@@ -563,11 +565,13 @@ def get_accuracy(
     Returns:
         float: The percentage of correct performances (between 0 and 100).
     """
-    return 100 * get_frequency(reduced_stats["result"], result)
+    return 100 * get_frequency(
+        reduced_stats["primary_performance"], primary_performance
+    )
 
 
 def get_num_steps(
-    reduced_stats: pd.DataFrame, result: Union[str, List[str]] = "correct"
+    reduced_stats: pd.DataFrame, primary_performance: Union[str, List[str]] = "correct"
 ) -> pd.Series:
     """Get the percentage of correct performances.
 
@@ -579,7 +583,9 @@ def get_num_steps(
     Returns:
         pd.Series: The number of steps taken for each episode.
     """
-    sub_df = reduced_stats[reduced_stats["result"].isin(result)]
+    sub_df = reduced_stats[
+        reduced_stats["primary_performance"].isin(primary_performance)
+    ]
     return sub_df.n_steps
 
 """
@@ -1033,3 +1039,82 @@ def plot_accuracy(
         add_legend(ax, groups, colors=colors, labels=labels, **legend_kw)
 
     return ax
+
+# half = get_experiments(group="half_lms_match")
+# fixed = get_experiments(group="fixed_min_lms_match")
+# common = [half[0], half[2]]
+# for ind in [2, 0]:
+#     for g in [half, fixed]:
+#         g.pop(ind)
+
+# groups = [common, half, fixed]
+# colors = [TBP_COLORS["green"], TBP_COLORS["blue"], TBP_COLORS["purple"]]
+# labels = ["half=fixed", "match: n_lms / 2", "match: 2"]
+
+# fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+# # Plot accuracy
+# big_spacing = 2
+# small_spacing = 0.85
+# x_positions_common = np.array([0, 4])
+# x_positions_half = np.array([2, 6, 8])
+# x_positions_fixed = x_positions_half + small_spacing
+# x_positions = [x_positions_common, x_positions_half, x_positions_fixed]
+# widths = [1.6, 0.8, 0.8]
+# for i, g in enumerate(groups):
+#     x_pos = x_positions[i].tolist()
+#     accuracy = [exp.get_accuracy() for exp in g]
+#     ax.bar(
+#         x_pos,
+#         accuracy,
+#         color=colors[i],
+#         width=widths[i],
+#         align="edge",
+#     )
+
+# ax.set_ylim([50, 100])
+# ax.set_xlabel("Number of LMs")
+# ax.set_ylabel("% Correct")
+# ax.legend()
+# plt.show()
+
+half = get_experiments(group="half_lms_match")
+
+fixed = get_experiments(group="fixed_min_lms_match")
+
+groups = [half, fixed]
+colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+labels = ["match: n_lms / 2", "match: 2"]
+
+fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+# Plot accuracy
+n_groups = len(groups)
+width = 0.4
+gap = 0.025
+x_positions_0 = np.arange(len(groups[0])) + 1
+x_positions_1 = x_positions_0 + width + gap
+x_positions = np.vstack([x_positions_0, x_positions_1])
+for i, g in enumerate(groups):
+    x_pos = x_positions[i].tolist()
+    accuracy = [exp.get_accuracy() for exp in g]
+    ax.bar(
+        x_pos,
+        accuracy,
+        color=colors[i],
+        width=width,
+        align="edge",
+        label=labels[i],
+    )
+
+ax.set_xlabel("Number of LMs")
+ax.set_xticks(x_positions[0])
+ax.set_xticklabels(["1", "2", "4", "8", "16"])
+
+ax.set_ylabel("% Correct")
+ax.set_ylim([50, 100])
+
+# legend = add_legend(ax, groups, colors=colors, labels=labels)
+ax.legend(loc="upper left")
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+
+plt.show()
