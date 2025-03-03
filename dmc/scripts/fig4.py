@@ -279,7 +279,6 @@ class Experiment:
     _eval_stats: Optional[pd.DataFrame] = None
     _reduced_stats: Optional[pd.DataFrame] = None
     _detailed_stats: Optional[DetailedJSONStatsInterface] = None
-    correct_result: Union[str, Container[str]] = "correct"
 
     def __init__(self, name: os.PathLike, **attrs):
         path = Path(name).expanduser()
@@ -335,12 +334,15 @@ class Experiment:
             setattr(self, key, val)
 
     def get_accuracy(
-        self, primary_performance: Optional[Union[str, Container[str]]] = None
+        self,
+        primary_performance: Optional[Union[str, Container[str]]] = [
+            "correct",
+            "correct_mlh",
+        ],
     ) -> float:
-        result = (
-            self.correct_result if primary_performance is None else primary_performance
+        return 100 * get_frequency(
+            self.reduced_stats["primary_performance"], primary_performance
         )
-        return 100 * get_frequency(self.reduced_stats["primary_performance"], result)
 
     def get_n_steps(
         self, result: Optional[Union[str, Container[str]]] = None
@@ -398,73 +400,71 @@ class ExperimentGroup(UserList):
         return s
 
 
-all_experiments = ExperimentGroup(
-    [
-        Experiment(
-            name="dist_agent_1lm_randrot_noise",
-            group="half_lms_match",
-            min_lms_match=1,
-            n_lms=1,
-        ),
-        Experiment(
-            name="dist_agent_2lm_half_lms_match_randrot_noise",
-            group="half_lms_match",
-            min_lms_match=1,
-            n_lms=2,
-        ),
-        Experiment(
-            name="dist_agent_4lm_half_lms_match_randrot_noise",
-            group="half_lms_match",
-            min_lms_match=2,
-            n_lms=4,
-        ),
-        Experiment(
-            name="dist_agent_8lm_half_lms_match_randrot_noise",
-            group="half_lms_match",
-            min_lms_match=4,
-            n_lms=8,
-        ),
-        Experiment(
-            name="dist_agent_16lm_half_lms_match_randrot_noise",
-            group="half_lms_match",
-            min_lms_match=8,
-            n_lms=16,
-        ),
-        Experiment(
-            name="dist_agent_1lm_randrot_noise",
-            group="fixed_min_lms_match",
-            min_lms_match=1,
-            n_lms=1,
-        ),
-        Experiment(
-            name="dist_agent_2lm_fixed_min_lms_match_randrot_noise",
-            group="fixed_min_lms_match",
-            min_lms_match=2,
-            n_lms=2,
-        ),
-        Experiment(
-            name="dist_agent_4lm_fixed_min_lms_match_randrot_noise",
-            group="fixed_min_lms_match",
-            min_lms_match=2,
-            n_lms=4,
-        ),
-        Experiment(
-            name="dist_agent_8lm_fixed_min_lms_match_randrot_noise",
-            group="fixed_min_lms_match",
-            min_lms_match=4,
-            n_lms=8,
-        ),
-        Experiment(
-            name="dist_agent_16lm_fixed_min_lms_match_randrot_noise",
-            group="fixed_min_lms_match",
-            min_lms_match=8,
-            n_lms=16,
-        ),
-    ]
-)
+all_experiments = [
+    Experiment(
+        name="dist_agent_1lm_randrot_noise",
+        group="half_lms_match",
+        min_lms_match=1,
+        n_lms=1,
+    ),
+    Experiment(
+        name="dist_agent_2lm_half_lms_match_randrot_noise",
+        group="half_lms_match",
+        min_lms_match=1,
+        n_lms=2,
+    ),
+    Experiment(
+        name="dist_agent_4lm_half_lms_match_randrot_noise",
+        group="half_lms_match",
+        min_lms_match=2,
+        n_lms=4,
+    ),
+    Experiment(
+        name="dist_agent_8lm_half_lms_match_randrot_noise",
+        group="half_lms_match",
+        min_lms_match=4,
+        n_lms=8,
+    ),
+    Experiment(
+        name="dist_agent_16lm_half_lms_match_randrot_noise",
+        group="half_lms_match",
+        min_lms_match=8,
+        n_lms=16,
+    ),
+    Experiment(
+        name="dist_agent_1lm_randrot_noise",
+        group="fixed_min_lms_match",
+        min_lms_match=1,
+        n_lms=1,
+    ),
+    Experiment(
+        name="dist_agent_2lm_fixed_min_lms_match_randrot_noise",
+        group="fixed_min_lms_match",
+        min_lms_match=2,
+        n_lms=2,
+    ),
+    Experiment(
+        name="dist_agent_4lm_fixed_min_lms_match_randrot_noise",
+        group="fixed_min_lms_match",
+        min_lms_match=2,
+        n_lms=4,
+    ),
+    Experiment(
+        name="dist_agent_8lm_fixed_min_lms_match_randrot_noise",
+        group="fixed_min_lms_match",
+        min_lms_match=4,
+        n_lms=8,
+    ),
+    Experiment(
+        name="dist_agent_16lm_fixed_min_lms_match_randrot_noise",
+        group="fixed_min_lms_match",
+        min_lms_match=8,
+        n_lms=16,
+    ),
+]
 
 
-def get_experiments(**filters) -> ExperimentGroup:
+def get_experiments(**filters) -> List[Experiment]:
     experiments = copy.deepcopy(all_experiments)
     for key, val in filters.items():
         experiments = [exp for exp in experiments if getattr(exp, key, None) == val]
@@ -563,7 +563,8 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
 
 
 def get_accuracy(
-    reduced_stats: pd.DataFrame, primary_performance: Union[str, List[str]] = "correct"
+    reduced_stats: pd.DataFrame,
+    primary_performance: Union[str, List[str]] = ["correct", "correct_mlh"],
 ) -> float:
     """Get the percentage of correct performances.
 
@@ -1066,7 +1067,7 @@ def plot_double_violin(step_mode: str = "num_steps_terminal"):
     ax.set_ylabel("Steps")
     ax.set_ylim([0, 150])
 
-    legend = add_legend(ax, groups, colors=colors, labels=labels)
+    add_legend(ax, groups, colors=colors, labels=labels)
     # ax.legend(loc="upper left")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -1126,23 +1127,25 @@ fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 n_groups = len(groups)
 width = 0.4
 gap = 0.025
-x_positions_0 = np.arange(len(groups[0])) + 1
-x_positions_1 = x_positions_0 + width + gap
+inter_width = 0.02
+x_centers = np.arange(len(groups[0]))  # centers
+x_positions_0 = x_centers - inter_width / 2 - width / 2
+x_positions_1 = x_centers + inter_width / 2 + width / 2
 x_positions = np.vstack([x_positions_0, x_positions_1])
 for i, g in enumerate(groups):
-    x_pos = x_positions[i].tolist()
-    accuracy = [exp.get_accuracy() for exp in g]
+    x_pos = x_positions[i]
+    accuracy = [exp.get_accuracy(["correct"]) for exp in g]
     ax.bar(
         x_pos,
         accuracy,
         color=colors[i],
         width=width,
-        align="edge",
+        # align="edge",
         label=labels[i],
     )
 
 ax.set_xlabel("Number of LMs")
-ax.set_xticks(x_positions[0])
+ax.set_xticks(x_centers)
 ax.set_xticklabels(["1", "2", "4", "8", "16"])
 
 ax.set_ylabel("% Correct")
