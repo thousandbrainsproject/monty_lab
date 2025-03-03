@@ -1134,15 +1134,27 @@ x_positions_1 = x_centers + inter_width / 2 + width / 2
 x_positions = np.vstack([x_positions_0, x_positions_1])
 for i, g in enumerate(groups):
     x_pos = x_positions[i]
-    accuracy = [exp.get_accuracy(["correct"]) for exp in g]
+    accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
+    accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
     ax.bar(
         x_pos,
-        accuracy,
+        accuracy_correct,
         color=colors[i],
         width=width,
         # align="edge",
         label=labels[i],
     )
+    ax.bar(
+        x_pos,
+        accuracy_correct_mlh,
+        color=colors[i],
+        width=width,
+        # align="edge",
+        label=labels[i],
+        bottom=accuracy_correct,
+        hatch="///",
+    )
+
 
 ax.set_xlabel("Number of LMs")
 ax.set_xticks(x_centers)
@@ -1152,9 +1164,13 @@ ax.set_ylabel("% Correct")
 ax.set_ylim([50, 100])
 
 # legend = add_legend(ax, groups, colors=colors, labels=labels)
-ax.legend(loc="upper left")
+# ax.legend(loc="upper left")
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
+add_legend(ax, groups, colors=colors, labels=labels, loc="upper left")
+# plot_double_violin(step_mode="monty_matching_steps")
+# plot_double_violin(step_mode="num_steps")
+# plot_double_violin(step_mode="num_steps_terminal")
 
 
 # step_mode = "monty_matching_steps"
