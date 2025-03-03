@@ -345,12 +345,21 @@ class Experiment:
         )
 
     def get_n_steps(
-        self, result: Optional[Union[str, Container[str]]] = None
-    ) -> pd.Series:
-        result = self.correct_result if result is None else result
-        result = np.atleast_1d(result)
-        df = self.eval_stats[self.eval_stats.primary_performance.isin(result)]
-        return df.num_steps
+        self,
+        step_mode: str = "num_steps",
+    ) -> np.ndarray:
+        if step_mode == "monty_matching_steps":
+            return (
+                self.eval_stats.groupby("episode").monty_matching_steps.first().values
+            )
+        elif step_mode == "num_steps":
+            return self.eval_stats.num_steps.values
+        elif step_mode == "num_steps_terminal":
+            # just num_steps for terminal LMs
+            terminated = self.eval_stats.primary_performance.isin(
+                ["correct", "confused"]
+            )
+            return self.eval_stats.num_steps[terminated].values
 
     def __repr__(self):
         return f"Experiment('{self.name}')"
@@ -1075,99 +1084,86 @@ def plot_double_violin(step_mode: str = "num_steps_terminal"):
     plt.show()
 
 
-# half = get_experiments(group="half_lms_match")
-# fixed = get_experiments(group="fixed_min_lms_match")
-# common = [half[0], half[2]]
-# for ind in [2, 0]:
-#     for g in [half, fixed]:
-#         g.pop(ind)
-
-# groups = [common, half, fixed]
-# colors = [TBP_COLORS["green"], TBP_COLORS["blue"], TBP_COLORS["purple"]]
-# labels = ["half=fixed", "match: n_lms / 2", "match: 2"]
-
-# fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-# # Plot accuracy
-# big_spacing = 2
-# small_spacing = 0.85
-# x_positions_common = np.array([0, 4])
-# x_positions_half = np.array([2, 6, 8])
-# x_positions_fixed = x_positions_half + small_spacing
-# x_positions = [x_positions_common, x_positions_half, x_positions_fixed]
-# widths = [1.6, 0.8, 0.8]
-# for i, g in enumerate(groups):
-#     x_pos = x_positions[i].tolist()
-#     accuracy = [exp.get_accuracy() for exp in g]
-#     ax.bar(
-#         x_pos,
-#         accuracy,
-#         color=colors[i],
-#         width=widths[i],
-#         align="edge",
-#     )
-
-# ax.set_ylim([50, 100])
-# ax.set_xlabel("Number of LMs")
-# ax.set_ylabel("% Correct")
-# ax.legend()
-# plt.show()
-
-"""
-Accuracy / Bar plot
-"""
-half = get_experiments(group="half_lms_match")[0:2]
-fixed = get_experiments(group="fixed_min_lms_match")[0:2]
-
-groups = [half, fixed]
-colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-labels = ["match: 1", "match: all"]
-
-fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-# Plot accuracy
-n_groups = len(groups)
-width = 0.4
-gap = 0.025
-inter_width = 0.02
-x_centers = np.arange(len(groups[0]))  # centers
-x_positions_0 = x_centers - inter_width / 2 - width / 2
-x_positions_1 = x_centers + inter_width / 2 + width / 2
-x_positions = np.vstack([x_positions_0, x_positions_1])
-for i, g in enumerate(groups):
-    x_pos = x_positions[i]
-    accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
-    accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
-    bar1 = ax.bar(
-        x_pos,
-        accuracy_correct,
-        color=colors[i],
-        width=width,
-        # align="edge",
-        label=labels[i],
-    )
-    bar2 = ax.bar(
-        x_pos,
-        accuracy_correct_mlh,
-        color=colors[i],
-        width=width,
-        # align="edge",
-        label=labels[i],
-        bottom=accuracy_correct,
-        hatch="///",
+def plot_horz_vs_vert_accuracy_and_num_steps():
+    """
+    Accuracy / Bar plot
+    """
+    horz = Experiment(
+        name="dist_agent_2lm_horz",
+        group="half_lms_match",
+        min_lms_match=1,
+        n_lms=2,
     )
 
+    vert = Experiment(
+        name="dist_agent_2lm_vert",
+        group="half_lms_match",
+        min_lms_match=2,
+        n_lms=2,
+    )
 
-ax.set_xlabel("Number of LMs")
-ax.set_xticks(x_centers)
-ax.set_xticklabels(["1", "2", "4", "8", "16"])
+    groups = [[horz], [vert]]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+    labels = ["horz", " vert"]
 
-ax.set_ylabel("% Correct")
-ax.set_ylim([50, 100])
+    fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
+    ax_2 = ax_1.twinx()
 
-# legend = add_legend(ax, groups, colors=colors, labels=labels)
-# ax.legend(loc="upper left")
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-add_legend(ax, groups, colors=colors, labels=labels, loc="upper left")
+    # Plot accuracy
+    n_groups = len(groups)
+    bar_width = 0.4
+    violin_width = 0.4
+    inter_width = 0.02
+    xticks = np.array([0, 1])
+    for i, g in enumerate(groups):
+        x_pos = xticks[i] - bar_width / 2 - inter_width / 2
+        accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
+        accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
+        ax_1.bar(
+            x_pos,
+            accuracy_correct,
+            color=colors[i],
+            width=bar_width,
+            label=labels[i],
+        )
+        ax_1.bar(
+            x_pos,
+            accuracy_correct_mlh,
+            color=colors[i],
+            width=bar_width,
+            label=labels[i],
+            bottom=accuracy_correct,
+            hatch="///",
+        )
+    for i, g in enumerate(groups):
+        x_pos = [xticks[i] + bar_width / 2 + inter_width / 2]
+        num_steps = [exp.get_n_steps() for exp in g]
+        vp = ax_2.violinplot(
+            num_steps,
+            positions=x_pos,
+            showextrema=False,
+            showmedians=True,
+            widths=violin_width,
+        )
+        for body in vp["bodies"]:
+            body.set_facecolor(colors[i])
+            body.set_alpha(1.0)
+        vp["cmedians"].set_color("black")
+
+    ax_1.set_xticks(xticks)
+    ax_1.set_xticklabels(["horz", "vert"])
+
+    ax_1.set_ylabel("% Correct")
+    ax_1.set_ylim([50, 100])
+
+    ax_2.set_ylabel("Steps")
+    ax_2.set_ylim([0, 500])
+    ax_1.spines["top"].set_visible(False)
+    ax_2.spines["top"].set_visible(False)
+
+    add_legend(ax_1, groups, colors=colors, labels=labels, loc="upper left")
+
+
 # plot_double_violin(step_mode="monty_matching_steps")
 # plot_double_violin(step_mode="num_steps")
 # plot_double_violin(step_mode="num_steps_terminal")
