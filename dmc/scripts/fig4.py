@@ -1121,7 +1121,7 @@ Accuracy / Bar plot
 
 
 # plt.show()
-def plot_double_violin():
+def plot_double_violin(step_mode: str = "num_steps_terminal"):
     """
     Num Steps
 
@@ -1130,8 +1130,6 @@ def plot_double_violin():
     - "num_steps"
     - "num_steps_terminal"
     """
-
-    step_mode = "num_steps_terminal"
 
     half = get_experiments(group="half_lms_match")
     fixed = get_experiments(group="fixed_min_lms_match")
@@ -1221,7 +1219,7 @@ def plot_double_violin():
     # ax.set_xticklabels(["1", "2", "4", "8", "16"])
 
     ax.set_ylabel("% Correct")
-    ax.set_ylim([0, 100])
+    ax.set_ylim([0, 150])
 
     legend = add_legend(ax, groups, colors=colors, labels=labels)
     # ax.legend(loc="upper left")
@@ -1231,4 +1229,6 @@ def plot_double_violin():
     plt.show()
 
 
-plot_double_violin()
+plot_double_violin(step_mode="monty_matching_steps")
+plot_double_violin(step_mode="num_steps")
+plot_double_violin(step_mode="num_steps_terminal")
