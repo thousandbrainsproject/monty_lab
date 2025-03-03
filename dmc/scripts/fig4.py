@@ -1115,12 +1115,12 @@ def plot_double_violin(step_mode: str = "num_steps_terminal"):
 """
 Accuracy / Bar plot
 """
-half = get_experiments(group="half_lms_match")
-fixed = get_experiments(group="fixed_min_lms_match")
+half = get_experiments(group="half_lms_match")[0:2]
+fixed = get_experiments(group="fixed_min_lms_match")[0:2]
 
 groups = [half, fixed]
 colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-labels = ["match: n_lms / 2", "match: 2"]
+labels = ["match: 1", "match: all"]
 
 fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 # Plot accuracy
@@ -1136,7 +1136,7 @@ for i, g in enumerate(groups):
     x_pos = x_positions[i]
     accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
     accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
-    ax.bar(
+    bar1 = ax.bar(
         x_pos,
         accuracy_correct,
         color=colors[i],
@@ -1144,7 +1144,7 @@ for i, g in enumerate(groups):
         # align="edge",
         label=labels[i],
     )
-    ax.bar(
+    bar2 = ax.bar(
         x_pos,
         accuracy_correct_mlh,
         color=colors[i],
