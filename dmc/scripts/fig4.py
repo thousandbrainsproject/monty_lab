@@ -1215,8 +1215,8 @@ def plot_double_violin(step_mode: str = "num_steps_terminal"):
 
     ax.set_title(step_mode)
     ax.set_xlabel("Number of LMs")
-    # ax.set_xticks(x_positions[0])
-    # ax.set_xticklabels(["1", "2", "4", "8", "16"])
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(["1", "2", "4", "8", "16"])
 
     ax.set_ylabel("% Correct")
     ax.set_ylim([0, 150])
