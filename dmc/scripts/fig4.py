@@ -1077,44 +1077,158 @@ def plot_accuracy(
 # ax.legend()
 # plt.show()
 
-half = get_experiments(group="half_lms_match")
+"""
+Accuracy / Bar plot
+"""
+# half = get_experiments(group="half_lms_match")
+# fixed = get_experiments(group="fixed_min_lms_match")
 
-fixed = get_experiments(group="fixed_min_lms_match")
+# groups = [half, fixed]
+# colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+# labels = ["match: n_lms / 2", "match: 2"]
 
-groups = [half, fixed]
-colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-labels = ["match: n_lms / 2", "match: 2"]
+# fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+# # Plot accuracy
+# n_groups = len(groups)
+# width = 0.4
+# gap = 0.025
+# x_positions_0 = np.arange(len(groups[0])) + 1
+# x_positions_1 = x_positions_0 + width + gap
+# x_positions = np.vstack([x_positions_0, x_positions_1])
+# for i, g in enumerate(groups):
+#     x_pos = x_positions[i].tolist()
+#     accuracy = [exp.get_accuracy() for exp in g]
+#     ax.bar(
+#         x_pos,
+#         accuracy,
+#         color=colors[i],
+#         width=width,
+#         align="edge",
+#         label=labels[i],
+#     )
 
-fig, ax = plt.subplots(1, 1, figsize=(6, 4))
-# Plot accuracy
-n_groups = len(groups)
-width = 0.4
-gap = 0.025
-x_positions_0 = np.arange(len(groups[0])) + 1
-x_positions_1 = x_positions_0 + width + gap
-x_positions = np.vstack([x_positions_0, x_positions_1])
-for i, g in enumerate(groups):
-    x_pos = x_positions[i].tolist()
-    accuracy = [exp.get_accuracy() for exp in g]
-    ax.bar(
-        x_pos,
-        accuracy,
-        color=colors[i],
-        width=width,
-        align="edge",
-        label=labels[i],
-    )
+# ax.set_xlabel("Number of LMs")
+# ax.set_xticks(x_positions[0])
+# ax.set_xticklabels(["1", "2", "4", "8", "16"])
 
-ax.set_xlabel("Number of LMs")
-ax.set_xticks(x_positions[0])
-ax.set_xticklabels(["1", "2", "4", "8", "16"])
+# ax.set_ylabel("% Correct")
+# ax.set_ylim([50, 100])
 
-ax.set_ylabel("% Correct")
-ax.set_ylim([50, 100])
+# # legend = add_legend(ax, groups, colors=colors, labels=labels)
+# ax.legend(loc="upper left")
+# ax.spines["top"].set_visible(False)
+# ax.spines["right"].set_visible(False)
 
-# legend = add_legend(ax, groups, colors=colors, labels=labels)
-ax.legend(loc="upper left")
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
 
-plt.show()
+# plt.show()
+def plot_double_violin():
+    """
+    Num Steps
+
+    step_mode: one of
+    - "monty_matching_steps"
+    - "num_steps"
+    - "num_steps_terminal"
+    """
+
+    step_mode = "num_steps_terminal"
+
+    half = get_experiments(group="half_lms_match")
+    fixed = get_experiments(group="fixed_min_lms_match")
+
+    groups = [half, fixed]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+    labels = ["match: n_lms / 2", "match: 2"]
+    sides = ["left", "right"]
+
+    fig, ax = plt.subplots(1, 1, figsize=(6, 4))
+
+    # amount of white space between violins
+    inter_width = 0.02
+
+    # middle positions for each half-violin pair
+    x_positions = np.arange(len(groups[0]))
+    for group_num, g in enumerate(groups):
+        n_steps = []
+        for exp in g:
+            if step_mode == "monty_matching_steps":
+                n_steps_j = exp.eval_stats.groupby(
+                    "episode"
+                ).monty_matching_steps.first()
+                n_steps.append(n_steps_j)
+            elif step_mode == "num_steps":
+                n_steps_j = exp.eval_stats.num_steps
+                n_steps.append(n_steps_j)
+            elif step_mode == "num_steps_terminal":
+                # just num_steps for terminal LMs
+                terminated = exp.eval_stats.primary_performance.isin(
+                    ["correct", "confused"]
+                )
+                n_steps_j = exp.eval_stats.num_steps[terminated]
+                n_steps.append(n_steps_j)
+            else:
+                raise ValueError(f"Invalid step mode: {step_mode}")
+
+        # Plot num steps
+        vp = ax.violinplot(
+            n_steps,
+            positions=x_positions,
+            showextrema=False,
+            showmedians=False,
+            widths=0.8,
+        )
+        for j, body in enumerate(vp["bodies"]):
+            body.set_facecolor(colors[group_num])
+            body.set_alpha(1.0)
+
+            # 1. Mask out not-shown half of the violin to make a half-violin.
+            # 2. Draw a line for the median that fits within the half-violin.
+
+            # get the center
+            p = body.get_paths()[0]
+            center_x = x_positions[j]
+            median = np.median(n_steps[j])
+            if sides[group_num] == "left":
+                # Mask the right side of the violin.
+                right_max = center_x - inter_width / 2
+                p.vertices[:, 0] = np.clip(p.vertices[:, 0], -np.inf, right_max)
+                # find leftmost x-value of violin curve where y is the median
+                curve_verts = p.vertices[p.vertices[:, 0] < right_max]
+                imin = np.argmin(np.abs(median - curve_verts[:, 1]))
+                left_max = curve_verts[imin, 0]
+            elif sides[group_num] == "right":
+                # Mask the left side of the violin.
+                left_max = center_x + inter_width / 2
+                p.vertices[:, 0] = np.clip(p.vertices[:, 0], left_max, np.inf)
+                # find rightmost n curve where y is the median
+                curve_verts = p.vertices[p.vertices[:, 0] > left_max]
+                imin = np.argmin(np.abs(median - curve_verts[:, 1]))
+                right_max = curve_verts[imin, 0]
+            else:
+                raise ValueError(f"Invalid side: {sides[group_num]}")
+
+            # compensation for line width. depends on points-to-data coordinate ratio.
+            lw_factor = 0.01
+            ax.plot(
+                [left_max + lw_factor, right_max - lw_factor],
+                [median, median],
+                color="black",
+            )
+
+    ax.set_title(step_mode)
+    ax.set_xlabel("Number of LMs")
+    # ax.set_xticks(x_positions[0])
+    # ax.set_xticklabels(["1", "2", "4", "8", "16"])
+
+    ax.set_ylabel("% Correct")
+    ax.set_ylim([0, 100])
+
+    legend = add_legend(ax, groups, colors=colors, labels=labels)
+    # ax.legend(loc="upper left")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    plt.show()
+
+
+plot_double_violin()
