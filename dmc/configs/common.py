@@ -494,6 +494,11 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
      - `symmetric_locations`
      - `symmetric_rotations`
 
+    However, if `selective_handler_args["last_evidence"]` is `True`, then only final
+    evidences, locations, and rotations are saved. This means `evidences`,
+    `possible_locations`, and `possible_rotations` are replaced with `evidences_ls`,
+    `possible_locations_ls`, and `possible_rotations_ls` respectively.
+
     By default, all sensor module data is saved but only for steps where an LM
     has processed data which greatly reduces storage requirements. Furthermore,
     sensor module data can be omitted entirely via the `selective_handler_args`
@@ -504,7 +509,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
     ```
     then all sensor module data for `SM_0` and `SM_1` will be omitted.
 
-    Though not otherwise used (to my knowledge), Monty does have a mechanism for
+    NOTE: Though not otherwise used (to my knowledge), Monty does have a mechanism for
     passing arguments to a handler's `__init__` function. If the parent `LoggingConfig`
     has an attribute whose name matches a parameter in a handler's `__init__`, then
     that attribute will be supplied to the handler's `__init__`. To do so, use the
@@ -544,8 +549,6 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
             data, episode, mode, **kwargs
         )
 
-        # Subclasses could modify behavior by adding a few lines here.
-
         # Finally, write the data.
         self.save(episode_total, buffer_data, output_dir)
 
@@ -575,8 +578,9 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
     ) -> Tuple[int, Mapping]:
         """Initialize the output data dict.
 
-        Populates the `buffer_data` dict with limited LM and SM data, but also
-        removes any keys specified in `self.handler_args["exclude"]`.
+        Populates the `buffer_data` dict with LM and SM data, though either may be
+        modified or removed based on `self.handler_args`.
+
 
         Args:
             data (Mapping): Data from the episode.
@@ -613,6 +617,21 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
                 "symmetric_rotations": detailed[lm_id]["symmetric_rotations"],
             }
             buffer_data[lm_id] = lm_dict
+
+        # Optionally, only store the final evidences, locations, and rotations.
+        last_evidence = self.handler_args.get("last_evidence", False)
+        if last_evidence:
+            for lm_id in lm_ids:
+                lm_dict = buffer_data[lm_id]
+                evidences = lm_dict["evidences"]
+                possible_locations = lm_dict["possible_locations"]
+                possible_rotations = lm_dict["possible_rotations"]
+                lm_dict["evidences_ls"] = evidences[-1]
+                lm_dict["possible_locations_ls"] = possible_locations[-1]
+                lm_dict["possible_rotations_ls"] = possible_rotations[-1]
+                lm_dict.pop("evidences")
+                lm_dict.pop("possible_locations")
+                lm_dict.pop("possible_rotations")
 
         # Add SM data, but only where LMs have processed data.
         sm_ids = [key for key in detailed if key.startswith("SM")]
