@@ -210,69 +210,10 @@ def plot_8lm_patches():
     fig.savefig(OUT_DIR / "8lm_patches.png", dpi=300)
     fig.savefig(OUT_DIR / "8lm_patches.svg")
 
-
-# all_experiments = [
-#     {
-#         "name": "dist_agent_1lm_randrot_noise",
-#         "group": "half_lms_match",
-#         "min_lms_match": 1,
-#         "n_lms": 1,
-#     },
-#     {
-#         "name": "dist_agent_2lm_half_lms_match_randrot_noise",
-#         "group": "half_lms_match",
-#         "min_lms_match": 1,
-#         "n_lms": 2,
-#     },
-#     {
-#         "name": "dist_agent_4lm_half_lms_match_randrot_noise",
-#         "group": "half_lms_match",
-#         "min_lms_match": 2,
-#         "n_lms": 4,
-#     },
-#     {
-#         "name": "dist_agent_8lm_half_lms_match_randrot_noise",
-#         "group": "half_lms_match",
-#         "min_lms_match": 4,
-#         "n_lms": 8,
-#     },
-#     {
-#         "name": "dist_agent_16lm_half_lms_match_randrot_noise",
-#         "group": "half_lms_match",
-#         "min_lms_match": 8,
-#         "n_lms": 16,
-#     },
-#     {
-#         "name": "dist_agent_1lm_randrot_noise",
-#         "group": "fixed_min_lms_match",
-#         "min_lms_match": 1,
-#         "n_lms": 1,
-#     },
-#     {
-#         "name": "dist_agent_2lm_fixed_min_lms_match_randrot_noise",
-#         "group": "fixed_min_lms_match",
-#         "min_lms_match": 2,
-#         "n_lms": 2,
-#     },
-#     {
-#         "name": "dist_agent_4lm_fixed_min_lms_match_randrot_noise",
-#         "group": "fixed_min_lms_match",
-#         "min_lms_match": 2,
-#         "n_lms": 4,
-#     },
-#     {
-#         "name": "dist_agent_8lm_fixed_min_lms_match_randrot_noise",
-#         "group": "fixed_min_lms_match",
-#         "min_lms_match": 4,
-#         "n_lms": 8,
-#     },
-#     {
-#         "name": "dist_agent_16lm_fixed_min_lms_match_randrot_noise",
-#         "group": "fixed_min_lms_match",
-#         "min_lms_match": 8,
-#         "n_lms": 16,
-#     },
-# ]
+"""
+-------------------------------------------------------------------------------
+Analysis
+"""
 
 
 class Experiment:
@@ -329,10 +270,6 @@ class Experiment:
     def copy(self, deep: bool = False) -> "Experiment":
         return copy.deepcopy(self) if deep else copy.copy(self)
 
-    def set_attrs(self, **attrs):
-        for key, val in attrs.items():
-            setattr(self, key, val)
-
     def get_accuracy(
         self,
         primary_performance: Optional[Union[str, Container[str]]] = [
@@ -360,53 +297,11 @@ class Experiment:
                 ["correct", "confused"]
             )
             return self.eval_stats.num_steps[terminated].values
+        else:
+            raise ValueError(f"Invalid step mode: {step_mode}")
 
     def __repr__(self):
         return f"Experiment('{self.name}')"
-
-
-class ExperimentGroup(UserList):
-    def __init__(
-        self, experiments: List[Experiment], name: Optional[str] = None, **attrs
-    ):
-        super().__init__(experiments)
-        for key, val in attrs.items():
-            setattr(self, key, val)
-        self.name = name
-
-    def copy(self, deep: bool = False) -> "ExperimentGroup":
-        return copy.deepcopy(self) if deep else copy.copy(self)
-
-    def set_attrs(self, **attrs):
-        for key, val in attrs.items():
-            setattr(self, key, val)
-
-    def map(self, fn: Union[Callable, str], *args, **kw) -> np.ndarray:
-        if len(self) == 0:
-            return np.array([])
-        if isinstance(fn, (str, np.str_)):
-            out = [getattr(exp, fn)(*args, **kw) for exp in self]
-        else:
-            out = [fn(exp, *args, **kw) for exp in self]
-        try:
-            return np.array(out)
-        except ValueError:
-            return np.array(out, dtype=object)
-
-    def __getitem__(self, key: int) -> Experiment:
-        out = self.data[key]
-        if isinstance(out, list):
-            return ExperimentGroup(out)
-        return out
-
-    def __repr__(self):
-        if self.name:
-            s = f"ExperimentGroup('{self.name}')"
-        else:
-            s = f"ExperimentGroup"
-        for exp in self:
-            s += f"\n  - {exp}"
-        return s
 
 
 all_experiments = [
@@ -477,33 +372,51 @@ def get_experiments(**filters) -> List[Experiment]:
     experiments = copy.deepcopy(all_experiments)
     for key, val in filters.items():
         experiments = [exp for exp in experiments if getattr(exp, key, None) == val]
-    return ExperimentGroup(experiments)
+    return experiments
+
+
+def add_legend(
+    ax: plt.Axes,
+    colors: Container[str],
+    labels: Container[str],
+    loc: Optional[str] = None,
+    lw: int = 4,
+    fontsize: int = 8,
+) -> matplotlib.legend.Legend:
+    # Create custom legend handles (axes.legend() doesn't work when multiple
+    # violin plots are on the same axes.
+    legend_handles = []
+    for i in range(len(colors)):
+        handle = Line2D([0], [0], color=colors[i], lw=lw, label=labels[i])
+        legend_handles.append(handle)
+
+    return ax.legend(handles=legend_handles, loc=loc, fontsize=fontsize)
 
 
 def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
-    """_summary_
+    """Reduce the eval stats dataframe to a single row per episode.
+
+    The main purpose of this function is to classify an episode as either "correct"
+    or "confused" based on the number of correct and confused performances (or
+    "correct_mlh" and "confused_mlh" for timed-out episodes).
 
     Args:
-        eval_stats (pd.DataFrame): _description_
-
+        eval_stats (pd.DataFrame): The eval stats dataframe.
+        require_majority (bool): Whether to require a majority of correct performances
+            for 'correct' classification.
     Returns:
-        _type_: _description_
+        pd.DataFrame: A dataframe with a single row per episode.
     """
     episodes = np.arange(eval_stats.episode.max() + 1)
     assert np.array_equal(eval_stats.episode.unique(), episodes)  # sanity check
     n_episodes = len(episodes)
 
-    # Columns of output dataframe.
+    # Columns of output dataframe. More are added later.
     output_data = {
         "primary_performance": np.zeros(n_episodes, dtype=object),
-        "n_steps": np.zeros(n_episodes, dtype=int),
     }
     for name in PERFORMANCE_OPTIONS:
         output_data[f"n_{name}"] = np.zeros(n_episodes, dtype=int)
-
-    # temporary
-    output_data["eval_stats_start"] = np.zeros(n_episodes, dtype=int)
-    output_data["eval_stats_end"] = np.zeros(n_episodes, dtype=int)
 
     episode_groups = eval_stats.groupby("episode")
     for episode, df in episode_groups:
@@ -527,25 +440,18 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
                 elif row["n_confused"] < row["n_correct"]:
                     performance = "correct"
                 else:
-                    # ties can braak in favor of "correct" if the number of LMs with
-                    # correct_mlh exceeds the number of LMs with "confused_mlh".
+                    # Ties go to "confused" by default, but the tie can be broken
+                    # in favor of "correct" if the number of LMs with "correct_mlh"
+                    # exceeds the number of LMs with "confused_mlh".
                     performance = "confused"
-                    # if row["n_correct_mlh"] > row["n_confused_mlh"]:
-                    #     performance = "correct"
+                    if row["n_correct_mlh"] > row["n_confused_mlh"]:
+                        performance = "correct"
 
             elif performance == "correct_mlh":
                 if row["n_confused_mlh"] >= row["n_correct_mlh"]:
                     performance = "confused_mlh"
 
         row["primary_performance"] = performance
-        # Choose number of steps taken.
-        lm_inds = np.where(df.primary_performance == performance)[0]
-        n_steps = df.num_steps.iloc[lm_inds].mean()
-        row["n_steps"] = n_steps
-
-        # temporary
-        row["eval_stats_start"] = df.index[0]
-        row["eval_stats_end"] = df.index[-1] + 1
 
         for key, val in row.items():
             output_data[key][episode] = val
@@ -560,56 +466,16 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
     output_data["primary_target_rotation"] = (
         episode_groups.primary_target_object.first().values
     )
-    n_correct, n_confused = output_data["n_correct"], output_data["n_confused"]
-    single_hypothesis_correct = (n_correct > 0) & (n_confused == 0)
-    single_hypothesis_confused = (n_correct == 0) & (n_confused > 0)
-    single_hypothesis = single_hypothesis_correct | single_hypothesis_confused
-    output_data["single_hypothesis"] = single_hypothesis
-    output_data["episode"] = episode_groups.episode.first()
+    output_data["episode"] = episode_groups.episode.first().values
+    output_data["epoch"] = episode_groups.epoch.first().values
 
     out = pd.DataFrame(output_data)
     return out
 
 
-def get_accuracy(
-    reduced_stats: pd.DataFrame,
-    primary_performance: Union[str, List[str]] = ["correct", "correct_mlh"],
-) -> float:
-    """Get the percentage of correct performances.
-
-    Args:
-        reduced_stats (pd.DataFrame): The dataframe containing the `result` column.
-        result: (str or list of str): One or more result types (e.g., `"correct"` or
-            `["correct", "correct_mlh"]`).
-    Returns:
-        float: The percentage of correct performances (between 0 and 100).
-    """
-    return 100 * get_frequency(
-        reduced_stats["primary_performance"], primary_performance
-    )
-
-
-def get_num_steps(
-    reduced_stats: pd.DataFrame, primary_performance: Union[str, List[str]] = "correct"
-) -> pd.Series:
-    """Get the percentage of correct performances.
-
-    Args:
-        df (pd.DataFrame): The reduced eval stats dataframe containing. Must contain
-         columns `result` and `n_steps`.
-        result: (str or list of str): One or more result types (e.g., `"correct"` or
-            `["correct", "correct_mlh"]`).
-    Returns:
-        pd.Series: The number of steps taken for each episode.
-    """
-    sub_df = reduced_stats[
-        reduced_stats["primary_performance"].isin(primary_performance)
-    ]
-    return sub_df.n_steps
-
 """
 -------------------------------------------------------------------------------
-TEMPORARY / EXPLORATORY
+Plotting
 """
 
 
@@ -623,9 +489,6 @@ def plot_accuracy_and_num_steps():
     group_names = ["half_match", "fixed_match"]
     group_colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
 
-    # num steps conditions
-    correct_result = ["correct", "correct_mlh"]
-
     fig, axes = plt.subplots(1, 2, figsize=(8, 3))
 
     # Plot accuracy
@@ -637,7 +500,7 @@ def plot_accuracy_and_num_steps():
     x_positions = np.vstack([x_positions_0, x_positions_1])
     for i, grp in enumerate(groups):
         x_pos = x_positions[i].tolist()
-        accuracy = [get_accuracy(dct["reduced_stats"], correct_result) for dct in grp]
+        accuracy = [exp.get_accuracy() for exp in grp]
         ax.bar(
             x_pos,
             accuracy,
@@ -661,7 +524,7 @@ def plot_accuracy_and_num_steps():
     x_positions = np.vstack([x_positions_0, x_positions_1])
     for i, grp in enumerate(groups):
         x_pos = x_positions[i].tolist()
-        num_steps = [get_num_steps(dct["reduced_stats"], correct_result) for dct in grp]
+        num_steps = [exp.get_n_steps() for exp in grp]
 
         vp = ax.violinplot(
             num_steps,
@@ -691,99 +554,6 @@ def plot_accuracy_and_num_steps():
     ]
     ax.legend(handles=legend_handles, loc="upper right")
     plt.show()
-
-
-def save_flipped_eval_stats():
-    group = get_experiments()
-
-    for exp in group:
-        eval_stats_raw = pd.read_csv(exp.path / "eval_stats.csv")
-        eval_stats, reduced_stats = exp.eval_stats, exp.reduced_stats
-        n_correct = reduced_stats.n_correct
-        n_confused = reduced_stats.n_confused
-        flipped = (n_correct > 0) & (n_confused >= n_correct)
-        flipped_episodes = reduced_stats[flipped].episode
-        n_flipped = len(flipped_episodes)
-
-        n_correct_mlh = reduced_stats.n_correct_mlh
-        n_confused_mlh = reduced_stats.n_confused_mlh
-        flipped_mlh = (n_correct_mlh > 0) & (n_confused_mlh >= n_correct_mlh)
-        flipped_mlh_episodes = reduced_stats[flipped_mlh].episode
-        n_flipped_mlh = len(flipped_mlh_episodes)
-
-        all_flipped = np.concatenate([flipped_episodes, flipped_mlh_episodes])
-        n_episodes = len(reduced_stats)
-
-        print(f"{exp.name}: {n_episodes} episodes")
-        print(f" - flipped: {n_flipped} / {n_episodes}")
-        print(f" - flipped_mlh: {n_flipped_mlh} / {n_episodes}")
-        print(f" - pct flipped: {100*len(all_flipped) / n_episodes:.2f}%")
-        lst = []
-        if len(all_flipped):
-            empty = pd.DataFrame({col: [""] for col in eval_stats_raw.columns})
-            for episode in all_flipped:
-                df = eval_stats[eval_stats.episode == episode]
-                start, stop = df.index[0], df.index[-1] + 1
-                chunk = eval_stats_raw.iloc[start:stop]
-                lst.append(chunk)
-                lst.append(empty)
-
-            lst = lst[:-1]
-            out_dir = OUT_DIR / "flipped/eval_stats_chunks"
-            out_dir.mkdir(exist_ok=True, parents=True)
-            out_path = out_dir / f"{exp.name}_chunks.csv"
-            combined = pd.concat(lst)
-            combined.to_csv(out_path, index=False)
-
-            out_dir = OUT_DIR / "flipped/eval_stats"
-            out_dir.mkdir(exist_ok=True, parents=True)
-            src = exp.path / "eval_stats.csv"
-            dst = out_dir / f"{exp.name}.csv"
-            shutil.copy(src, dst)
-
-
-def plot_flipped_eval_stats():
-    out_dir = OUT_DIR / "flipped/plots"
-    out_dir.mkdir(exist_ok=True, parents=True)
-
-    # Initialize groups
-    correct_result = ["correct", "correct_mlh"]
-    for correct_result in ["correct", "correct_mlh"]:
-        half = get_experiments(group="half_lms_match")
-        fixed = get_experiments(group="fixed_min_lms_match")
-        for exp in half + fixed:
-            exp.correct_result = correct_result
-            exp.reduced_stats = reduce_eval_stats(exp.eval_stats, require_majority=True)
-
-        half_no_majority = get_experiments(group="half_lms_match")
-        fixed_no_majority = get_experiments(group="fixed_min_lms_match")
-        for exp in half_no_majority + fixed_no_majority:
-            exp.correct_result = correct_result
-            exp.reduced_stats = reduce_eval_stats(
-                exp.eval_stats, require_majority=False
-            )
-
-        fig, axes = plt.subplots(1, 2, figsize=(7.5, 3.5))
-        colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-        kw = {
-            "colors": colors,
-            "ylim": (50, 100),
-        }
-
-        groups = [half_no_majority, half]
-        labels = ["corr > 0", "corr > conf"]
-        title = "Half LMs Match"
-        plot_accuracy(groups, labels=labels, title=title, ax=axes[0], **kw)
-
-        groups = [fixed_no_majority, fixed]
-        title = "Fixed LMs Match"
-        plot_accuracy(
-            groups, labels=labels, title=title, legend=False, ax=axes[1], **kw
-        )
-        if "correct_mlh" in correct_result:
-            fig.savefig(out_dir / "majority_vs_no_majority_mlh.png", dpi=300)
-        else:
-            fig.savefig(out_dir / "majority_vs_no_majority.png", dpi=300)
 
 
 def plot_acc():
@@ -881,28 +651,8 @@ def plot_acc():
     plt.show()
 
 
-def add_legend(
-    ax: plt.Axes,
-    groups: Iterable[Experiment],
-    colors: Optional[Iterable[str]] = None,
-    labels: Optional[Iterable[str]] = None,
-    loc: Optional[str] = None,
-    lw: int = 4,
-) -> matplotlib.legend.Legend:
-    # Create custom legend handles (regular matplotlib legend doesn't work with
-    # two violin plots -- both patches end up with the same color).
-    colors = [g.color for g in groups] if colors is None else colors
-    labels = [g.label for g in groups] if labels is None else labels
-    legend_handles = []
-    for i, g in enumerate(groups):
-        handle = Line2D([0], [0], color=colors[i], lw=lw, label=labels[i])
-        legend_handles.append(handle)
-
-    return ax.legend(handles=legend_handles, loc=loc, fontsize=8)
-
-
 def plot_accuracy(
-    groups: Sequence[ExperimentGroup],
+    groups: Sequence[Experiment],
     colors: Optional[Sequence] = None,
     labels: Optional[Sequence[str]] = None,
     legend: bool = True,
@@ -1084,171 +834,85 @@ def plot_double_violin(step_mode: str = "num_steps_terminal"):
     plt.show()
 
 
-def plot_horz_vs_vert_accuracy_and_num_steps():
-    """
-    Accuracy / Bar plot
-    """
-    horz = Experiment(
-        name="dist_agent_2lm_horz",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=2,
-    )
-
-    vert = Experiment(
-        name="dist_agent_2lm_vert",
-        group="half_lms_match",
-        min_lms_match=2,
-        n_lms=2,
-    )
-
-    groups = [[horz], [vert]]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    labels = ["horz", " vert"]
-
-    fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
-    ax_2 = ax_1.twinx()
-
-    # Plot accuracy
-    n_groups = len(groups)
-    bar_width = 0.4
-    violin_width = 0.4
-    inter_width = 0.02
-    xticks = np.array([0, 1])
-    for i, g in enumerate(groups):
-        x_pos = xticks[i] - bar_width / 2 - inter_width / 2
-        accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
-        accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
-        ax_1.bar(
-            x_pos,
-            accuracy_correct,
-            color=colors[i],
-            width=bar_width,
-            label=labels[i],
-        )
-        ax_1.bar(
-            x_pos,
-            accuracy_correct_mlh,
-            color=colors[i],
-            width=bar_width,
-            label=labels[i],
-            bottom=accuracy_correct,
-            hatch="///",
-        )
-    for i, g in enumerate(groups):
-        x_pos = [xticks[i] + bar_width / 2 + inter_width / 2]
-        num_steps = [exp.get_n_steps() for exp in g]
-        vp = ax_2.violinplot(
-            num_steps,
-            positions=x_pos,
-            showextrema=False,
-            showmedians=True,
-            widths=violin_width,
-        )
-        for body in vp["bodies"]:
-            body.set_facecolor(colors[i])
-            body.set_alpha(1.0)
-        vp["cmedians"].set_color("black")
-
-    ax_1.set_xticks(xticks)
-    ax_1.set_xticklabels(["horz", "vert"])
-
-    ax_1.set_ylabel("% Correct")
-    ax_1.set_ylim([50, 100])
-
-    ax_2.set_ylabel("Steps")
-    ax_2.set_ylim([0, 500])
-    ax_1.spines["top"].set_visible(False)
-    ax_2.spines["top"].set_visible(False)
-
-    add_legend(ax_1, groups, colors=colors, labels=labels, loc="upper left")
-
-horz = Experiment(
-    name="dist_agent_3lm_horz",
+lm1 = Experiment(
+    name="dist_agent_1lm_randrot_noise",
     group="half_lms_match",
+    min_lms_match=1,
+    n_lms=1,
+)
+lm2_1 = Experiment(
+    name="dist_agent_2lm_half_lms_match_randrot_noise",
+    group="half_lms_match",
+    min_lms_match=1,
+    n_lms=2,
+)
+lm2_2 = Experiment(
+    name="dist_agent_2lm_fixed_min_lms_match_randrot_noise",
+    group="fixed_min_lms_match",
     min_lms_match=2,
-    n_lms=3,
+    n_lms=2,
 )
 
-vert = Experiment(
-    name="dist_agent_3lm_vert",
-    group="half_lms_match",
-    min_lms_match=2,
-    n_lms=3,
-)
-
-groups = [[horz], [vert]]
+group = [lm1, lm2_1, lm2_2]
 colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-labels = ["horz", " vert"]
+labels = ["match: n_lms / 2", "match: 2"]
+sides = ["left", "right"]
 
 fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
 ax_2 = ax_1.twinx()
 
-# Plot accuracy
-n_groups = len(groups)
-bar_width = 0.4
-violin_width = 0.4
+# amount of white space between violins
 inter_width = 0.02
-xticks = np.array([0, 1])
-for i, g in enumerate(groups):
-    x_pos = xticks[i] - bar_width / 2 - inter_width / 2
-    accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
-    accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
-    ax_1.bar(
-        x_pos,
-        accuracy_correct,
-        color=colors[i],
-        width=bar_width,
-        label=labels[i],
-    )
-    ax_1.bar(
-        x_pos,
-        accuracy_correct_mlh,
-        color=colors[i],
-        width=bar_width,
-        label=labels[i],
-        bottom=accuracy_correct,
-        hatch="///",
-    )
-for i, g in enumerate(groups):
-    x_pos = [xticks[i] + bar_width / 2 + inter_width / 2]
-    num_steps = [exp.get_n_steps() for exp in g]
-    vp = ax_2.violinplot(
-        num_steps,
-        positions=x_pos,
-        showextrema=False,
-        showmedians=True,
-        widths=violin_width,
-    )
-    for body in vp["bodies"]:
-        body.set_facecolor(colors[i])
-        body.set_alpha(1.0)
-    vp["cmedians"].set_color("black")
+item_width = 0.4
+xticks = np.arange(3)
+bar_positions = xticks - item_width / 2 - inter_width / 2
+violin_positions = xticks + item_width / 2 + inter_width / 2
 
+# Plot accuracy.
+accuracies_correct = [exp.get_accuracy("correct") for exp in group]
+accuracies_correct_mlh = [exp.get_accuracy("correct_mlh") for exp in group]
+ax_1.bar(
+    bar_positions,
+    accuracies_correct,
+    color=colors[0],
+    width=item_width,
+)
+ax_1.bar(
+    bar_positions,
+    accuracies_correct_mlh,
+    color=colors[0],
+    width=item_width,
+    bottom=accuracies_correct,
+    hatch="///",
+)
+
+# Plot num steps.
+n_steps = [exp.get_n_steps("num_steps") for exp in group]
+vp = ax_2.violinplot(
+    n_steps,
+    positions=violin_positions,
+    showextrema=False,
+    showmedians=True,
+    widths=item_width,
+)
+for j, body in enumerate(vp["bodies"]):
+    body.set_facecolor(colors[1])
+    body.set_alpha(1.0)
+
+ax_1.set_xlabel("Min. LMs Match / Num. LMs")
 ax_1.set_xticks(xticks)
-ax_1.set_xticklabels(["horz", "vert"])
-
+ax_1.set_xticklabels(["1 / 1", "1 / 2", "2 / 2"])
 ax_1.set_ylabel("% Correct")
-ax_1.set_ylim([50, 100])
-
+ax_1.set_ylim(50, 100)
 ax_2.set_ylabel("Steps")
-ax_2.set_ylim([0, 500])
-ax_1.spines["top"].set_visible(False)
-ax_2.spines["top"].set_visible(False)
+ax_2.set_ylim(0, 500)
 
-add_legend(ax_1, groups, colors=colors, labels=labels, loc="upper left")
-
-
-# plot_double_violin(step_mode="monty_matching_steps")
-# plot_double_violin(step_mode="num_steps")
-# plot_double_violin(step_mode="num_steps_terminal")
+axes = [ax_1, ax_2]
+for ax in axes:
+    ax.spines["top"].set_visible(False)
 
 
-# step_mode = "monty_matching_steps"
-
-# half = get_experiments(group="half_lms_match")
-# fixed = get_experiments(group="fixed_min_lms_match")
-
+plt.show()
 # groups = [half, fixed]
 # colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
 # labels = ["match: n_lms / 2", "match: 2"]
