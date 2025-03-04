@@ -166,7 +166,7 @@ def get_frequency(items: Iterable, match: Union[Any, Container[Any]]) -> float:
     """Get the fraction of values that belong to a collection of values.
 
     Args:
-        items (iterable): The list of items.
+        items (iterable): The data to count.
         match: (scalar or list of scalars): One or more values to match against
           (e.g., `"correct"` or `["correct", "correct_mlh"]`).
     Returns:
