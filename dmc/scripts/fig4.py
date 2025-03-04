@@ -1163,6 +1163,81 @@ def plot_horz_vs_vert_accuracy_and_num_steps():
 
     add_legend(ax_1, groups, colors=colors, labels=labels, loc="upper left")
 
+horz = Experiment(
+    name="dist_agent_3lm_horz",
+    group="half_lms_match",
+    min_lms_match=2,
+    n_lms=3,
+)
+
+vert = Experiment(
+    name="dist_agent_3lm_vert",
+    group="half_lms_match",
+    min_lms_match=2,
+    n_lms=3,
+)
+
+groups = [[horz], [vert]]
+colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+labels = ["horz", " vert"]
+
+fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
+ax_2 = ax_1.twinx()
+
+# Plot accuracy
+n_groups = len(groups)
+bar_width = 0.4
+violin_width = 0.4
+inter_width = 0.02
+xticks = np.array([0, 1])
+for i, g in enumerate(groups):
+    x_pos = xticks[i] - bar_width / 2 - inter_width / 2
+    accuracy_correct = [exp.get_accuracy(["correct"]) for exp in g]
+    accuracy_correct_mlh = [exp.get_accuracy(["correct_mlh"]) for exp in g]
+    ax_1.bar(
+        x_pos,
+        accuracy_correct,
+        color=colors[i],
+        width=bar_width,
+        label=labels[i],
+    )
+    ax_1.bar(
+        x_pos,
+        accuracy_correct_mlh,
+        color=colors[i],
+        width=bar_width,
+        label=labels[i],
+        bottom=accuracy_correct,
+        hatch="///",
+    )
+for i, g in enumerate(groups):
+    x_pos = [xticks[i] + bar_width / 2 + inter_width / 2]
+    num_steps = [exp.get_n_steps() for exp in g]
+    vp = ax_2.violinplot(
+        num_steps,
+        positions=x_pos,
+        showextrema=False,
+        showmedians=True,
+        widths=violin_width,
+    )
+    for body in vp["bodies"]:
+        body.set_facecolor(colors[i])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+
+ax_1.set_xticks(xticks)
+ax_1.set_xticklabels(["horz", "vert"])
+
+ax_1.set_ylabel("% Correct")
+ax_1.set_ylim([50, 100])
+
+ax_2.set_ylabel("Steps")
+ax_2.set_ylim([0, 500])
+ax_1.spines["top"].set_visible(False)
+ax_2.spines["top"].set_visible(False)
+
+add_legend(ax_1, groups, colors=colors, labels=labels, loc="upper left")
+
 
 # plot_double_violin(step_mode="monty_matching_steps")
 # plot_double_violin(step_mode="num_steps")
