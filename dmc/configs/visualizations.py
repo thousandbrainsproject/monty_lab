@@ -55,18 +55,13 @@ from .fig4_rapid_inference_with_voting import (
 VISUALIZATION_RESULTS_DIR = DMC_ROOT_DIR / "visualizations"
 
 
-class TerminalEvidenceHandler(SelectiveEvidenceHandler):
+class MLHEvidenceHandler(SelectiveEvidenceHandler):
     """Logging handler that only saves terminal evidence data for the MLH object.
 
     A lean logger handler for the symmetry experiment (which are full-length runs,
-    and so we need to be very selective about which data to log).
+    and so we need to be very selective about which data to log). This handler must
+    be used with `selective_handler_args["last_evidence"] = True`.
 
-    A few LM items are reduced to only their final values.
-     - `evidences` -> `evidences_ls`
-     - `possible_locations` -> `possible_locations_ls`
-     - `possible_rotations` -> `possible_rotations_ls`
-
-    All sensor module data is removed.
     """
 
     def report_episode(
@@ -84,24 +79,21 @@ class TerminalEvidenceHandler(SelectiveEvidenceHandler):
             data, episode, mode, **kwargs
         )
 
-        # Only store some data for the last step and for the mlh object.
+        # Only store evidence data for the MLH object.
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
         for lm_id in lm_ids:
             mlh_object = buffer_data[lm_id]["current_mlh"][-1]["graph_id"]
             lm_dict = buffer_data[lm_id]
-            evidences = lm_dict["evidences"]
-            possible_locations = lm_dict["possible_locations"]
-            possible_rotations = lm_dict["possible_rotations"]
-            lm_dict["evidences_ls"] = {mlh_object: evidences[-1][mlh_object]}
+            evidences_ls = lm_dict["evidences_ls"]
+            possible_locations_ls = lm_dict["possible_locations_ls"]
+            possible_rotations_ls = lm_dict["possible_rotations_ls"]
+            lm_dict["evidences_ls"] = {mlh_object: evidences_ls[mlh_object]}
             lm_dict["possible_locations_ls"] = {
-                mlh_object: possible_locations[-1][mlh_object]
+                mlh_object: possible_locations_ls[mlh_object]
             }
             lm_dict["possible_rotations_ls"] = {
-                mlh_object: possible_rotations[-1][mlh_object]
+                mlh_object: possible_rotations_ls[mlh_object]
             }
-            lm_dict.pop("evidences")
-            lm_dict.pop("possible_locations")
-            lm_dict.pop("possible_rotations")
 
         # Store data.
         self.save(episode_total, buffer_data, output_dir)
@@ -149,10 +141,10 @@ fig3_symmetry_run.update(
             run_name="fig3_symmetry_run",
             monty_handlers=[
                 BasicCSVStatsHandler,
-                TerminalEvidenceHandler,
+                MLHEvidenceHandler,
                 ReproduceEpisodeHandler,
             ],
-            selective_handler_args=dict(exclude=["SM_0", "SM_1"]),
+            selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
         ),
     )
 )
