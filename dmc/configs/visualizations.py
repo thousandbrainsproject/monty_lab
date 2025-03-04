@@ -59,8 +59,7 @@ class MLHEvidenceHandler(SelectiveEvidenceHandler):
     """Logging handler that only saves terminal evidence data for the MLH object.
 
     A lean logger handler for the symmetry experiment (which are full-length runs,
-    and so we need to be very selective about which data to log). This handler must
-    be used with `selective_handler_args["last_evidence"] = True`.
+    and so we need to be very selective about which data to log).
 
     """
 
@@ -75,6 +74,7 @@ class MLHEvidenceHandler(SelectiveEvidenceHandler):
         """Store only final evidence data and no sensor data."""
 
         # Initialize output data.
+        self.handler_args["last_evidence"] = True  # Required for this handler.
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
