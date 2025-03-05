@@ -996,57 +996,6 @@ def plot_1_and_2_lms():
     confused_eps_with_1_correct = (n_correct == 1).sum() / len(n_correct)
     print(f"confused eps with 1 correct: {100*confused_eps_with_1_correct:.2f}%")
 
-
-def plot_performance_hom():
-    """Make figure where accuracies and num_steps are on separate axes."""
-    half = get_experiments(group="half_lms_match")[1:]
-    fixed = get_experiments(group="fixed_min_lms_match")[1:]
-    groups = [half, fixed]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-
-    double_accuracy_plot(groups, colors, ylim=(50, 100), ax=axes[0])
-    double_n_steps_plot(groups, colors, ylim=(0, 100), legend=True, ax=axes[1])
-
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-    fig.tight_layout()
-    plt.show()
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_hom.png", dpi=300)
-    fig.savefig(out_dir / "performance_hom.svg")
-
-
-def plot_performance_het():
-    """Make figure where accuracies and num_steps are on separate axes."""
-    half = get_experiments(group="half_lms_match")[1:]
-    fixed = get_experiments(group="fixed_min_lms_match")[1:]
-
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    fn_kw = {
-        "left_ylim": (50, 100),
-        "right_ylim": (0, 100),
-    }
-
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-    twin_bar_and_violin_plot(half, colors, title="Half LMs Match", ax=axes[0], **fn_kw)
-    twin_bar_and_violin_plot(fixed, colors, title="2 LMs Match", ax=axes[1], **fn_kw)
-
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-
-    fig.tight_layout()
-    plt.show()
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_het.png", dpi=300)
-    fig.savefig(out_dir / "performance_het.svg")
-
-
 def plot_performance_1lm():
     exp = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
     colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
@@ -1066,3 +1015,57 @@ def plot_performance_1lm():
     out_dir.mkdir(exist_ok=True, parents=True)
     fig.savefig(out_dir / "performance_1lm.png", dpi=300)
     fig.savefig(out_dir / "performance_1lm.svg")
+
+
+def plot_performance_multi_lm_hom():
+    """Make figure where accuracies and num_steps are on separate axes."""
+    half = get_experiments(group="half_lms_match")[1:]
+    fixed = get_experiments(group="fixed_min_lms_match")[1:]
+    groups = [half, fixed]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+
+    double_accuracy_plot(groups, colors, ylim=(50, 100), ax=axes[0])
+    double_n_steps_plot(groups, colors, ylim=(0, 100), legend=True, ax=axes[1])
+
+    for ax in axes:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    fig.tight_layout()
+    plt.show()
+    out_dir = OUT_DIR / "performance"
+    out_dir.mkdir(exist_ok=True, parents=True)
+    fig.savefig(out_dir / "performance_multi_lm_hom.png", dpi=300)
+    fig.savefig(out_dir / "performance_multi_lm_hom.svg")
+
+
+def plot_performance_multi_lm_het():
+    """Make figure where accuracies and num_steps are on separate axes."""
+    half = get_experiments(group="half_lms_match")[1:]
+    fixed = get_experiments(group="fixed_min_lms_match")[1:]
+
+    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+    fn_kw = {
+        "left_ylim": (50, 100),
+        "right_ylim": (0, 100),
+    }
+
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+    double_accuracy_and_n_steps_plot(
+        half, colors, title="Half LMs Match", ax=axes[0], **fn_kw
+    )
+    double_accuracy_and_n_steps_plot(
+        fixed, colors, title="2 LMs Match", ax=axes[1], **fn_kw
+    )
+
+    for ax in axes:
+        ax.spines["top"].set_visible(False)
+
+    fig.tight_layout()
+    plt.show()
+    out_dir = OUT_DIR / "performance"
+    out_dir.mkdir(exist_ok=True, parents=True)
+    fig.savefig(out_dir / "performance_multi_lm_het.png", dpi=300)
+    fig.savefig(out_dir / "performance_multi_lm_het.svg")
