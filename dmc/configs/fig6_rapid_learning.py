@@ -49,10 +49,10 @@ from tbp.monty.frameworks.experiments.pretraining_experiments import (
 
 from .common import DMC_PRETRAIN_DIR, make_randrot_variant
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
-from .pretraining_experiments import pretrain_dist_agent_1lm
+from .pretraining_experiments import DMCPretrainLoggingConfig, pretrain_dist_agent_1lm
 
 """
-Rapid Learning Config (for storing checkpoints)
+Pretraining Configs
 --------------------------------------------------------------------------------
 """
 
@@ -103,10 +103,7 @@ class PretrainingExperimentWithCheckpointing(
     """
 
     def post_epoch(self):
-        """Save the model.
-        TODO: Check how well this works in parallel runs. Could be problematic.
-        TODO: Save checkpoints every...
-        """
+        """Store a model checkpoint."""
         super().post_epoch()
 
         # Check which epooch?
@@ -120,7 +117,6 @@ class PretrainingExperimentWithCheckpointing(
 
         # Save the model.
         checkpoints_dir = Path(self.output_dir) / "checkpoints"
-        # checkpoints_dir = Path(self.output_dir).parent / "checkpoints"
         output_dir = checkpoints_dir / f"{self.train_epochs}"
         output_dir.mkdir(parents=True, exist_ok=True)
         model_path = output_dir / "model.pt"
@@ -136,10 +132,7 @@ pretrain_dist_agent_1lm_checkpoints.update(
             n_train_epochs=len(TRAIN_ROTATIONS),
             do_eval=False,
         ),
-        logging_config=PretrainLoggingConfig(
-            output_dir=str(DMC_PRETRAIN_DIR),
-            run_name="dist_agent_1lm_checkpoints",
-        ),
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_1lm_checkpoints"),
         train_dataloader_class=ED.InformedEnvironmentDataLoader,
         train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=SHUFFLED_YCB_OBJECTS,
@@ -155,10 +148,17 @@ Evaluation Configs
 
 
 def make_partially_trained_eval_config(n_rot: int) -> dict:
-    """Make a config for a partially trained model.
+    """Make an eval config that loads a pretrained model checkpoint.
+
+    The returned config specifies a 1-LM distant agent that evaluates on
+      - All 77 YCB objects
+      - 5 (predetermined) random rotations
+      - no sensor noise
+      - no hypothesis-driven actions
+    and loads a model pretrained after `n_rot` observations per object.
 
     Args:
-        n_rot (int): Number of rotations trained on.
+        n_rot (int): Number of training rotations.
 
     Returns:
         dict: Config for a partially trained model.

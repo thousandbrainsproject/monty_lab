@@ -148,12 +148,12 @@ def get_dist_lm_config(
     out = dict(
         learning_module_class=DisplacementGraphLM,
         learning_module_args=dict(
-            k=5,
+            k=10,
             match_attribute="displacement",
             tolerance=np.ones(3) * 0.0001,
             graph_delta_thresholds={
                 sensor_module_id: dict(
-                    distance=0.001,  # 1 mm 0.01 on ycb v9
+                    distance=0.001,
                     pose_vectors=[np.pi / 8, np.pi * 2, np.pi * 2],
                     principal_curvatures_log=[1, 1],
                     hsv=[0.1, 1, 1],
@@ -305,7 +305,7 @@ def get_view_finder_config() -> dict:
         sensor_module_class=DetailedLoggingSM,
         sensor_module_args=dict(
             sensor_module_id="view_finder",
-            save_raw_obs=True,
+            save_raw_obs=False,
         ),
     )
 
@@ -455,7 +455,7 @@ pretrain_touch_agent_1lm = dict(
     ),
 )
 
-# Make 10distinctobj variants
+# Make 10distinctobj variants. Used in `fig8.py` eval experiments.
 pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
     pretrain_dist_agent_1lm
 )
@@ -487,23 +487,14 @@ mlm_monty_config_args = {
     "monty_args": dict(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
 }
 
-
-"""
-2 LMs
---------------------------------------------------------------------------------
-"""
-
-pretrain_dist_agent_2lm = dict(
+# - Template for multi-LM configs.
+template_multi_lm_config = dict(
     experiment_class=MontySupervisedObjectPretrainingExperiment,
     experiment_args=ExperimentArgs(
         n_train_epochs=len(TRAIN_ROTATIONS),
         do_eval=False,
     ),
-    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_2lm"),
-    monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
-    # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
-    dataset_args=make_multi_sensor_habitat_dataset_args(2),
     train_dataloader_class=ED.InformedEnvironmentDataLoader,
     train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=SHUFFLED_YCB_OBJECTS,
@@ -511,76 +502,40 @@ pretrain_dist_agent_2lm = dict(
     ),
 )
 
-"""
-4 LMs
---------------------------------------------------------------------------------
-"""
-
-pretrain_dist_agent_4lm = dict(
-    experiment_class=MontySupervisedObjectPretrainingExperiment,
-    experiment_args=ExperimentArgs(
-        n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
-    ),
-    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_4lm"),
-    monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
-    # Set up environment and agent.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=make_multi_sensor_habitat_dataset_args(4),
-    # Set up training dataloader.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
-    ),
+pretrain_dist_agent_2lm = deepcopy(template_multi_lm_config)
+pretrain_dist_agent_2lm.update(
+    dict(
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_2lm"),
+        monty_config=make_multi_lm_monty_config(2, **mlm_monty_config_args),
+        dataset_args=make_multi_sensor_habitat_dataset_args(2),
+    )
 )
 
-"""
-8 LMs
---------------------------------------------------------------------------------
-"""
-
-pretrain_dist_agent_8lm = dict(
-    experiment_class=MontySupervisedObjectPretrainingExperiment,
-    experiment_args=ExperimentArgs(
-        n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
-    ),
-    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_8lm"),
-    monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
-    # Set up environment and agent.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=make_multi_sensor_habitat_dataset_args(8),
-    # Set up training dataloader.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
-    ),
+pretrain_dist_agent_4lm = deepcopy(template_multi_lm_config)
+pretrain_dist_agent_4lm.update(
+    dict(
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_4lm"),
+        monty_config=make_multi_lm_monty_config(4, **mlm_monty_config_args),
+        dataset_args=make_multi_sensor_habitat_dataset_args(4),
+    )
 )
 
-"""
-16 LMs
---------------------------------------------------------------------------------
-"""
+pretrain_dist_agent_8lm = deepcopy(template_multi_lm_config)
+pretrain_dist_agent_8lm.update(
+    dict(
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_8lm"),
+        monty_config=make_multi_lm_monty_config(8, **mlm_monty_config_args),
+        dataset_args=make_multi_sensor_habitat_dataset_args(8),
+    )
+)
 
-pretrain_dist_agent_16lm = dict(
-    experiment_class=MontySupervisedObjectPretrainingExperiment,
-    experiment_args=ExperimentArgs(
-        n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
-    ),
-    logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_16lm"),
-    monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
-    # Set up environment and agent.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=make_multi_sensor_habitat_dataset_args(16),
-    # Set up training dataloader.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
-    ),
+pretrain_dist_agent_16lm = deepcopy(template_multi_lm_config)
+pretrain_dist_agent_16lm.update(
+    dict(
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_16lm"),
+        monty_config=make_multi_lm_monty_config(16, **mlm_monty_config_args),
+        dataset_args=make_multi_sensor_habitat_dataset_args(16),
+    )
 )
 
 
@@ -602,7 +557,7 @@ CONFIGS = {
     "pretrain_dist_agent_16lm": pretrain_dist_agent_16lm,
 }
 
-# Perform sanity checks and
+# TODO: Remove these sanity checks before publishing.
 _output_paths = []
 for exp in CONFIGS.values():
     # Make sure eval is disabled.
