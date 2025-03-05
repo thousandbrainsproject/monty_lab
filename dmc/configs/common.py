@@ -604,34 +604,41 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
 
         # Add LM data.
         lm_ids = [key for key in detailed if key.startswith("LM")]
+        lm_attrs = (
+            "current_mlh",
+            "evidences",
+            "lm_processed_steps",
+            "possible_locations",
+            "possible_rotations",
+            "possible_matches",
+            "symmetry_evidence",
+            "symmetric_locations",
+            "symmetric_rotations",
+        )
         for lm_id in lm_ids:
-            lm_dict = {
-                "current_mlh": detailed[lm_id]["current_mlh"],
-                "evidences": detailed[lm_id]["evidences"],
-                "lm_processed_steps": detailed[lm_id]["lm_processed_steps"],
-                "possible_locations": detailed[lm_id]["possible_locations"],
-                "possible_rotations": detailed[lm_id]["possible_rotations"],
-                "possible_matches": detailed[lm_id]["possible_matches"],
-                "symmetry_evidence": detailed[lm_id]["symmetry_evidence"],
-                "symmetric_locations": detailed[lm_id]["symmetric_locations"],
-                "symmetric_rotations": detailed[lm_id]["symmetric_rotations"],
-            }
-            buffer_data[lm_id] = lm_dict
+            lm_dict = detailed[lm_id]
+            lm_dict_out = {}
+            for name in lm_attrs:
+                lm_dict_out[name] = lm_dict.get(name, None)
+            buffer_data[lm_id] = lm_dict_out
 
         # Optionally, only store the final evidences, locations, and rotations.
         last_evidence = self.handler_args.get("last_evidence", False)
+        last_lm_attrs = (
+            "evidences",
+            "possible_locations",
+            "possible_rotations",
+        )
         if last_evidence:
             for lm_id in lm_ids:
                 lm_dict = buffer_data[lm_id]
-                evidences = lm_dict["evidences"]
-                possible_locations = lm_dict["possible_locations"]
-                possible_rotations = lm_dict["possible_rotations"]
-                lm_dict["evidences_ls"] = evidences[-1]
-                lm_dict["possible_locations_ls"] = possible_locations[-1]
-                lm_dict["possible_rotations_ls"] = possible_rotations[-1]
-                lm_dict.pop("evidences")
-                lm_dict.pop("possible_locations")
-                lm_dict.pop("possible_rotations")
+                for name in last_lm_attrs:
+                    val = lm_dict.get(name)
+                    if val is None:
+                        lm_dict[f"{name}_ls"] = None
+                    else:
+                        lm_dict[f"{name}_ls"] = val[-1]
+                    lm_dict.pop(name, None)
 
         # Add SM data, but only where LMs have processed data.
         sm_ids = [key for key in detailed if key.startswith("SM")]
