@@ -49,14 +49,16 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
 
     def wrapped_setup(self, config):
         modified_config = config.copy()
+        # Only
         for lm_key in modified_config["monty_config"]["learning_module_configs"]:
             lm_config = modified_config["monty_config"]["learning_module_configs"][
                 lm_key
             ]
-            lm_config["learning_module_class"] = FlopCountingEvidenceGraphLM
-            lm_config["learning_module_args"]["gsg_class"] = (
-                FlopCountingEvidenceGoalStateGenerator
-            )
+            if lm_config["learning_module_class"] == "EvidenceGraphLM":
+                lm_config["learning_module_class"] = FlopCountingEvidenceGraphLM
+                lm_config["learning_module_args"]["gsg_class"] = (
+                    FlopCountingEvidenceGoalStateGenerator
+                )
 
         original_setup(self, modified_config)
 
