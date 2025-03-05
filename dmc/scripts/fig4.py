@@ -635,7 +635,7 @@ def double_accuracy_plot(
         labels = ("a", "b")
 
     for i, g in enumerate(groups):
-        accuracies = [exp.get_accuracy(["correct", "correct_mlh"]) for exp in g]
+        accuracies = [exp.get_accuracy() for exp in g]
         ax.bar(
             positions[i],
             accuracies,
@@ -678,7 +678,7 @@ def double_n_steps_plot(
     xticks = np.arange(len(groups[0]))
     n_steps = []
     for g in groups:
-        n_steps.append([exp.get_n_steps("num_steps") for exp in g])
+        n_steps.append([exp.get_n_steps() for exp in g])
 
     sides = ["left", "right"]
     alpha = 0.75 if showmeans else 1
@@ -710,7 +710,7 @@ def double_n_steps_plot(
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_xticks(xticks)
-    ax.set_xticklabels([exp.n_lms for exp in half])
+    ax.set_xticklabels([exp.n_lms for exp in groups[0]])
     ax.set_ylabel(ylabel)
     ax.set_ylim(ylim)
     if legend:
@@ -752,7 +752,7 @@ def double_accuracy_and_n_steps_plot(
     violin_positions = xticks + width / 2 + gap / 2
 
     # Plot accuracy.
-    accuracies = [exp.get_accuracy(["correct", "correct_mlh"]) for exp in group]
+    accuracies = [exp.get_accuracy() for exp in group]
     ax_1.bar(
         bar_positions,
         accuracies,
@@ -761,7 +761,7 @@ def double_accuracy_and_n_steps_plot(
     )
 
     # Plot num steps.
-    n_steps = [exp.get_n_steps("num_steps") for exp in group]
+    n_steps = [exp.get_n_steps() for exp in group]
     violinplot(
         n_steps,
         violin_positions,
@@ -990,11 +990,11 @@ def plot_1_and_2_lms():
     plt.show()
 
     exp = group[2]
-    df = exp.reduced_stats[exp.reduced_stats.primary_performance == "confused"]
-    n_correct = df.n_correct.values
-    n_confused = df.n_confused.values
+    confused_df = exp.reduced_stats[exp.reduced_stats.primary_performance == "confused"]
+    n_correct = confused_df.n_correct.values
     confused_eps_with_1_correct = (n_correct == 1).sum() / len(n_correct)
     print(f"confused eps with 1 correct: {100*confused_eps_with_1_correct:.2f}%")
+
 
 def plot_performance_1lm():
     exp = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
@@ -1004,7 +1004,7 @@ def plot_performance_1lm():
         "right_ylim": (0, 500),
     }
 
-    fig, ax = plt.subplots(1, 1, figsize=(3, 3))
+    fig, ax = plt.subplots(1, 1, figsize=(1.5, 3))
     double_accuracy_and_n_steps_plot([exp], colors, ax=ax, **fn_kw)
 
     ax.spines["top"].set_visible(False)
@@ -1027,7 +1027,14 @@ def plot_performance_multi_lm_hom():
     fig, axes = plt.subplots(1, 2, figsize=(8, 3))
 
     double_accuracy_plot(groups, colors, ylim=(50, 100), ax=axes[0])
-    double_n_steps_plot(groups, colors, ylim=(0, 100), legend=True, ax=axes[1])
+    double_n_steps_plot(
+        groups,
+        colors,
+        ylim=(0, 100),
+        legend=True,
+        labels=["n = LMs / 2", "n = 2"],
+        ax=axes[1],
+    )
 
     for ax in axes:
         ax.spines["top"].set_visible(False)
@@ -1069,3 +1076,8 @@ def plot_performance_multi_lm_het():
     out_dir.mkdir(exist_ok=True, parents=True)
     fig.savefig(out_dir / "performance_multi_lm_het.png", dpi=300)
     fig.savefig(out_dir / "performance_multi_lm_het.svg")
+
+
+plot_performance_1lm()
+plot_performance_multi_lm_hom()
+plot_performance_multi_lm_het()
