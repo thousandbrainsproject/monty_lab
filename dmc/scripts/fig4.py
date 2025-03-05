@@ -610,7 +610,7 @@ def violinplot(
     return ax
 
 
-def double_accuracy_bar_plot(
+def double_accuracy_plot(
     groups: List[List[Experiment]],
     colors: Container[str] = (TBP_COLORS["blue"], TBP_COLORS["purple"]),
     labels: Optional[Container[str]] = None,
@@ -621,7 +621,6 @@ def double_accuracy_bar_plot(
     gap: float = 0.02,
     width: float = 0.4,
     legend: bool = False,
-    loc: Optional[str] = "upper right",
     ax: Optional[plt.Axes] = None,
     **kw,
 ) -> plt.Axes:
@@ -657,7 +656,7 @@ def double_accuracy_bar_plot(
     return ax
 
 
-def double_n_steps_violin_plot(
+def double_n_steps_plot(
     groups: List[List[Experiment]],
     colors: Container[str] = (TBP_COLORS["blue"], TBP_COLORS["purple"]),
     labels: Optional[Container[str]] = None,
@@ -726,7 +725,7 @@ def double_n_steps_violin_plot(
     return ax
 
 
-def twin_bar_and_violin_plot(
+def double_accuracy_and_n_steps_plot(
     group: List[Experiment],
     colors: Container[str] = (TBP_COLORS["blue"], TBP_COLORS["purple"]),
     title: Optional[str] = None,
@@ -1007,8 +1006,8 @@ def plot_performance_hom():
 
     fig, axes = plt.subplots(1, 2, figsize=(8, 3))
 
-    double_accuracy_bar_plot(groups, colors, ylim=(50, 100), ax=axes[0])
-    double_n_steps_violin_plot(groups, colors, ylim=(0, 100), legend=True, ax=axes[1])
+    double_accuracy_plot(groups, colors, ylim=(50, 100), ax=axes[0])
+    double_n_steps_plot(groups, colors, ylim=(0, 100), legend=True, ax=axes[1])
 
     for ax in axes:
         ax.spines["top"].set_visible(False)
@@ -1057,7 +1056,7 @@ def plot_performance_1lm():
     }
 
     fig, ax = plt.subplots(1, 1, figsize=(3, 3))
-    twin_bar_and_violin_plot([exp], colors, ax=ax, **fn_kw)
+    double_accuracy_and_n_steps_plot([exp], colors, ax=ax, **fn_kw)
 
     ax.spines["top"].set_visible(False)
 
