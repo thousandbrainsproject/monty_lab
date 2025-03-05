@@ -1112,8 +1112,59 @@ ax.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
 ax.set_xlabel("Num. LMs : min_lms_match")
 ax.set_ylabel("Steps")
 plt.show()
+
+
 # Plot num steps for confused  vs correct, all cases.
 
+# Let's look at symmetry evidence for confused vs correct.
+correct_group = []
+confused_group = []
+for exp in group:
+    eval_stats = exp.eval_stats
+    x = eval_stats[eval_stats.primary_performance == "correct"].symmetry_evidence
+    correct_group.append(x)
+    x = eval_stats[eval_stats.primary_performance == "confused"].symmetry_evidence
+    confused_group.append(x)
+
+xticks = np.arange(3)
+item_width = 0.4
+fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+colors = [TBP_COLORS["blue"], "red"]
+violinplot(
+    correct_group,
+    xticks,
+    width=0.4,
+    color=colors[0],
+    showmedians=True,
+    showextrema=True,
+    side="left",
+    gap=0.01,
+    ax=ax,
+)
+violinplot(
+    confused_group,
+    xticks,
+    width=0.4,
+    color=colors[1],
+    showmedians=True,
+    showextrema=True,
+    side="right",
+    gap=0.01,
+    ax=ax,
+)
+ax.set_ylim([0, 100])
+add_legend(ax, colors, labels=["correct", "confused"])
+ax.set_xticks(xticks)
+ax.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
+ax.set_xlabel("Num. LMs : min_lms_match")
+ax.set_ylabel("Steps")
+plt.show()
+
+names = ["1 : 1", "2 : 1", "2 : 2"]
+for i in range(len(correct_group)):
+    print(f"{names[i]}: mean symmetry evidence")
+    print(f" - correct: {np.mean(correct_group[i].values)}")
+    print(f" - confused: {np.mean(confused_group[i].values)}")
 
 # Add legend entry for hatched bars
 # legend_handles = [
