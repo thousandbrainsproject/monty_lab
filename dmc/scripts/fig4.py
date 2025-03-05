@@ -16,6 +16,7 @@ import functools
 import os
 import shutil
 from collections import UserList
+from numbers import Number
 from pathlib import Path
 from typing import (
     Any,
@@ -834,6 +835,134 @@ def plot_double_violin(step_mode: str = "num_steps_terminal"):
     plt.show()
 
 
+def violinplot(
+    dataset: Sequence,
+    positions: Sequence,
+    width: Number = 0.8,
+    color: Optional[str] = None,
+    alpha: Optional[Number] = 1,
+    edgecolor: Optional[str] = None,
+    showextrema: bool = False,
+    showmeans: bool = False,
+    showmedians: bool = False,
+    percentiles: Optional[Sequence] = None,
+    side: str = "both",
+    gap: float = 0.0,
+    percentile_style: Optional[Mapping] = None,
+    median_style: Optional[Mapping] = None,
+    ax: Optional[plt.Axes] = None,
+) -> plt.Axes:
+    """_summary_
+
+    Args:
+        dataset (_type_): _description_
+        positions (Optional[Sequence], optional): _description_. Defaults to None.
+        color (Optional[str], optional): _description_. Defaults to None.
+        widths (Optional[Sequence], optional): _description_. Defaults to None.
+        side (str, optional): _description_. Defaults to "both".
+        showmedians (bool, optional): _description_. Defaults to False.
+        percentiles (Optional[Sequence], optional): _description_. Defaults to None.
+        edgecolor (Optional[str], optional): _description_. Defaults to None.
+        ax (Optional[plt.Axes], optional): _description_. Defaults to None.
+
+    Raises:
+        ValueError: _description_
+        ValueError: _description_
+        ValueError: _description_
+
+    Returns:
+        plt.Axes: _description_
+    """
+
+    # Move positions and shrink widths if we're doing half violins.
+    if side == "both":
+        offset = 0
+    elif side == "left":
+        offset = -gap / 2
+        width = width - gap
+    elif side == "right":
+        offset = gap / 2
+        width = width - gap
+    else:
+        raise ValueError(f"Invalid side: {side}")
+
+    # Handle style info.
+    default_median_style = dict(lw=1, color="black", ls="-")
+    if median_style:
+        default_median_style.update(median_style)
+    median_style = default_median_style
+
+    default_percentile_style = dict(lw=1, color="black", ls="--")
+    if percentile_style:
+        default_percentile_style.update(percentile_style)
+    percentile_style = default_percentile_style
+
+    # Handle style info.
+    percentiles = [] if percentiles is None else percentiles
+
+    if ax is None:
+        _, ax = plt.subplots(1, 1, figsize=(6, 4))
+
+    positions = np.asarray(positions)
+    vp = ax.violinplot(
+        dataset,
+        positions=positions + offset,
+        showextrema=showextrema,
+        showmeans=showmeans,
+        showmedians=False,
+        widths=width,
+    )
+
+    for i, body in enumerate(vp["bodies"]):
+        # Modify appearance.
+        if color is not None:
+            body.set_facecolor(color)
+        if alpha is not None:
+            body.set_alpha(alpha)
+        if edgecolor is not None:
+            body.set_edgecolor(edgecolor)
+
+        # If half-violins, mask out not-shown half of the violin.
+        # get the center
+        p = body.get_paths()[0]
+        center = positions[i]
+        if side == "both":
+            limit = center
+            half_curve = p.vertices[p.vertices[:, 0] < limit]
+        elif side == "left":
+            # Mask the right side of the violin.
+            limit = center - gap / 2
+            p.vertices[:, 0] = np.clip(p.vertices[:, 0], -np.inf, limit)
+            half_curve = p.vertices[p.vertices[:, 0] < limit]
+        elif side == "right":
+            # Mask the left side of the violin.
+            limit = center + gap / 2
+            p.vertices[:, 0] = np.clip(p.vertices[:, 0], limit, np.inf)
+            half_curve = p.vertices[p.vertices[:, 0] > limit]
+
+        # compensation for line width. depends on points-to-data coordinate ratio.
+        line_info = [(percentiles, percentile_style)]
+        if showmedians:
+            line_info.append(([50], median_style))
+
+        lw_factor = 0.01
+        for ptiles, style in line_info:
+            for q in ptiles:
+                y = np.percentile(dataset[i], q)
+                if side == "both":
+                    x_left = half_curve[np.argmin(np.abs(y - half_curve[:, 1])), 0]
+                    x_right = center + abs(center - x_left)
+                elif side == "left":
+                    x_left = half_curve[np.argmin(np.abs(y - half_curve[:, 1])), 0]
+                    x_right = limit
+                elif side == "right":
+                    x_right = half_curve[np.argmin(np.abs(y - half_curve[:, 1])), 0]
+                    x_left = limit
+                ln = Line2D([x_left + lw_factor, x_right - lw_factor], [y, y], **style)
+                ax.add_line(ln)
+    return ax
+
+
 lm1 = Experiment(
     name="dist_agent_1lm_randrot_noise",
     group="half_lms_match",
@@ -862,11 +991,11 @@ fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
 ax_2 = ax_1.twinx()
 
 # amount of white space between violins
-inter_width = 0.02
+gap = 0.02
 item_width = 0.4
 xticks = np.arange(3)
-bar_positions = xticks - item_width / 2 - inter_width / 2
-violin_positions = xticks + item_width / 2 + inter_width / 2
+bar_positions = xticks - item_width / 2 - gap / 2
+violin_positions = xticks + item_width / 2 + gap / 2
 
 # Plot accuracy.
 accuracies_correct = [exp.get_accuracy("correct") for exp in group]
@@ -888,20 +1017,20 @@ ax_1.bar(
 
 # Plot num steps.
 n_steps = [exp.get_n_steps("num_steps") for exp in group]
-vp = ax_2.violinplot(
+violinplot(
     n_steps,
-    positions=violin_positions,
-    showextrema=False,
+    violin_positions,
+    width=item_width,
+    color=colors[1],
+    alpha=1,
     showmedians=True,
-    widths=item_width,
+    median_style=dict(lw=1, color="lightgray", ls="-"),
+    ax=ax_2,
 )
-for j, body in enumerate(vp["bodies"]):
-    body.set_facecolor(colors[1])
-    body.set_alpha(1.0)
 
-ax_1.set_xlabel("Min. LMs Match / Num. LMs")
+ax_1.set_xlabel("Num. LMs : min_lms_match")
 ax_1.set_xticks(xticks)
-ax_1.set_xticklabels(["1 / 1", "1 / 2", "2 / 2"])
+ax_1.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
 ax_1.set_ylabel("% Correct")
 ax_1.set_ylim(50, 100)
 ax_2.set_ylabel("Steps")
@@ -911,8 +1040,26 @@ axes = [ax_1, ax_2]
 for ax in axes:
     ax.spines["top"].set_visible(False)
 
-
 plt.show()
+
+frac_1 = group[0].get_accuracy(["correct", "correct_mlh"]) / 100
+frac_2 = group[2].get_accuracy(["correct", "correct_mlh"]) / 100
+print(frac_1, frac_2)
+
+# ax.plot(X, Y)
+# ax.scatter(med_X, med_Y, color="black")
+# vp = ax_2.violinplot(
+#     n_steps,
+#     positions=violin_positions,
+#     showextrema=False,
+#     showmedians=True,
+#     widths=item_width,
+# )
+# for j, body in enumerate(vp["bodies"]):
+#     body.set_facecolor(colors[1])
+#     body.set_alpha(1.0)
+
+
 # groups = [half, fixed]
 # colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
 # labels = ["match: n_lms / 2", "match: 2"]
