@@ -31,7 +31,6 @@ from typing import (
 )
 
 import matplotlib.legend
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -45,6 +44,7 @@ from data_utils import (
     load_eval_stats,
 )
 from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
 from plot_utils import TBP_COLORS, axes3d_set_aspect_equal, violinplot
 
 plt.rcParams["font.size"] = 8
@@ -999,20 +999,47 @@ violin_positions = xticks + item_width / 2 + gap / 2
 
 # Plot accuracy.
 accuracies_correct = [exp.get_accuracy("correct") for exp in group]
-accuracies_correct_mlh = [exp.get_accuracy("correct_mlh") for exp in group]
 ax_1.bar(
     bar_positions,
     accuracies_correct,
     color=colors[0],
     width=item_width,
+    label="correct",
 )
+bottom = np.array(accuracies_correct)
+
+accuracies_correct_mlh = [exp.get_accuracy("correct_mlh") for exp in group]
 ax_1.bar(
     bar_positions,
     accuracies_correct_mlh,
     color=colors[0],
     width=item_width,
-    bottom=accuracies_correct,
+    bottom=bottom,
     hatch="///",
+    label="correct_mlh",
+)
+bottom += accuracies_correct_mlh
+
+accuracies_confused = [exp.get_accuracy("confused") for exp in group]
+ax_1.bar(
+    bar_positions,
+    accuracies_confused,
+    color="red",
+    width=item_width,
+    bottom=bottom,
+    label="confused",
+)
+bottom += accuracies_confused
+
+accuracies_confused_mlh = [exp.get_accuracy("confused_mlh") for exp in group]
+ax_1.bar(
+    bar_positions,
+    accuracies_confused_mlh,
+    color="red",
+    width=item_width,
+    bottom=bottom,
+    hatch="///",
+    label="confused_mlh",
 )
 
 # Plot num steps.
@@ -1039,13 +1066,28 @@ ax_2.set_ylim(0, 500)
 axes = [ax_1, ax_2]
 for ax in axes:
     ax.spines["top"].set_visible(False)
+    ax.set_xlim([-0.55, 3])
+ax_1.legend()
+
+# Add legend entry for hatched bars
+# legend_handles = [
+#     Rectangle((0, 0), 1, 1, color=colors[0], label="correct"),
+#     Rectangle((0, 0), 1, 1, color=colors[0], hatch="///", label="correct_mlh"),
+#     Rectangle((0, 0), 1, 1, color="red", label="confused"),
+#     Rectangle((0, 0), 1, 1, color="red", hatch="///", label="confused_mlh"),
+# ]
+# ax_1.legend(handles=legend_handles, loc="upper right")
+
+# legend_handles = []
+# for i in range(len(colors)):
+#     handle = Line2D([0], [0], color=colors[i], lw=lw, label=labels[i])
+#     legend_handles.append(handle)
+
+# ax.legend(handles=legend_handles, loc=loc, fontsize=fontsize)
+# add_legend(ax_1, colors=[colors[0], "red"], labels=["correct", "confused"])
+
 
 plt.show()
-
-frac_1 = group[0].get_accuracy(["correct", "correct_mlh"]) / 100
-frac_2 = group[2].get_accuracy(["correct", "correct_mlh"]) / 100
-print(frac_1, frac_2)
-
 # ax.plot(X, Y)
 # ax.scatter(med_X, med_Y, color="black")
 # vp = ax_2.violinplot(
