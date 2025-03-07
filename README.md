@@ -4,7 +4,7 @@ This is where we (the TBP team) keep our day-to-day experiment files and data an
 
 ## Setup
 
-To run the code in this repository requiers Conda to install the dependencies. For instructions on how to install Conda (Miniconda or Anaconda) on your machine see https://conda.io/projects/conda/en/latest/user-guide/install/index.html.
+To run the code in this repository requires Conda to install the dependencies. For instructions on how to install Conda (Miniconda or Anaconda) on your machine see https://conda.io/projects/conda/en/latest/user-guide/install/index.html.
 
 NOTE: By default, Conda will activate the base environment when you open a new terminal. If you do not want Conda to change your global shell when you open a new terminal, run: `conda config --set auto_activate_base false`.
 
