@@ -31,7 +31,7 @@ def test_where_broadcasting():
         x = np.array([[1, 2], [3, 4]])
         y = 0
         result = np.where(condition, x, y)
-        assert counter.flops == 1
+        assert counter.flops == 4  # 1 flop per element in the result array
         np.testing.assert_array_equal(result, np.array([[1, 2], [3, 4]]))
 
 
