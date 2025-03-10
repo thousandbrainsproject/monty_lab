@@ -140,26 +140,36 @@ def violinplot(
     median_style: Optional[Mapping] = None,
     ax: Optional[plt.Axes] = None,
 ) -> plt.Axes:
-    """_summary_
+    """Create a violin plot with customizable styling.
 
     Args:
-        dataset (_type_): _description_
-        positions (Optional[Sequence], optional): _description_. Defaults to None.
-        color (Optional[str], optional): _description_. Defaults to None.
-        widths (Optional[Sequence], optional): _description_. Defaults to None.
-        side (str, optional): _description_. Defaults to "both".
-        showmedians (bool, optional): _description_. Defaults to False.
-        percentiles (Optional[Sequence], optional): _description_. Defaults to None.
-        edgecolor (Optional[str], optional): _description_. Defaults to None.
-        ax (Optional[plt.Axes], optional): _description_. Defaults to None.
+        dataset (Sequence): Data to plot, where each element is a sequence of values.
+        positions (Sequence): Positions on x-axis where to center each violin.
+        width (Number, optional): Width of each violin. Defaults to 0.8.
+        color (Optional[str], optional): Fill color of violins. Defaults to None.
+        alpha (Optional[Number], optional): Transparency of violins. Defaults to 1.
+        edgecolor (Optional[str], optional): Color of violin edges. Defaults to None.
+        showextrema (bool, optional): Whether to show min/max lines. Defaults to False.
+        showmeans (bool, optional): Whether to show mean lines. Defaults to False.
+        showmedians (bool, optional): Whether to show median lines. Defaults to False.
+        percentiles (Optional[Sequence], optional): Percentiles to show as lines.
+          Defaults to None.
+        side (str, optional): Which side of violin to show - "both", "left" or "right".
+          Defaults to "both".
+        gap (float, optional): Gap between violins when using half violins.
+          Defaults to 0.0.
+        percentile_style (Optional[Mapping], optional): Style dict for percentile lines.
+          Defaults to None.
+        median_style (Optional[Mapping], optional): Style dict for median lines.
+          Defaults to None.
+        ax (Optional[plt.Axes], optional): Axes to plot on. If None, creates new figure.
+          Defaults to None.
 
     Raises:
-        ValueError: _description_
-        ValueError: _description_
-        ValueError: _description_
+        ValueError: If side is not one of "both", "left", or "right"
 
     Returns:
-        plt.Axes: _description_
+        plt.Axes: The axes containing the violin plot
     """
 
     # Move positions and shrink widths if we're doing half violins.
