@@ -42,12 +42,12 @@ Consists of 9 experiments:
 - `dist_agent_16lm_fixed_min_lms_match_randrot_noise`
 
 There are two variations, either
-- `half_lms_match`: Half the number of LMs must match; this will tend to increase accuracy, but with a smaller improvement in convergence as a function of matching steps.
-  - `min_lms_match=int(num_lms/2)`
-- `fixed_min_lms_match`: The minimum number of LMs that must match is 2; this will tend to increase convergence very quickly, but with a smaller/minimal improvement in accuracy.
-  - `min_lms_match=min(num_lms, 2)`
+- `half_lms_match`: At least half of the available LMs must match. This tends to improve accuracy but results in a slower increase in convergence speed as a function of matching steps.
+  - Defined as: `min_lms_match=int(num_lms/2)`
+- `fixed_min_lms_match`: A minimum of two LMs must match, regardless of the total number of LMs. This tends to increase convergence speed significantly but provides only a small improvement in accuracy.
+  - Defined as: `min_lms_match=min(num_lms, 2)`
 
-This means performance is evaluated with:
+Performance is evaluated on:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
 - Sensor noise and 5 random rotations
