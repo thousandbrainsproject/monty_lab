@@ -214,7 +214,7 @@ def violinplot(
     )
 
     for i, body in enumerate(vp["bodies"]):
-        # Modify appearance.
+        # Set face- and edge- colors for violins.
         if color is not None:
             body.set_facecolor(color)
             if alpha is not None:
@@ -223,7 +223,6 @@ def violinplot(
             body.set_edgecolor(edgecolor)
 
         # If half-violins, mask out not-shown half of the violin.
-        # get the center
         p = body.get_paths()[0]
         center = positions[i]
         if side == "both":
