@@ -17,13 +17,10 @@ from pathlib import Path
 from typing import (
     Container,
     List,
-    Mapping,
     Optional,
-    Sequence,
     Union,
 )
 
-import matplotlib.legend
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -37,7 +34,7 @@ from data_utils import (
     load_eval_stats,
 )
 from matplotlib.lines import Line2D
-from plot_utils import TBP_COLORS, axes3d_set_aspect_equal
+from plot_utils import TBP_COLORS, add_legend, axes3d_set_aspect_equal, violinplot
 
 plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"

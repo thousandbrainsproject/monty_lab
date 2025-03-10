@@ -335,6 +335,3 @@ def plot_pretraining_epochs():
     output_file = out_dir / "pretraining_epochs.svg"
     remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
 
-
-rgba_lst = plot_object_views("potted_meat_can", vmin=0.2, vmax=0.5)
-image = rgba_lst[0]
