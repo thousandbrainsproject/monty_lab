@@ -11,18 +11,11 @@
 Figure 4: Visualize 8-patch view finder
 """
 import copy
-import fnmatch
-import functools
 import os
-import shutil
-from collections import UserList
 from numbers import Number
 from pathlib import Path
 from typing import (
-    Any,
-    Callable,
     Container,
-    Iterable,
     List,
     Mapping,
     Optional,
@@ -44,7 +37,6 @@ from data_utils import (
     load_eval_stats,
 )
 from matplotlib.lines import Line2D
-from matplotlib.patches import Rectangle
 from plot_utils import TBP_COLORS, axes3d_set_aspect_equal
 
 plt.rcParams["font.size"] = 8
@@ -376,24 +368,6 @@ def get_experiments(**filters) -> List[Experiment]:
     return experiments
 
 
-def add_legend(
-    ax: plt.Axes,
-    colors: Container[str],
-    labels: Container[str],
-    loc: Optional[str] = None,
-    lw: int = 4,
-    fontsize: int = 8,
-) -> matplotlib.legend.Legend:
-    # Create custom legend handles (axes.legend() doesn't work when multiple
-    # violin plots are on the same axes.
-    legend_handles = []
-    for i in range(len(colors)):
-        handle = Line2D([0], [0], color=colors[i], lw=lw, label=labels[i])
-        legend_handles.append(handle)
-
-    return ax.legend(handles=legend_handles, loc=loc, fontsize=fontsize)
-
-
 def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
     """Reduce the eval stats dataframe to a single row per episode.
 
@@ -478,136 +452,6 @@ def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
 -------------------------------------------------------------------------------
 Plotting
 """
-
-
-def violinplot(
-    dataset: Sequence,
-    positions: Sequence,
-    width: Number = 0.8,
-    color: Optional[str] = None,
-    alpha: Optional[Number] = 1,
-    edgecolor: Optional[str] = None,
-    showextrema: bool = False,
-    showmeans: bool = False,
-    showmedians: bool = False,
-    percentiles: Optional[Sequence] = None,
-    side: str = "both",
-    gap: float = 0.0,
-    percentile_style: Optional[Mapping] = None,
-    median_style: Optional[Mapping] = None,
-    ax: Optional[plt.Axes] = None,
-) -> plt.Axes:
-    """_summary_
-
-    Args:
-        dataset (_type_): _description_
-        positions (Optional[Sequence], optional): _description_. Defaults to None.
-        color (Optional[str], optional): _description_. Defaults to None.
-        widths (Optional[Sequence], optional): _description_. Defaults to None.
-        side (str, optional): _description_. Defaults to "both".
-        showmedians (bool, optional): _description_. Defaults to False.
-        percentiles (Optional[Sequence], optional): _description_. Defaults to None.
-        edgecolor (Optional[str], optional): _description_. Defaults to None.
-        ax (Optional[plt.Axes], optional): _description_. Defaults to None.
-
-    Raises:
-        ValueError: _description_
-        ValueError: _description_
-        ValueError: _description_
-
-    Returns:
-        plt.Axes: _description_
-    """
-
-    # Move positions and shrink widths if we're doing half violins.
-    if side == "both":
-        offset = 0
-    elif side == "left":
-        width = width * 2
-        offset = -gap / 2
-        width = width - gap
-    elif side == "right":
-        width = width * 2
-        offset = gap / 2
-        width = width - gap
-    else:
-        raise ValueError(f"Invalid side: {side}")
-
-    # Handle style info.
-    default_median_style = dict(lw=1, color="black", ls="-")
-    if median_style:
-        default_median_style.update(median_style)
-    median_style = default_median_style
-
-    default_percentile_style = dict(lw=1, color="black", ls="--")
-    if percentile_style:
-        default_percentile_style.update(percentile_style)
-    percentile_style = default_percentile_style
-
-    # Handle style info.
-    percentiles = [] if percentiles is None else percentiles
-
-    if ax is None:
-        _, ax = plt.subplots(1, 1, figsize=(6, 4))
-
-    positions = np.asarray(positions)
-    vp = ax.violinplot(
-        dataset,
-        positions=positions + offset,
-        showextrema=showextrema,
-        showmeans=showmeans,
-        showmedians=False,
-        widths=width,
-    )
-
-    for i, body in enumerate(vp["bodies"]):
-        # Modify appearance.
-        if color is not None:
-            body.set_facecolor(color)
-            if alpha is not None:
-                body.set_alpha(alpha)
-        if edgecolor is not None:
-            body.set_edgecolor(edgecolor)
-
-        # If half-violins, mask out not-shown half of the violin.
-        # get the center
-        p = body.get_paths()[0]
-        center = positions[i]
-        if side == "both":
-            limit = center
-            half_curve = p.vertices[p.vertices[:, 0] < limit]
-        elif side == "left":
-            # Mask the right side of the violin.
-            limit = center - gap / 2
-            p.vertices[:, 0] = np.clip(p.vertices[:, 0], -np.inf, limit)
-            half_curve = p.vertices[p.vertices[:, 0] < limit]
-        elif side == "right":
-            # Mask the left side of the violin.
-            limit = center + gap / 2
-            p.vertices[:, 0] = np.clip(p.vertices[:, 0], limit, np.inf)
-            half_curve = p.vertices[p.vertices[:, 0] > limit]
-
-        # compensation for line width. depends on points-to-data coordinate ratio.
-        line_info = [(percentiles, percentile_style)]
-        if showmedians:
-            line_info.append(([50], median_style))
-
-        lw_factor = 0.01
-        for ptiles, style in line_info:
-            for q in ptiles:
-                y = np.percentile(dataset[i], q)
-                if side == "both":
-                    x_left = half_curve[np.argmin(np.abs(y - half_curve[:, 1])), 0]
-                    x_right = center + abs(center - x_left)
-                elif side == "left":
-                    x_left = half_curve[np.argmin(np.abs(y - half_curve[:, 1])), 0]
-                    x_right = limit
-                elif side == "right":
-                    x_right = half_curve[np.argmin(np.abs(y - half_curve[:, 1])), 0]
-                    x_left = limit
-                ln = Line2D([x_left + lw_factor, x_right - lw_factor], [y, y], **style)
-                ax.add_line(ln)
-    return ax
 
 
 def double_accuracy_plot(
