@@ -28,7 +28,25 @@ Unless specified otherwise, the following figures/experiments use:
 
 This captures core model performance in a realistic setting.
 
-## Figure 4: Rapid Inference with Voting
+## Figure 4: Structured Object Representations
+
+Consists of 1 experiment:
+- `dist_agent_1lm_randrot_noise_10simobj`
+
+This means performance is evaluated with:
+- 10 morphologically similar objects
+- Random rotations
+- Sensor noise
+- Hypothesis-testing policy active
+- No voting
+
+The main output measure is a dendrogram showing evidence score clustering for the 10 objects.
+
+**Notes:**
+- Although evaluating on 10 objects, the model is trained on 77 objects.
+- We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
+  
+## Figure 5: Rapid Inference with Voting
 
 Consists of 9 experiments:
 - `dist_agent_1lm_randrot_noise`
@@ -55,7 +73,7 @@ Performance is evaluated on:
 
 The main output measure is accuracy and rotation error as a function of number of LMs. The two variations show that accuracy and convergence speed can be traded off against each other.
 
-## Figure 5: Rapid Inference with Model-Free and Model-Based Policies
+## Figure 6: Rapid Inference with Model-Free and Model-Based Policies
 
 Consists of 3 experiments:
 - `dist_agent_1lm_randrot_noise_nohyp` - No hypothesis-testing, and random-walk policy
@@ -70,7 +88,7 @@ This means performance is evaluated with:
 
 The main output measure is accuracy and rotation error as a function of the policy used.
 
-## Figure 6: Rapid Learning
+## Figure 7: Rapid Learning
 
 Consists of 6 experiments:
 - `pretrain_dist_agent_1lm_checkpoints`
@@ -99,7 +117,7 @@ The main output measure is accuracy and rotation error as a function of training
   2. Next 8 rotations = cube corners
   3. Remaining = random rotations (as otherwise introduces redundancy)
 
-## Figure 7: Computationally Efficient Learning and Inference
+## Figure 8: Computationally Efficient Learning and Inference
 
 ### Inference (12 experiments)
 
@@ -133,7 +151,7 @@ This performance is evaluated with:
 
 The main output measure is accuracy and FLOPs as a function of `x_percent threshold` and whether hypothesis testing was used or not.
 
-## Figure 8: Multi-Modal Transfer
+## Figure 9: Multi-Modal Transfer
 
 Consists of 4 experiments:
 - `dist_agent_1lm_randrot_noise_10distinctobj` - "Standard" Monty ("dist_on_dist")
@@ -149,21 +167,3 @@ This means performance is evaluated with:
 - No voting
 
 The main output measure is accuracy and rotation error for within/across modality inference.
-
-## Figure 9: Structured Object Representations
-
-Consists of 1 experiment:
-- `dist_agent_1lm_randrot_noise_10simobj`
-
-This means performance is evaluated with:
-- 10 morphologically similar objects
-- Random rotations
-- Sensor noise
-- Hypothesis-testing policy active
-- No voting
-
-The main output measure is a dendrogram showing evidence score clustering for the 10 objects.
-
-**Notes:**
-- Although evaluating on 10 objects, the model is trained on 77 objects.
-- We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
