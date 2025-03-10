@@ -6,18 +6,19 @@ Below is a summary of configs that correspond to figures in the Demonstrating Mo
 
 ## Figure 3: Robust Sensorimotor Inference
 
-Consists of 4 experiments:
-- `dist_agent_1lm` (i.e. no noise)
-- `dist_agent_1lm_noise` - Sensor noise
-- `dist_agent_1lm_randrot_all` - 14 random rotations.
-- `dist_agent_1lm_randrot_all_noise` - Sensor noise and 14 random rotations.
+This figure presents results from four inference experiments testing Monty's robustness under different conditions. Monty was pre-trained on 14 standard rotations derived from cube face and corner views (see full configuration details in `pretraining_experiments/dist_agent_1lm`).
+
+- `dist_agent_1lm`: Standard inference with no sensor noise or random rotations
+- `dist_agent_1lm_noise`: Tests robustness to sensor noise
+- `dist_agent_1lm_randrot_all`: Tests performance across 14 random rotations
+- `dist_agent_1lm_randrot_all_noise`: Tests performance with both random rotations and sensor noise
 
 Here we are showing the performance of the "standard" version of Monty, using:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
 - A single LM (no voting)
 
-The main output measure is accuracy and rotation error as a function of noise conditions.
+The main output measures are accuracy, rotation error (degrees), and Chamfer distance for each condition.
 
 ## Default Parameters for Figures 4+
 Unless specified otherwise, the following figures/experiments use:
