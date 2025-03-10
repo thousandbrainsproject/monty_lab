@@ -15,14 +15,24 @@ __all__ = [
 class CrossOperation:
     """FLOP counter for vector cross product operations."""
 
-    def count_flops(self, *args: Any, result: Any) -> Optional[int]:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> Optional[int]:
         """Count FLOPs for cross product operation.
 
-        Note: Cross product is only defined for 3D vectors (and 7D, though rarely used).
-        For 3D vectors, cross product requires:
-        - 6 multiplications
-        - 3 subtractions
-        Total: 9 FLOPs per cross product
+        Args:
+            *args: Input arrays (vectors to compute cross product)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.cross parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            Optional[int]: Number of floating point operations
+
+        Note:
+            Cross product is only defined for 3D vectors (and 7D, though rarely used).
+            For 3D vectors, cross product requires:
+            - 6 multiplications
+            - 3 subtractions
+            Total: 9 FLOPs per cross product
         """
         # Get number of cross products being computed
         num_operations = max(
@@ -116,11 +126,21 @@ class MatmulOperation:
 class TraceOperation:
     """FLOP count for trace operation."""
 
-    def count_flops(self, *args: Any, result: Any) -> int:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for trace operation.
 
-        Trace is the sum of diagonal elements, requiring (n-1) additions
-        where n is the number of diagonal elements.
+        Args:
+            *args: Input arrays (first argument is the array to compute trace)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.trace parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            Trace is the sum of diagonal elements, requiring (n-1) additions
+            where n is the number of diagonal elements.
         """
         arr = args[0]
         if len(arr.shape) < 2:
@@ -291,17 +311,26 @@ class NormOperation:
 class CondOperation:
     """FLOP count for np.linalg.cond operation."""
 
-    def count_flops(self, *args: Any, result: Any) -> int:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for condition number calculation.
 
-        For a square matrix (m=n), the total FLOP count is:
-        - SVD decomposition (~14n^3)
-        An estimate for complexity of SVD is ~2mn^2 + 11n^3 per equation 11.22
-        in "Numerical Linear Algebra" by Trefethen and Bau.
+        Args:
+            *args: Input arrays (first argument is the matrix to compute condition number)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.linalg.cond parameters.
+                     These currently don't affect the FLOP count.
 
-        - Division of largest by smallest singular value (1)
+        Returns:
+            int: Number of floating point operations
 
-        Total: ~14n^3 + 1 FLOPs
+        Note:
+            For a square matrix (m=n), the total FLOP count is:
+            - SVD decomposition (~14n^3)
+            - Division of largest by smallest singular value (1)
+            Total: ~14n^3 + 1 FLOPs
+
+            An estimate for complexity of SVD is ~2mn^2 + 11n^3 per equation 11.22
+            in "Numerical Linear Algebra" by Trefethen and Bau.
         """
         n = args[0].shape[0]
         return 14 * n**3 + 1
@@ -310,35 +339,57 @@ class CondOperation:
 class InvOperation:
     """FLOP count for np.linalg.inv operation."""
 
-    def count_flops(self, *args: Any, result: Any) -> int:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for matrix inversion.
 
-        Matrix inversion using LU decomposition:
+        Matrix inversion using LU decomposition requires:
         - LU decomposition (~2/3 n³)
         - Forward and backward substitution (~2n²)
-        An estimate for complexity of LU decomposition is ~2/3 n³ FLOPs per equation 20.8
-        in "Numerical Linear Algebra" by Trefethen and Bau.
-        Total: ~2/3 n³ + 2n² FLOPs
+
+        Args:
+            *args: Input arrays (first argument is the matrix to invert)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.linalg.inv parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of floating point operations for matrix inversion
+
+        Note:
+            An estimate for complexity of LU decomposition is ~2/3 n³ FLOPs per equation 20.8
+            in "Numerical Linear Algebra" by Trefethen and Bau.
+            Total: ~2/3 n³ + 2n² FLOPs
         """
         n = args[0].shape[0]
+        if n == 1:  # Special case for 1x1 matrices
+            return 1  # Just one division
         return (2 * n**3) // 3 + 2 * n**2
 
 
 class EigOperation:
     """FLOP count for np.linalg.eig operation."""
 
-    def count_flops(self, *args: Any, result: Any) -> int:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for eigenvalue decomposition.
 
-        Eigenvalue decomposition using QR algorithm:
-        - Reduction to Hessenberg form (~10/3 n³)
-        An estimate for complexity of reduction to Hessenberg form is ~10/3 n³ FLOPs per equation 26.1
-        in "Numerical Linear Algebra" by Trefethen and Bau.
-        - QR iterations using Householder reflections: ~4/3 n³ FLOPs per iteration (~20 iterations)
-        An estimate for complexity of QR iterations is ~4/3 n³ FLOPs per equation 10.9
-        in "Numerical Linear Algebra" by Trefethen and Bau.
+        Args:
+            *args: Input arrays (first argument is the matrix to compute eigenvalues)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.linalg.eig parameters.
+                     These currently don't affect the FLOP count.
 
-        Total: 10/3 n³ + 4/3 n³ * 20 = 10/3 n³ + 80/3 n³ = 90/3 n³ = 30 n³ FLOPs
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            Eigenvalue decomposition using QR algorithm requires:
+            - Reduction to Hessenberg form (~10/3 n³)
+            - QR iterations using Householder reflections: ~4/3 n³ FLOPs per iteration (~20 iterations)
+            Total: ~30n³ FLOPs
+
+            Estimates from "Numerical Linear Algebra" by Trefethen and Bau:
+            - Hessenberg form: ~10/3 n³ FLOPs (equation 26.1)
+            - QR iterations: ~4/3 n³ FLOPs per iteration (equation 10.9)
         """
         n = args[0].shape[0]
         return 30 * n**3
