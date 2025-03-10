@@ -22,7 +22,7 @@ class ClipOperation:
 
         Args:
             *args: Should contain (array, min, max)
-            result: Not used but kept for consistency with other operations
+            result: The result array
             **kwargs: Additional keyword arguments that match numpy.clip parameters.
                      These currently don't affect the FLOP count.
                      Example kwargs: out, where, casting, order, etc.
@@ -32,7 +32,7 @@ class ClipOperation:
         """
         array, min_val, max_val = args[:3]
         comparisons_per_element = 1 if (min_val is None or max_val is None) else 2
-        return comparisons_per_element * np.size(array)
+        return comparisons_per_element * np.size(result)
 
 
 class WhereOperation:
@@ -41,18 +41,19 @@ class WhereOperation:
     def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
         """Count FLOPs for where operation.
 
-        Each element requires 1 comparison operation.
+        Each element requires 1 comparison operation. The size is based on the result
+        array to account for potential broadcasting between x and y arrays.
 
         Args:
             *args: Input arrays (condition, x, y)
-            result: Not used but kept for consistency
+            result: The result array after broadcasting
             **kwargs: Additional keyword arguments that match numpy.where parameters.
                      These currently don't affect the FLOP count.
 
         Returns:
             int: Number of comparison operations
         """
-        return np.size(args[0])
+        return np.size(result)
 
 
 class RoundOperation:
@@ -65,7 +66,7 @@ class RoundOperation:
 
         Args:
             *args: Input arrays (first argument is the array to round)
-            result: Not used but kept for consistency
+            result: The result array
             **kwargs: Additional keyword arguments that match numpy.round parameters.
                      These currently don't affect the FLOP count.
                      Example kwargs: decimals, out, etc.
@@ -73,7 +74,7 @@ class RoundOperation:
         Returns:
             int: Number of comparison operations
         """
-        return np.size(args[0])
+        return np.size(result)
 
 
 class IsnanOperation:
@@ -86,7 +87,7 @@ class IsnanOperation:
 
         Args:
             *args: Input arrays (first argument is the array to check)
-            result: Not used but kept for consistency
+            result: The result array
             **kwargs: Additional keyword arguments that match numpy.isnan parameters.
                      These currently don't affect the FLOP count.
                      Example kwargs: out, where, etc.
@@ -94,4 +95,4 @@ class IsnanOperation:
         Returns:
             int: Number of comparison operations
         """
-        return np.size(args[0])
+        return np.size(result)
