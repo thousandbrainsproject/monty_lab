@@ -17,10 +17,11 @@ from numpy import *
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
-    imports = visitor.numpy_imports
+    imports = set(visitor.imports.values())
     assert "numpy" in imports
     assert "numpy.linalg" in imports
-    assert "numpy.random" in imports
+    assert "numpy.random.normal" in imports
+    assert "numpy.random.rand" in imports
     assert any("array" in imp for imp in imports)
     assert any("zeros" in imp for imp in imports)
 
@@ -35,9 +36,32 @@ y = np.zeros((2, 2))
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.numpy_calls
-    assert ("call", "array", 2) in calls
-    assert ("call", "zeros", 3) in calls
+    calls = visitor.calls
+    assert ("attribute", "numpy.array", 3) in calls
+    assert ("attribute", "numpy.zeros", 4) in calls
+    # Check variable tracking
+    assert "x" in visitor.variables
+    assert "y" in visitor.variables
+
+
+def test_variable_tracking():
+    code = """
+import numpy as np
+x = np.array([1, 2, 3])
+y = x  # Assignment from numpy variable
+z = y.transpose()  # Method call on numpy variable
+w, v = np.zeros(2), np.ones(2)  # Multiple assignment
+"""
+    tree = ast.parse(code)
+    visitor = NumpyCallVisitor()
+    visitor.visit(tree)
+
+    # Check variable tracking
+    assert all(var in visitor.variables for var in ["x", "y", "z", "w", "v"])
+    # Check method calls are tracked
+    assert ("call", "transpose", 5) in visitor.calls
+    assert ("attribute", "numpy.zeros", 6) in visitor.calls
+    assert ("attribute", "numpy.ones", 6) in visitor.calls
 
 
 def test_complex_numpy_usage():
@@ -73,39 +97,38 @@ a = b = np.ones(5)
 
 # Unpacking
 c, d = np.array([1,2]), np.array([3,4])
-
-# Broadcasting operations
-arr1 = np.array([1,2,3])
-arr2 = np.array([4,5,6])
-result = arr1 + arr2
 """
     tree = ast.parse(code)
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
     # Check imports
-    imports = visitor.numpy_imports
+    imports = set(visitor.imports.values())
     assert "numpy" in imports
     assert "numpy.linalg" in imports
-    assert "numpy.random" in imports
+    assert "numpy.random.normal" in imports
     assert "numpy.fft" in imports
 
     # Check calls
-    calls = visitor.numpy_calls
-    expected_functions = {
-        "array",
-        "reshape",
-        "transpose",
-        "sum",
-        "dot",
-        "zeros",
-        "full",
-        "ones",
-    }
+    calls = visitor.calls
+    # Check specific attribute calls
+    assert ("attribute", "numpy.array", 11) in calls  # in __init__
+    assert ("attribute", "numpy.array", 16) in calls  # in chained calls
+    assert ("attribute", "numpy.array", 19) in calls  # first array in dot call
+    assert ("attribute", "numpy.dot", 19) in calls
+    assert ("attribute", "numpy.zeros", 19) in calls  # second arg in dot call
+    assert ("attribute", "numpy.full", 22) in calls
+    assert ("attribute", "numpy.ones", 28) in calls
+    assert ("attribute", "numpy.array", 31) in calls  # first array in unpacking
+    assert ("attribute", "numpy.array", 31) in calls  # second array in unpacking
 
-    found_functions = {name for _, name, _ in calls}
-    for func in expected_functions:
-        assert func in found_functions, f"Expected to find {func} in numpy calls"
+    # Check method calls on numpy objects
+    assert ("call", "reshape", 16) in calls
+    assert ("call", "transpose", 16) in calls
+    assert ("call", "sum", 16) in calls
+
+    # Check variable tracking for multiple assignments and unpacking
+    assert all(var in visitor.variables for var in ["a", "b", "c", "d"])
 
 
 def test_numpy_attribute_access():
@@ -120,13 +143,15 @@ shape = x.shape
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.numpy_calls
-    attributes = visitor.numpy_attributes
-
-    assert ("call", "array", 2) in calls
-    assert ("attribute", "mean", 3) in attributes
-    assert ("attribute", "std", 4) in attributes
-    assert ("attribute", "shape", 5) in attributes
+    calls = visitor.calls
+    assert ("attribute", "numpy.array", 3) in calls
+    assert ("call", "mean", 4) in calls
+    assert ("call", "std", 5) in calls
+    assert ("call", "shape", 6) in calls
+    # Check variable tracking
+    assert "x" in visitor.variables
+    assert "mean" in visitor.variables
+    assert "std" in visitor.variables
 
 
 def test_numpy_subscript_and_slice():
@@ -141,8 +166,15 @@ slice3 = arr[0:2, 1:3]
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.numpy_calls
-    assert ("call", "array", 2) in calls
+    calls = visitor.calls
+    assert ("attribute", "numpy.array", 3) in calls
+    assert ("call", "getitem", 4) in calls  # Single index access
+    assert ("call", "getitem", 5) in calls  # Slice access
+    assert ("call", "getitem", 6) in calls  # Multi-dimensional slice
+    # Check variable tracking
+    assert all(
+        var in visitor.variables for var in ["arr", "slice1", "slice2", "slice3"]
+    )
 
 
 def test_numpy_math_operations():
@@ -161,10 +193,22 @@ matmul = a @ b
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.numpy_calls
-    assert ("call", "array", 2) in calls
-    assert ("call", "array", 3) in calls
-    assert ("call", "dot", 7) in calls
+    calls = visitor.calls
+    assert ("attribute", "numpy.array", 3) in calls
+    assert ("attribute", "numpy.array", 4) in calls
+    assert ("attribute", "numpy.dot", 9) in calls
+    # Check binary operations
+    binary_ops = [
+        call
+        for call in calls
+        if call[0] == "attribute" and "binary_operation" in call[1]
+    ]
+    assert len(binary_ops) == 5  # +, -, *, /, @
+    # Check variable tracking
+    assert all(
+        var in visitor.variables
+        for var in ["a", "b", "add", "sub", "mul", "div", "dot", "matmul"]
+    )
 
 
 def test_numpy_with_error_handling():
@@ -180,6 +224,33 @@ except AttributeError:
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.numpy_calls
-    assert ("call", "array", 3) in calls
-    assert ("call", "invalid_function", 4) in calls
+    calls = visitor.calls
+    assert ("attribute", "numpy.array", 4) in calls
+    assert ("attribute", "numpy.invalid_function", 5) in calls
+    # Check variable tracking
+    assert "x" in visitor.variables
+
+
+def test_numpy_submodule_assignment():
+    code = """
+import numpy as np
+linalg = np.linalg
+fft = np.fft
+x = np.array([1,2,3])
+y = linalg.norm(x)
+z = fft.fft(x)
+"""
+    tree = ast.parse(code)
+    visitor = NumpyCallVisitor()
+    visitor.visit(tree)
+
+    # Check submodule imports are tracked
+    assert "linalg" in visitor.imports
+    assert "fft" in visitor.imports
+    assert visitor.imports["linalg"] == "numpy.linalg"
+    assert visitor.imports["fft"] == "numpy.fft"
+    # Check calls through submodules
+    assert ("attribute", "numpy.linalg.norm", 6) in visitor.calls
+    assert ("attribute", "numpy.fft.fft", 7) in visitor.calls
+    # Check variable tracking
+    assert all(var in visitor.variables for var in ["x", "y", "z"])
