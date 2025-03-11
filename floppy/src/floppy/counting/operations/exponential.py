@@ -32,7 +32,7 @@ class LogOperation:
         return 20 * np.size(result)
 
 
-# TODO: Update power operation to handle square, reciprocal, cbrt, sqrt
+# All operations now handled
 class PowerOperation:
     """FLOP count for power operation."""
 
@@ -43,15 +43,18 @@ class PowerOperation:
         - For integer exponents > 0: Uses repeated multiplication, requiring (exponent-1) FLOPs
         - For integer exponent = 0: No FLOPs (just returns 1)
         - For integer exponent < 0: Same as positive + 1 division
-        - For fractional exponents: Uses logarithm (~20 FLOPs) and exponential (~20 FLOPs), or total ~40 FLOPs
+        - For sqrt operations: Uses ~20 FLOPs (specialized sqrt algorithm)
+        - For cbrt operations: Uses ~25 FLOPs (specialized cube root algorithm)
+        - For reciprocal operations: Uses 1 FLOP (single division)
+        - For other fractional exponents: Uses logarithm (~20 FLOPs) and exponential (~20 FLOPs), total ~40 FLOPs
 
         Args:
-            args: (base, exponent)
+            args: (base, exponent) or just (base) for square/sqrt/cbrt/reciprocal operations
             result: Result of the operation
         """
-        if len(args) == 1:  # square case
+        if len(args) == 1:  # special cases: square, sqrt, cbrt, reciprocal
             base = args[0]
-            exponent = 2
+            exponent = 2  # default for square
         else:  # power case
             base, exponent = args
 
@@ -64,8 +67,16 @@ class PowerOperation:
                 flops_per_element = max(0, exp - 1)  # exp-1 multiplications needed
                 if exponent < 0:
                     flops_per_element += 1  # Additional division for negative exponents
+            elif exponent == 0.5:  # sqrt case
+                flops_per_element = 20  # Specialized sqrt algorithm
+            elif exponent == 1 / 3:  # cbrt case
+                flops_per_element = 25  # Specialized cube root algorithm
+            elif exponent == -1:  # reciprocal case
+                flops_per_element = 1  # Single division
             else:
-                flops_per_element = 40  # Approximate FLOPs for fractional exponents
+                flops_per_element = (
+                    40  # Approximate FLOPs for other fractional exponents
+                )
         else:
             # If exponent is an array, use worst case (fractional exponent)
             flops_per_element = 40
