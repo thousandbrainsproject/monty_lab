@@ -137,7 +137,7 @@ class OperationRegistry:
         registry.register("std", StdOperation)
         registry.register("var", VarOperation)
         registry.register("average", AverageOperation)
-        registry.register("trace", TraceOperation)
+        registry.register("trace", TraceOperation, method_name="trace")
         registry.register("min", MinOperation)
         registry.register("max", MaxOperation)
         registry.register("argmin", ArgminOperation)

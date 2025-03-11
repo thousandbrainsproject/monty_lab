@@ -12,13 +12,12 @@ def test_trace_basic():
         assert counter.flops == 1
 
 
-@pytest.mark.skip(reason="Not implemented")
 def test_trace_method():
     counter = FlopCounter(test_mode=True)
     with counter:
         a = np.array([[1, 2], [3, 4]])
         _ = a.trace()
-        assert counter.flops == 2
+        assert counter.flops == 1
 
 
 def test_trace_rectangular():
