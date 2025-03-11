@@ -92,17 +92,17 @@ def test_reciprocal():
     """Test reciprocal operation (power of -1)."""
     counter = FlopCounter(test_mode=True)
     with counter:
-        a = np.array([1, 2, 4])
+        a = np.array([1.0, 2.0, 4.0])
         result = np.reciprocal(a)
         assert counter.flops == 3  # 1 FLOP (division) per element
-        np.testing.assert_array_equal(result, np.array([1, 0.5, 0.25]))
+        np.testing.assert_array_equal(result, np.array([1.0, 0.5, 0.25]))
 
 
 def test_negative_integer_power():
     """Test negative integer powers."""
     counter = FlopCounter(test_mode=True)
     with counter:
-        a = np.array([1, 2, 3])
+        a = np.array([1.0, 2.0, 3.0])
         result = a ** (-2)
         assert counter.flops == 6  # (2-1) multiplications + 1 division per element
         np.testing.assert_array_almost_equal(result, np.array([1, 0.25, 1 / 9]))
