@@ -1,0 +1,52 @@
+import numpy as np
+import pytest
+
+from floppy.counting.counter import FlopCounter
+
+
+def test_mod_operator_syntax():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        result = a % b
+        assert counter.flops == 9
+        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+
+
+def test_mod_ufunc_syntax():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        result = np.mod(a, b)
+        assert counter.flops == 9
+        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+
+
+def test_mod_augmented_assignment():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        a %= b
+        assert counter.flops == 9
+        np.testing.assert_array_equal(a, np.array([1, 2, 3]))
+
+
+def test_mod_broadcasting():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = 2
+        result = a % b
+        assert counter.flops == 9
+        np.testing.assert_array_equal(result, np.array([1, 0, 1]))
+
+    counter.flops = 0
+    with counter:
+        a = np.array([1, 2, 3])
+        b = 2
+        result = b % a
+        assert counter.flops == 9
+        np.testing.assert_array_equal(result, np.array([0, 0, 2]))

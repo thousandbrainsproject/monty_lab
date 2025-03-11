@@ -345,12 +345,6 @@ view_finder_base = dict(
             positions=[[0.0, 1.5, -0.2]], rotations=train_rotations
         ),
     ),
-    # Doesn't get used, but currently needs to be set anyways.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=train_rotations),
-    ),
 )
 # Set viewfinder resolution to 224 x 224.
 dataset_args = view_finder_base["dataset_args"]

@@ -1,0 +1,53 @@
+import numpy as np
+import pytest
+
+from floppy.counting.counter import FlopCounter
+
+
+def test_sin_ufunc_syntax():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        result = np.sin(a)
+        assert counter.flops == 60
+        np.testing.assert_allclose(
+            result, np.array([0.84147098, 0.90929743, 0.14112001])
+        )
+
+
+def test_sin_broadcasting():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = 2
+        result = np.sin(a)
+        assert counter.flops == 20
+        np.testing.assert_allclose(result, 0.90929743)
+
+    counter.flops = 0
+    with counter:
+        a = np.array([[1, 2], [3, 4]])
+        result = np.sin(a)
+        assert counter.flops == 80
+        np.testing.assert_allclose(
+            result, np.array([[0.84147098, 0.90929743], [0.14112001, -0.7568025]])
+        )
+
+
+def test_sin_empty():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([])
+        result = np.sin(a)
+        assert counter.flops == 0
+        np.testing.assert_allclose(result, np.array([]))
+
+
+def test_sine_chaining():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        result = np.sin(np.sin(a))
+        assert counter.flops == 120
+        np.testing.assert_allclose(
+            result, np.array([0.74562414, 0.78907234, 0.14065208])
+        )

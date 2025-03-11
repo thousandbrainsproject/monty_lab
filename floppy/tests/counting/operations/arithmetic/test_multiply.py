@@ -1,0 +1,62 @@
+import numpy as np
+import pytest
+
+from floppy.counting.counter import FlopCounter
+
+
+def test_multiply_operator_syntax():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        result = a * b
+        assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([4, 10, 18]))
+
+
+def test_multiply_ufunc_syntax():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        result = np.multiply(a, b)
+        assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([4, 10, 18]))
+
+
+def test_multiply_method_syntax():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        result = a.multiply(b)
+        assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([4, 10, 18]))
+
+
+def test_multiply_augmented_assignment():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = np.array([4, 5, 6])
+        a *= b
+        assert counter.flops == 3
+        np.testing.assert_array_equal(a, np.array([4, 10, 18]))
+
+
+def test_multiply_broadcasting():
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        b = 2
+        result = a * b
+        assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([2, 4, 6]))
+
+    counter.flops = 0
+    with counter:
+        a = np.array([1, 2, 3])
+        b = 2
+        result = b * a
+        assert counter.flops == 3
+        np.testing.assert_array_equal(result, np.array([2, 4, 6]))

@@ -72,6 +72,7 @@ The main output measure is accuracy and rotation error as a function of the poli
 ## Figure 6: Rapid Learning
 
 Consists of 6 experiments:
+- `pretrain_dist_agent_1lm_checkpoints`
 - `dist_agent_1lm_randrot_nohyp_1rot_trained`
 - `dist_agent_1lm_randrot_nohyp_2rot_trained`
 - `dist_agent_1lm_randrot_nohyp_4rot_trained`
