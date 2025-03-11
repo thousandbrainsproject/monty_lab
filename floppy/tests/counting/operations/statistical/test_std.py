@@ -75,7 +75,6 @@ def test_std_dtype():
     assert counter.flops == 25  # 4*6 + 1 FLOPs for 6 elements
 
 
-@pytest.mark.xfail(reason="Method call not supported yet")
 def test_std_method():
     """Test array.std() method call."""
     counter = FlopCounter(test_mode=True)

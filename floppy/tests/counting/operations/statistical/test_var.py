@@ -87,7 +87,6 @@ def test_var_dtype():
     assert counter.flops == 24  # 4*6 FLOPs for 6 elements
 
 
-@pytest.mark.xfail(reason="Method call not supported yet")
 def test_var_method():
     """Test array.var() method call."""
     counter = FlopCounter(test_mode=True)

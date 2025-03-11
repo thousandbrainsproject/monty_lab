@@ -1,3 +1,4 @@
+import inspect
 from typing import Any
 
 import numpy as np
@@ -52,11 +53,34 @@ class PowerOperation:
             args: (base, exponent) or just (base) for square/sqrt/cbrt/reciprocal operations
             result: Result of the operation
         """
-        if len(args) == 1:  # special cases: square, sqrt, cbrt, reciprocal
-            base = args[0]
-            exponent = 2  # default for square
-        else:  # power case
-            base, exponent = args
+        # Get the operation name from the stack
+        frame = inspect.currentframe()
+        try:
+            while frame:
+                if "func_name" in frame.f_locals:
+                    func_name = frame.f_locals["func_name"]
+                    if func_name in ["sqrt", "cbrt", "reciprocal", "square"]:
+                        if func_name == "sqrt":
+                            exponent = 0.5
+                        elif func_name == "cbrt":
+                            exponent = 1 / 3
+                        elif func_name == "reciprocal":
+                            exponent = -1
+                        elif func_name == "square":
+                            exponent = 2
+                        base = args[0]
+                        break
+                frame = frame.f_back
+            else:
+                # If no special function found, this is a regular power operation
+                if len(args) == 1:
+                    base = args[0]
+                    exponent = 2  # default for square
+                else:
+                    base, exponent = args
+
+        finally:
+            del frame
 
         # Get size from either operand, whichever is larger
         n = max(np.size(base), np.size(exponent))

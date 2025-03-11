@@ -23,8 +23,6 @@ def test_subtract_ufunc_syntax():
         assert counter.flops == 3
         np.testing.assert_array_equal(result, np.array([-3, -3, -3]))
 
-# FIXME
-@pytest.mark.xfail(reason="TrackedArray object has no attribute 'subtract'")
 def test_subtract_method_syntax():
     counter = FlopCounter(test_mode=True)
     with counter:

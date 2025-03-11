@@ -33,8 +33,6 @@ def test_power_ufunc_syntax():
         np.testing.assert_array_equal(result, np.array([1, 32, 729]))
 
 
-# FIXME
-@pytest.mark.xfail(reason="TrackedArray object has no attribute 'power'")
 def test_power_method_syntax():
     counter = FlopCounter(test_mode=True)
     with counter:

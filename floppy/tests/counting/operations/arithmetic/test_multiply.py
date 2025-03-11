@@ -24,8 +24,6 @@ def test_multiply_ufunc_syntax():
         np.testing.assert_array_equal(result, np.array([4, 10, 18]))
 
 
-# FIXME
-@pytest.mark.xfail(reason="TrackedArray object has no attribute 'multiply'")
 def test_multiply_method_syntax():
     counter = FlopCounter(test_mode=True)
     with counter:

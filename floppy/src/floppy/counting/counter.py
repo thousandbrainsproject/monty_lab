@@ -8,54 +8,11 @@ from typing import List, Optional
 import numpy as np
 
 from .logger import LogManager, Operation
-from .operations import *
+from .registry import OperationRegistry
 
 
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
-
-    # List of NumPy array methods that correspond to ufuncs
-    _tracked_methods = {
-        # Arithmetic operations
-        "add": "add",
-        "subtract": "subtract",
-        "multiply": "multiply",
-        "divide": "divide",
-        "floor_divide": "floor_divide",
-        "mod": "remainder",  # numpy method name differs from ufunc name
-        "remainder": "remainder",
-        "power": "power",
-        # Mathematical functions
-        "sqrt": "sqrt",
-        "cbrt": "cbrt",
-        "reciprocal": "reciprocal",
-        # Trigonometric functions
-        "sin": "sin",
-        "cos": "cos",
-        "tan": "tan",
-        "arcsin": "arcsin",
-        "arccos": "arccos",
-        "arctan": "arctan",
-        # Bitwise operations
-        "bitwise_and": "bitwise_and",
-        "bitwise_or": "bitwise_or",
-        # Other mathematical operations
-        "log": "log",
-        "isnan": "isnan",
-        "clip": "clip",
-        "matmul": "matmul",
-        # Reductions (these are methods on the array)
-        "sum": "sum",
-        "mean": "mean",
-        "std": "std",
-        "var": "var",
-        "min": "min",
-        "max": "max",
-        "argmin": "argmin",
-        "argmax": "argmax",
-        "trace": "trace",
-        "round": "round",
-    }
 
     def __new__(cls, input_array, counter):
         # Unwrap if the input_array is already a TrackedArray
@@ -68,58 +25,18 @@ class TrackedArray(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
-        """Ensure proper initialization of TrackedArray attributes during array creation.
-
-        This method is called by NumPy whenever a new array is created from an existing one,
-        including through views, slices, or other array operations. It ensures that the FLOP
-        counter reference is properly inherited by the new array.
-
-        Args:
-            obj: Optional[ndarray]
-                The array from which this array was created. None if the array is being
-                created from scratch rather than derived from an existing array.
-
-        Note:
-            This method is essential for maintaining the FLOP counting functionality across
-            all array operations, as it ensures derived arrays maintain their connection
-            to the original FlopCounter instance.
-
-            The method handles three main cases:
-            1. Direct array creation (obj is None)
-            2. View creation (obj is TrackedArray)
-            3. Result of array operations (obj is TrackedArray)
-        """
         if obj is None:
             return
         self.counter = getattr(obj, "counter", None)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        """
-        Intercept NumPy ufuncs (like add, multiply, etc.) and count FLOPs.
-
-        Args:
-            ufunc: The NumPy universal function being called (e.g., np.add, np.multiply)
-            method: The method of the ufunc being called ('__call__', 'reduce', etc.)
-            *inputs: The input arrays to the ufunc
-            **kwargs: Additional keyword arguments, including potentially 'out'
-
-        Notes:
-            1) Unwrap inputs into base NumPy arrays
-               - Converts TrackedArrays to their underlying numpy arrays
-               - Handles nested TrackedArrays through recursive unwrapping
-
-            2) Handle 'out' parameter separately
-               - The 'out' parameter specifies pre-allocated array(s) for results
-               - Can be either a single array or tuple of arrays for multi-output ufuncs
-               - Must be unwrapped to base arrays so ufunc can write directly to memory
-               Example:
-                   tracked_out = TrackedArray(np.zeros(3))
-                   np.add(a, b, out=tracked_out)  # Needs unwrapped array for in-place operation
-
-            3) Perform the actual ufunc operation
-
-            4) Count FLOPs if active
-        """
+        """Intercept NumPy ufuncs and count FLOPs."""
+        # Map of ufunc reductions to their corresponding function operations
+        reduction_map = {
+            "add": "sum",
+            "minimum": "min",
+            "maximum": "max",
+        }
 
         # 1) Unwrap inputs into base NumPy arrays
         clean_inputs = []
@@ -132,35 +49,39 @@ class TrackedArray(np.ndarray):
         if "out" in kwargs:
             out = kwargs["out"]
             if isinstance(out, tuple):
-                # Create a new tuple with unwrapped elements
                 clean_out = tuple(
                     o.view(np.ndarray) if isinstance(o, TrackedArray) else o
                     for o in out
                 )
                 kwargs["out"] = clean_out
             elif isinstance(out, TrackedArray):
-                # Unwrap single 'out' parameter if it's a TrackedArray
                 kwargs["out"] = out.view(np.ndarray)
 
         # 3) Perform the actual ufunc operation
         result = getattr(ufunc, method)(*clean_inputs, **kwargs)
 
         # 4) Count FLOPs if active
-        if self.counter:
-            if not self.counter.should_skip_counting():
-                op_name = ufunc.__name__
-                if op_name in self.counter.ufunc_operations:
-                    flops = self.counter.ufunc_operations[op_name].count_flops(
-                        *clean_inputs, result=result
+        if self.counter and not self.counter.should_skip_counting():
+            op_name = ufunc.__name__
+            # Check if this is a reduction operation
+            if method == "reduce" and op_name in reduction_map:
+                func_op_name = reduction_map[op_name]
+                operation = self.counter.registry.get_operation(func_op_name)
+                if operation:
+                    flops = operation.count_flops(
+                        *clean_inputs, result=result, **kwargs
                     )
+                    self.counter.add_flops(flops)
+            else:
+                operation = self.counter.registry.get_operation(op_name)
+                if operation:
+                    flops = operation.count_flops(*clean_inputs, result=result)
                     self.counter.add_flops(flops)
 
         # 5) Wrap the result back into a TrackedArray, if applicable
         if "out" in kwargs:
-            # If 'out' was provided, ensure it is properly wrapped
             out = kwargs["out"]
             if isinstance(out, tuple):
-                # Create a new tuple with wrapped elements
                 wrapped_out = tuple(
                     TrackedArray(o, self.counter)
                     if isinstance(o, np.ndarray) and not isinstance(o, TrackedArray)
@@ -169,11 +90,10 @@ class TrackedArray(np.ndarray):
                 )
                 if len(wrapped_out) == 1:
                     return wrapped_out[0]
-                return wrapped_out  # Return the wrapped output tuple
+                return wrapped_out
             elif isinstance(out, np.ndarray) and not isinstance(out, TrackedArray):
                 return TrackedArray(out, self.counter)
 
-        # If the result is a scalar or already wrapped, return as is
         if isinstance(result, np.ndarray) and not isinstance(result, TrackedArray):
             return TrackedArray(result, self.counter)
 
@@ -192,13 +112,11 @@ class TrackedArray(np.ndarray):
 
     def __getattr__(self, name):
         """Intercept method calls and track FLOPs if it's a tracked method."""
-        # If it's a tracked method, create a wrapper
-        if name in self._tracked_methods:
-            # Create a wrapper that tracks FLOPs
-            def wrapped_method(*args, **kwargs):
-                # Get corresponding ufunc name
-                ufunc_name = self._tracked_methods[name]
+        # Check if it's a tracked method using the registry
+        ufunc_name = self.counter.registry.get_ufunc_name(name)
+        if ufunc_name:
 
+            def wrapped_method(*args, **kwargs):
                 # Unwrap TrackedArray arguments
                 clean_args = []
                 for arg in args:
@@ -206,20 +124,13 @@ class TrackedArray(np.ndarray):
                         arg = arg.view(np.ndarray)
                     clean_args.append(arg)
 
-                # Use the corresponding ufunc directly
-                result = getattr(np, ufunc_name)(
-                    self.view(np.ndarray), *clean_args, **kwargs
-                )
+                # Get the base array
+                base_array = self.view(np.ndarray)
 
-                # Count FLOPs if active
-                if self.counter and not self.counter.should_skip_counting():
-                    if ufunc_name in self.counter.ufunc_operations:
-                        flops = self.counter.ufunc_operations[ufunc_name].count_flops(
-                            self.view(np.ndarray), *clean_args, result=result
-                        )
-                        self.counter.add_flops(flops)
+                # Call the original numpy function with base_array as first argument
+                result = getattr(np, ufunc_name)(base_array, *clean_args, **kwargs)
 
-                # Wrap result if it's an array
+                # Wrap result if it's an array (don't count FLOPs here since __array_ufunc__ will handle it)
                 if isinstance(result, np.ndarray) and not isinstance(
                     result, TrackedArray
                 ):
@@ -233,12 +144,7 @@ class TrackedArray(np.ndarray):
 
 
 class FlopCounter(ContextDecorator):
-    """
-    Context manager that:
-    1) monkey-patches np.array => returns TrackedArray
-    2) optionally monkey-patches a few high-level calls (np.sum, np.matmul, etc.)
-    3) accumulates FLOPs for each operation
-    """
+    """Context manager that tracks FLOP operations."""
 
     def __init__(
         self,
@@ -249,105 +155,21 @@ class FlopCounter(ContextDecorator):
     ):
         self.flops = 0
         self._is_active = False
-        self.log_manager = log_manager  # Store the logger instance
+        self.log_manager = log_manager
         self.test_mode = test_mode
-        self.skip_paths = skip_paths
-        self.include_paths = include_paths
+        self.skip_paths = skip_paths if skip_paths is not None else []
+        self.include_paths = include_paths if include_paths is not None else []
         self._original_array_func = None
         self._original_funcs = {}
-
         self._flops_lock = threading.Lock()
 
-        self.ufunc_operations = {
-            "add": Addition(),
-            "subtract": Subtraction(),
-            "multiply": Multiplication(),
-            "divide": Division(),
-            "power": PowerOperation(),
-            "square": PowerOperation(),
-            "sqrt": PowerOperation(),
-            "cbrt": PowerOperation(),
-            "reciprocal": PowerOperation(),
-            "floor_divide": FloorDivideOperation(),
-            "remainder": ModuloOperation(),  # NumPy ufunc for modulo operation is named "remainder"
-            "bitwise_and": BitwiseAndOperation(),
-            "bitwise_or": BitwiseOrOperation(),
-            "sin": SineOperation(),
-            "cos": CosineOperation(),
-            "tan": TangentOperation(),
-            "arctan": ArcTangentOperation(),
-            "arcsin": ArcSineOperation(),
-            "arccos": ArccosOperation(),
-            "isnan": IsnanOperation(),
-            "log": LogOperation(),
-            "clip": ClipOperation(),
-            "matmul": MatmulOperation(),
-        }
+        # Initialize the operation registry
+        self.registry = OperationRegistry.create_default_registry()
 
-        self.function_operations = {
-            "matmul": MatmulOperation(),
-            "sum": SumOperation(),
-            "dot": MatmulOperation(),
-            "linalg.norm": NormOperation(),
-            "linalg.cond": CondOperation(),
-            "linalg.inv": InvOperation(),
-            "linalg.eig": EigOperation(),
-            "mean": MeanOperation(),
-            "std": StdOperation(),
-            "var": VarOperation(),
-            "average": AverageOperation(),
-            "trace": TraceOperation(),
-            "min": MinOperation(),
-            "max": MaxOperation(),
-            "argmin": ArgminOperation(),
-            "argmax": ArgmaxOperation(),
-            "log": LogOperation(),  # Required to intercept operation when input is scalar
-            "isnan": IsnanOperation(),  # Required to intercept operation when input is scalar (e.g., np.nan itself)
-            "round": RoundOperation(),
-            "where": WhereOperation(),
-            "clip": ClipOperation(),
-            "sin": SineOperation(),
-            "cos": CosineOperation(),
-            "tan": TangentOperation(),
-            "arctan": ArcTangentOperation(),
-            "arcsin": ArcSineOperation(),
-            "arccos": ArccosOperation(),
-            "cross": CrossOperation(),
-        }
+        # Create patch targets from registry using module locations
         self.patch_targets = {
-            "matmul": (np, "matmul"),
-            "sum": (np, "sum"),
-            "dot": (np, "dot"),
-            # Functions in np.linalg
-            "linalg.norm": (np.linalg, "norm"),
-            "linalg.cond": (np.linalg, "cond"),
-            "linalg.inv": (np.linalg, "inv"),
-            "linalg.eig": (np.linalg, "eig"),
-            # Statistics / reductions in np
-            "mean": (np, "mean"),
-            "std": (np, "std"),
-            "var": (np, "var"),
-            "average": (np, "average"),
-            "trace": (np, "trace"),
-            "min": (np, "min"),
-            "max": (np, "max"),
-            "argmin": (np, "argmin"),
-            "argmax": (np, "argmax"),
-            "log": (np, "log"),  # Required to intercept operation when input is scalar
-            "isnan": (
-                np,
-                "isnan",
-            ),  # Required to intercept operation when input is scalar (e.g., np.nan itself)
-            "round": (np, "round"),
-            "where": (np, "where"),
-            "clip": (np, "clip"),
-            "sin": (np, "sin"),
-            "cos": (np, "cos"),
-            "tan": (np, "tan"),
-            "arctan": (np, "arctan"),
-            "arcsin": (np, "arcsin"),
-            "arccos": (np, "arccos"),
-            "cross": (np, "cross"),
+            name: self.registry.get_module_location(name)
+            for name in self.registry.get_all_operations().keys()
         }
 
     def _tracked_array(self, *args, **kwargs):
@@ -356,40 +178,39 @@ class FlopCounter(ContextDecorator):
         return TrackedArray(arr, self)
 
     def _make_wrapper(self, func_name, func):
-        """
-        Create a closure that intercepts the high-level call,
-        counts FLOPs, then calls the original.
-        """
-
+        """Create a closure that intercepts the high-level call and counts FLOPs."""
         def wrapper(*args, **kwargs):
-            # Preprocess arguments to ensure they are valid for `func`
+            # Preprocess arguments
             clean_args = []
             for arg in args:
                 if isinstance(arg, TrackedArray):
-                    # Unwrap nested TrackedArray to its base array
                     while isinstance(arg, TrackedArray):
                         arg = arg.view(np.ndarray)
-                clean_args.append(arg)
+                    clean_args.append(arg)
 
-            # Clean kwargs similarly
+            # Clean kwargs
             clean_kwargs = {}
             for k, v in kwargs.items():
                 if isinstance(v, TrackedArray):
-                    # Unwrap TrackedArray in kwargs
                     clean_kwargs[k] = v.view(np.ndarray)
                 else:
                     clean_kwargs[k] = v
 
-            # Call the original function with cleaned arguments
+            # Call the original function
             result = func(*clean_args, **clean_kwargs)
 
-            # If recognized, count FLOPs via self._function_operations
-            if func_name in self.function_operations and self._is_active:
-                flops = self.function_operations[func_name].count_flops(
-                    *clean_args, result=result, **clean_kwargs
-                )
-                if flops is not None:
-                    self.add_flops(flops)
+            # Count FLOPs if active
+            if self._is_active:
+                operation = self.registry.get_operation(func_name)
+                if operation:
+                    # Add func_name to locals for PowerOperation to detect
+                    frame_locals = inspect.currentframe().f_locals
+                    frame_locals["func_name"] = func_name.split(".")[-1]
+                    flops = operation.count_flops(
+                        *clean_args, result=result, **clean_kwargs
+                    )
+                    if flops is not None:
+                        self.add_flops(flops)
 
             return result
 
@@ -436,23 +257,32 @@ class FlopCounter(ContextDecorator):
     def should_skip_counting(self) -> bool:
         """
         Determine if FLOP counting should be skipped based on the call stack.
-
-        We skip counting FLOPs that occur inside library code (like NumPy internals) because:
-        1. These operations are already accounted for separately through our higher-level
-           operation counters (e.g., MatmulOperation, SumOperation, etc.)
-        2. Counting both the high-level operation and its internal implementation would
-           result in double-counting
-        3. The internal implementation details of library functions may vary across
-           versions and platforms, making internal FLOP counts unreliable
-
-        Returns:
-            bool: True if counting should be skipped (inside library code), False otherwise
         """
-        if self.test_mode:
-            return False
-        # Check for library calls
         frame = inspect.currentframe()
         try:
+            # If we're in __array_ufunc__, check if there's a wrapper higher in the stack
+            in_array_ufunc = False
+            in_wrapper = False
+            wrapper_depth = 0
+            array_ufunc_depth = 0
+            depth = 0
+
+            temp_frame = frame
+            while temp_frame:
+                if temp_frame.f_code.co_name == "wrapper":
+                    in_wrapper = True
+                    wrapper_depth = depth
+                elif temp_frame.f_code.co_name == "__array_ufunc__":
+                    in_array_ufunc = True
+                    array_ufunc_depth = depth
+                temp_frame = temp_frame.f_back
+                depth += 1
+
+            # Skip if we're in __array_ufunc__ and there's a wrapper higher in the stack
+            if in_array_ufunc and in_wrapper and array_ufunc_depth > wrapper_depth:
+                return True
+
+            # Path-based skipping logic
             while frame:
                 filename = frame.f_code.co_filename
                 if any(path in filename for path in self.include_paths):
@@ -469,6 +299,9 @@ class FlopCounter(ContextDecorator):
         """Add to the FLOP count only if counter is active and not in library code."""
         if not self.should_skip_counting():
             with self._flops_lock:
+                print(
+                    f"Adding {count} flops from {inspect.stack()[1].function}"
+                )  # Debug line
                 self.flops += count
             if self.log_manager:
                 self._log_operation(count)

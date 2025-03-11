@@ -34,9 +34,11 @@ class SumOperation:
         Returns:
             int: Number of floating point operations (additions)
         """
-        if np.size(args[0]) == 0:
+        # Handle both np.sum(arr) and arr.sum() cases
+        array = args[0] if args else kwargs.get("self", None)
+        if array is None or np.size(array) == 0:
             return 0
-        return np.size(args[0]) - 1
+        return np.size(array) - 1
 
 
 class MinOperation:

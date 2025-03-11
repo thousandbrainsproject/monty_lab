@@ -12,7 +12,6 @@ def test_sum_np_function():
         np.testing.assert_equal(result, 10)
 
 
-@pytest.mark.xfail(reason="TrackedArray object has no attribute 'sum'")
 def test_sum_method():
     counter = FlopCounter(test_mode=True)
     with counter:

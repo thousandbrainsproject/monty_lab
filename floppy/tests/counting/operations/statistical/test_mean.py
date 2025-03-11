@@ -96,7 +96,6 @@ def test_mean_dtype():
     assert counter.flops == 6  # dtype doesn't affect FLOP count
 
 
-@pytest.mark.xfail(reason="Method call not supported yet")
 def test_mean_method():
     """Test array.mean() method call."""
     counter = FlopCounter(test_mode=True)
