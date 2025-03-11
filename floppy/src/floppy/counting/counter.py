@@ -110,36 +110,46 @@ class TrackedArray(np.ndarray):
     def __repr__(self):
         return f"TrackedArray(array={super().__repr__()}, counter={id(self.counter)})"
 
-    def __getattr__(self, name):
-        """Intercept method calls and track FLOPs if it's a tracked method."""
-        # Check if it's a tracked method using the registry
-        ufunc_name = self.counter.registry.get_ufunc_name(name)
-        if ufunc_name:
-            def wrapped_method(*args, **kwargs):
-                # Unwrap TrackedArray arguments
-                clean_args = []
-                for arg in args:
-                    if isinstance(arg, TrackedArray):
-                        arg = arg.view(np.ndarray)
-                    clean_args.append(arg)
+    def __getattribute__(self, name):
+        """Intercept ALL attribute access, including built-in methods."""
+        # Get the counter without triggering __getattribute__ again
+        counter = super().__getattribute__("counter")
 
-                # Get the base array
-                base_array = self.view(np.ndarray)
+        # First check if it's a tracked method using the registry
+        if counter is not None:
+            try:
+                ufunc_name = counter.registry.get_ufunc_name(name)
+                if ufunc_name:
 
-                # Call the original numpy function with base_array as first argument
-                result = getattr(np, ufunc_name)(base_array, *clean_args, **kwargs)
+                    def wrapped_method(*args, **kwargs):
+                        # Unwrap TrackedArray arguments
+                        clean_args = []
+                        for arg in args:
+                            if isinstance(arg, TrackedArray):
+                                arg = arg.view(np.ndarray)
+                            clean_args.append(arg)
 
-                # Wrap result if it's an array (don't count FLOPs here since __array_ufunc__ will handle it)
-                if isinstance(result, np.ndarray) and not isinstance(
-                    result, TrackedArray
-                ):
-                    return TrackedArray(result, self.counter)
-                return result
+                        # Get the base array
+                        base_array = self.view(np.ndarray)
 
-            return wrapped_method
+                        # Call the original numpy function with base_array as first argument
+                        result = getattr(np, ufunc_name)(
+                            base_array, *clean_args, **kwargs
+                        )
 
-        # For non-tracked attributes, try to get them from ndarray
-        return super().__getattr__(name)
+                        # Wrap result if it's an array (don't count FLOPs here since __array_ufunc__ will handle it)
+                        if isinstance(result, np.ndarray) and not isinstance(
+                            result, TrackedArray
+                        ):
+                            return TrackedArray(result, counter)
+                        return result
+
+                    return wrapped_method
+            except:
+                pass  # If any error occurs during registry lookup, fall back to normal attribute access
+
+        # For non-tracked attributes, use normal attribute access
+        return super().__getattribute__(name)
 
 
 class FlopCounter(ContextDecorator):
@@ -160,7 +170,9 @@ class FlopCounter(ContextDecorator):
         self.include_paths = include_paths if include_paths is not None else []
         self._original_array_func = None
         self._original_funcs = {}
+        self._original_ufuncs = {}
         self._flops_lock = threading.Lock()
+        self._operation_stack = []  # Track nested operations
 
         # Initialize the operation registry
         self.registry = OperationRegistry.create_default_registry()
@@ -179,48 +191,93 @@ class FlopCounter(ContextDecorator):
     def _make_wrapper(self, func_name, func):
         """Create a closure that intercepts the high-level call and counts FLOPs."""
         def wrapper(*args, **kwargs):
-            # Preprocess arguments
-            clean_args = []
-            for arg in args:
-                if isinstance(arg, TrackedArray):
-                    while isinstance(arg, TrackedArray):
-                        arg = arg.view(np.ndarray)
-                    clean_args.append(arg)
-                else:
-                    clean_args.append(arg)  # Add non-TrackedArray arguments too
+            # Push this operation onto the stack
+            self._operation_stack.append(func_name)
 
-            # Clean kwargs
-            clean_kwargs = {}
-            for k, v in kwargs.items():
-                if isinstance(v, TrackedArray):
-                    clean_kwargs[k] = v.view(np.ndarray)
-                else:
-                    clean_kwargs[k] = v
+            try:
+                # Preprocess arguments
+                clean_args = []
+                for arg in args:
+                    if isinstance(arg, TrackedArray):
+                        while isinstance(arg, TrackedArray):
+                            arg = arg.view(np.ndarray)
+                        clean_args.append(arg)
+                    else:
+                        clean_args.append(arg)
 
-            # Call the original function
-            result = func(*clean_args, **clean_kwargs)
+                # Clean kwargs
+                clean_kwargs = {}
+                for k, v in kwargs.items():
+                    if isinstance(v, TrackedArray):
+                        clean_kwargs[k] = v.view(np.ndarray)
+                    else:
+                        clean_kwargs[k] = v
 
-            # Count FLOPs if active
-            if self._is_active:
-                operation = self.registry.get_operation(func_name)
-                if operation:
-                    # Add func_name to locals for PowerOperation to detect
-                    frame_locals = inspect.currentframe().f_locals
-                    frame_locals["func_name"] = func_name.split(".")[-1]
-                    flops = operation.count_flops(
-                        *clean_args, result=result, **clean_kwargs
-                    )
-                    if flops is not None:
-                        self.add_flops(flops)
+                # Call the original function
+                result = func(*clean_args, **clean_kwargs)
 
-            return result
+                # Only count FLOPs if this is the outermost operation
+                if self._is_active and len(self._operation_stack) == 1:
+                    operation = self.registry.get_operation(func_name)
+                    if operation:
+                        frame_locals = inspect.currentframe().f_locals
+                        frame_locals["func_name"] = func_name.split(".")[-1]
+                        flops = operation.count_flops(
+                            *clean_args, result=result, **clean_kwargs
+                        )
+                        if flops is not None:
+                            self.add_flops(flops)
 
+                return result
+            finally:
+                # Always pop the operation from stack, even if there's an error
+                self._operation_stack.pop()
+
+        def reduce_wrapper(array, axis=0, dtype=None, out=None, **kwargs):
+            # Push this operation onto the stack
+            self._operation_stack.append(f"{func_name}.reduce")
+
+            try:
+                if isinstance(array, TrackedArray):
+                    array = array.view(np.ndarray)
+                if out is not None and isinstance(out, TrackedArray):
+                    out = out.view(np.ndarray)
+
+                # Use the stored original ufunc for reduction
+                original_ufunc = self._original_ufuncs.get(func_name)
+                if original_ufunc is None:
+                    original_ufunc = getattr(np, func_name)
+                    self._original_ufuncs[func_name] = original_ufunc
+
+                result = original_ufunc.reduce(array, axis, dtype, out, **kwargs)
+
+                # Only count FLOPs if this is the outermost operation
+                if self._is_active and len(self._operation_stack) == 1:
+                    operation = self.registry.get_operation(func_name)
+                    if operation:
+                        size = array.size if axis is None else array.shape[axis]
+                        if size > 0:
+                            flops = operation.count_flops(array, result=result)
+                            if flops is not None:
+                                self.add_flops(flops * (size - 1))
+
+                return result
+            finally:
+                # Always pop the operation from stack
+                self._operation_stack.pop()
+
+        wrapper.reduce = reduce_wrapper
         return wrapper
 
     def __enter__(self):
         # Store original numpy array class and array functions
         self._original_array = np.ndarray
         self._original_array_func = np.array
+
+        # Store original ufuncs before patching
+        for name in self.patch_targets:
+            if hasattr(np, name):
+                self._original_ufuncs[name] = getattr(np, name)
 
         # Override numpy array creation to return tracked arrays
         np.array = self._tracked_array
