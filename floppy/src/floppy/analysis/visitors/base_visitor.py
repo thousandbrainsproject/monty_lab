@@ -32,34 +32,167 @@ class BaseLibraryVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Assign(self, node):
-        """Handle assignments."""
-        # Handle multiple assignments
-        if isinstance(node.value, ast.Call) and self._is_library_call(node.value):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    self.variables.add(target.id)
-                elif isinstance(target, ast.Tuple):
-                    for elt in target.elts:
-                        if isinstance(elt, ast.Name):
-                            self.variables.add(elt.id)
+        """Handle assignments to track library variables."""
+        # First visit the value to ensure we catch any nested calls
+        self.generic_visit(node.value)
 
-        # Handle name assignments
-        elif isinstance(node.value, ast.Name):
-            if node.value.id in self.imports:
+        # Handle tuple assignments with multiple values
+        if isinstance(node.targets[0], ast.Tuple):
+            if isinstance(node.value, ast.Tuple):
+                # Handle explicit tuple assignments: a, b = (x, y)
+                for target, value in zip(node.targets[0].elts, node.value.elts):
+                    if isinstance(target, ast.Name):
+                        if isinstance(value, ast.Call) and self._is_library_call(value):
+                            self.variables.add(target.id)
+                        elif isinstance(value, ast.Name) and value.id in self.variables:
+                            self.variables.add(target.id)
+            else:
+                # Handle sequence unpacking: a, b = some_call()
+                if isinstance(node.value, ast.Call) and self._is_library_call(
+                    node.value
+                ):
+                    for target in node.targets[0].elts:
+                        if isinstance(target, ast.Name):
+                            self.variables.add(target.id)
+
+        # Handle single assignments
+        else:
+            if isinstance(node.value, ast.Call):
+                # Track assignments from library calls
+                if self._is_library_call(node.value):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            self.variables.add(target.id)
+
+            # Track assignments from existing library variables
+            elif isinstance(node.value, ast.Name) and node.value.id in self.variables:
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        self.imports[target.id] = self.imports[node.value.id]
+                        self.variables.add(target.id)
 
-        # Handle submodule assignments
-        elif isinstance(node.value, ast.Attribute):
-            attr_chain = self._get_attribute_chain(node.value)
-            if attr_chain[0] in self.imports:
-                base_import = self.imports[attr_chain[0]]
-                full_import = f"{base_import}.{'.'.join(attr_chain[1:])}"
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        self.imports[target.id] = full_import
+            # Handle assignments from method calls on library variables
+            elif isinstance(node.value, ast.Call) and isinstance(
+                node.value.func, ast.Attribute
+            ):
+                if (
+                    isinstance(node.value.func.value, ast.Name)
+                    and node.value.func.value.id in self.variables
+                ):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            self.variables.add(target.id)
 
+            # Handle submodule assignments
+            elif isinstance(node.value, ast.Attribute):
+                attr_chain = self._get_attribute_chain(node.value)
+                if attr_chain[0] in self.imports:
+                    base_import = self.imports[attr_chain[0]]
+                    full_import = f"{base_import}.{'.'.join(attr_chain[1:])}"
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            self.imports[target.id] = full_import
+
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        """Handle function calls."""
+        # Handle direct calls
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.imports:
+                self._add_call("call", node.func.id, node.lineno)
+            elif self.star_imported:
+                self._add_call(
+                    "call", f"{self.library_name}.{node.func.id}", node.lineno
+                )
+
+        # Handle attribute calls
+        elif isinstance(node.func, ast.Attribute):
+            # Build the attribute chain
+            method_chain = []
+            current = node.func
+            base_var = None
+
+            while isinstance(current, ast.Attribute):
+                method_chain.insert(0, current.attr)
+                current = current.value
+                if isinstance(current, ast.Name):
+                    base_var = current.id
+
+            if base_var:
+                if base_var in self.variables:
+                    # Method call on a tracked object
+                    self._add_call("call", method_chain[-1], node.lineno)
+                elif base_var in self.imports:
+                    # Module attribute call
+                    full_path = f"{self.imports[base_var]}.{'.'.join(method_chain)}"
+                    self._add_call("attribute", full_path, node.lineno)
+            elif isinstance(current, ast.Call):
+                # Handle chained calls
+                self.visit(current)
+                if method_chain:
+                    self._add_call("call", method_chain[-1], node.lineno)
+
+        # Visit arguments and keywords
+        for arg in node.args:
+            self.visit(arg)
+        for keyword in node.keywords:
+            self.visit(keyword.value)
+
+    def visit_ListComp(self, node):
+        """Handle list comprehensions."""
+        self.visit(node.elt)
+        for generator in node.generators:
+            self.visit(generator)
+
+    def visit_SetComp(self, node):
+        """Handle set comprehensions."""
+        self.visit(node.elt)
+        for generator in node.generators:
+            self.visit(generator)
+
+    def visit_DictComp(self, node):
+        """Handle dictionary comprehensions."""
+        self.visit(node.key)
+        self.visit(node.value)
+        for generator in node.generators:
+            self.visit(generator)
+
+    def visit_Lambda(self, node):
+        """Handle lambda expressions."""
+        self.visit(node.body)
+
+    def visit_BinOp(self, node):
+        """Handle binary operations."""
+        if self._is_library_variable(node.left) or self._is_library_variable(
+            node.right
+        ):
+            self._add_call(
+                "attribute", f"{self.library_name}.binary_operation", node.lineno
+            )
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        """Handle attribute access."""
+        # Build the attribute chain
+        current = node
+        method_chain = []
+
+        while isinstance(current, ast.Attribute):
+            method_chain.insert(0, current.attr)
+            current = current.value
+
+        if isinstance(current, ast.Name):
+            base_name = current.id
+            if base_name in self.variables:
+                # Add the attribute access
+                self._add_call("call", method_chain[-1], node.lineno)
+
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node):
+        """Handle subscript operations (indexing and slicing)."""
+        if isinstance(node.value, ast.Name) and node.value.id in self.variables:
+            self._add_call("call", "getitem", node.lineno)
         self.generic_visit(node)
 
     def _is_library_variable(self, node):
@@ -93,52 +226,3 @@ class BaseLibraryVisitor(ast.NodeVisitor):
     def _add_call(self, call_type: str, name: str, lineno: int):
         """Add a call to the tracked calls set."""
         self.calls.add((call_type, name, lineno))
-
-    def visit_Call(self, node):
-        """Handle function calls."""
-        # Handle direct calls
-        if isinstance(node.func, ast.Name):
-            if node.func.id in self.imports:
-                self._add_call("direct", self.imports[node.func.id], node.lineno)
-            elif self.star_imported:
-                self._add_call(
-                    "direct", f"{self.library_name}.{node.func.id}", node.lineno
-                )
-
-        # Handle attribute calls and chains
-        elif isinstance(node.func, ast.Attribute):
-            current = node.func
-            method_chain = []
-
-            while isinstance(current, ast.Attribute):
-                method_chain.insert(0, current.attr)
-                current = current.value
-
-            if isinstance(current, ast.Name):
-                base_name = current.id
-                if base_name in self.imports:
-                    full_name = self.imports[base_name] + "." + ".".join(method_chain)
-                    self._add_call("attribute", full_name, node.lineno)
-                elif base_name in self.variables:
-                    full_name = f"{self.library_name}." + ".".join(method_chain)
-                    self._add_call("attribute", full_name, node.lineno)
-            elif isinstance(current, ast.Call):
-                self.visit(current)
-                if method_chain:
-                    self._add_call(
-                        "attribute",
-                        f"{self.library_name}." + ".".join(method_chain),
-                        node.lineno,
-                    )
-
-        # Visit arguments and keywords
-        for arg in node.args:
-            self.visit(arg)
-        for keyword in node.keywords:
-            self.visit(keyword.value)
-
-        # Handle chained calls
-        if isinstance(node.func, ast.Attribute) and isinstance(
-            node.func.value, ast.Call
-        ):
-            self.visit(node.func.value)
