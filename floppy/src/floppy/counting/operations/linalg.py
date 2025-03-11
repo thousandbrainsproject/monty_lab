@@ -113,7 +113,10 @@ class MatmulOperation:
 
             # Compute broadcasted batch shape
             batch_shape = self._compute_broadcast_batch_shape(a.shape, b.shape)
-            batch_size = np.prod(batch_shape) if batch_shape else 1
+            batch_size = 1
+            if batch_shape:
+                for dim in batch_shape:
+                    batch_size *= dim
 
             # Each element requires N multiplications and N-1 additions
             # For each M×P elements in the result
@@ -179,6 +182,9 @@ class NormOperation:
         axis: Optional[Union[int, tuple]] = None,
         keepdims: bool = False,
         result: Any = None,
+        reduction: bool = False,
+        reduction_axis: Optional[Union[int, tuple]] = None,
+        **kwargs: Any,
     ) -> int:
         """Count FLOPs for norm calculation.
 
@@ -189,7 +195,10 @@ class NormOperation:
                  If axis is a 2-tuple, it specifies the axes that hold 2-D matrices for matrix norm computation.
                  If axis is None, either a vector norm (when x is 1-D) or a matrix norm (when x is 2-D) is returned.
             keepdims: If this is set to True, the axes which are normed over are left in the result as dimensions with size one.
-            result: Not used, kept for API consistency.
+            result: Result of the operation.
+            reduction: Whether this is being called as part of a reduction operation.
+            reduction_axis: The axis along which reduction is being performed.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             Number of floating point operations.
@@ -212,6 +221,10 @@ class NormOperation:
             - L2 (spectral): ~14n³ FLOPs (SVD based on Trefethen and Bau)
             - Nuclear: ~14n³ + n FLOPs (SVD + sum of singular values)
         """
+        # If this is a reduction operation, return 0 since the FLOPs are already counted
+        if reduction:
+            return 0
+
         x = args[0]
 
         if axis is None:
