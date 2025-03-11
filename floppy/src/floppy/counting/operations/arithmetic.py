@@ -26,7 +26,7 @@ class ArithmeticOperation:
 
         Args:
             *args: Variable length argument list containing the input operands.
-                Expected to have at least 2 arguments where each can be a scalar
+                Can be one or more arguments where each can be a scalar
                 or numpy array.
             result: The result of the arithmetic operation, used to determine the
                 final shape after broadcasting.
@@ -36,14 +36,18 @@ class ArithmeticOperation:
                 - For scalar operations: size of the non-scalar array
                 - For array operations: product of the result array's dimensions
         """
+        # If only one argument is provided, return the size of the result
+        if len(args) == 1:
+            return np.size(result)
+
         # Handle scalar operations
         if np.isscalar(args[0]) or np.isscalar(args[1]):
-            array_arg = args[1] if np.isscalar(args[0]) else args[0]
-            return np.size(array_arg)
+            # Find the non-scalar array
+            array = next(arg for arg in args if not np.isscalar(arg))
+            return np.size(array)
 
-        # Get the result shape directly from the actual result
-        # This ensures we correctly account for broadcasting
-        return np.size(np.asarray(result))
+        # For array operations, return the size of the result
+        return np.size(result)
 
 
 class Addition(ArithmeticOperation):
