@@ -14,6 +14,49 @@ from .operations import *
 class TrackedArray(np.ndarray):
     """Array wrapper that tracks floating point operations using the operation registry."""
 
+    # List of NumPy array methods that correspond to ufuncs
+    _tracked_methods = {
+        # Arithmetic operations
+        "add": "add",
+        "subtract": "subtract",
+        "multiply": "multiply",
+        "divide": "divide",
+        "floor_divide": "floor_divide",
+        "mod": "remainder",  # numpy method name differs from ufunc name
+        "remainder": "remainder",
+        "power": "power",
+        # Mathematical functions
+        "sqrt": "sqrt",
+        "cbrt": "cbrt",
+        "reciprocal": "reciprocal",
+        # Trigonometric functions
+        "sin": "sin",
+        "cos": "cos",
+        "tan": "tan",
+        "arcsin": "arcsin",
+        "arccos": "arccos",
+        "arctan": "arctan",
+        # Bitwise operations
+        "bitwise_and": "bitwise_and",
+        "bitwise_or": "bitwise_or",
+        # Other mathematical operations
+        "log": "log",
+        "isnan": "isnan",
+        "clip": "clip",
+        "matmul": "matmul",
+        # Reductions (these are methods on the array)
+        "sum": "sum",
+        "mean": "mean",
+        "std": "std",
+        "var": "var",
+        "min": "min",
+        "max": "max",
+        "argmin": "argmin",
+        "argmax": "argmax",
+        "trace": "trace",
+        "round": "round",
+    }
+
     def __new__(cls, input_array, counter):
         # Unwrap if the input_array is already a TrackedArray
         if isinstance(input_array, TrackedArray):
@@ -147,6 +190,47 @@ class TrackedArray(np.ndarray):
     def __repr__(self):
         return f"TrackedArray(array={super().__repr__()}, counter={id(self.counter)})"
 
+    def __getattr__(self, name):
+        """Intercept method calls and track FLOPs if it's a tracked method."""
+        # If it's a tracked method, create a wrapper
+        if name in self._tracked_methods:
+            # Create a wrapper that tracks FLOPs
+            def wrapped_method(*args, **kwargs):
+                # Get corresponding ufunc name
+                ufunc_name = self._tracked_methods[name]
+
+                # Unwrap TrackedArray arguments
+                clean_args = []
+                for arg in args:
+                    while isinstance(arg, TrackedArray):
+                        arg = arg.view(np.ndarray)
+                    clean_args.append(arg)
+
+                # Use the corresponding ufunc directly
+                result = getattr(np, ufunc_name)(
+                    self.view(np.ndarray), *clean_args, **kwargs
+                )
+
+                # Count FLOPs if active
+                if self.counter and not self.counter.should_skip_counting():
+                    if ufunc_name in self.counter.ufunc_operations:
+                        flops = self.counter.ufunc_operations[ufunc_name].count_flops(
+                            self.view(np.ndarray), *clean_args, result=result
+                        )
+                        self.counter.add_flops(flops)
+
+                # Wrap result if it's an array
+                if isinstance(result, np.ndarray) and not isinstance(
+                    result, TrackedArray
+                ):
+                    return TrackedArray(result, self.counter)
+                return result
+
+            return wrapped_method
+
+        # For non-tracked attributes, try to get them from ndarray
+        return super().__getattr__(name)
+
 
 class FlopCounter(ContextDecorator):
     """
@@ -181,6 +265,9 @@ class FlopCounter(ContextDecorator):
             "divide": Division(),
             "power": PowerOperation(),
             "square": PowerOperation(),
+            "sqrt": PowerOperation(),
+            "cbrt": PowerOperation(),
+            "reciprocal": PowerOperation(),
             "floor_divide": FloorDivideOperation(),
             "remainder": ModuloOperation(),  # NumPy ufunc for modulo operation is named "remainder"
             "bitwise_and": BitwiseAndOperation(),
