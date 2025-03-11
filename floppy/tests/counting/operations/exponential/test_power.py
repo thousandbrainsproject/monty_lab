@@ -66,8 +66,61 @@ def test_square():
         a = np.array([1, 2, 3])
         b = 2
         result = a**b
-        assert counter.flops == 3
+        assert counter.flops == 3  # One multiplication per element
         np.testing.assert_array_equal(result, np.array([1, 4, 9]))
+
+
+def test_sqrt():
+    """Test square root operation (power of 0.5)."""
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 4, 9])
+        result = np.sqrt(a)
+        assert counter.flops == 60  # 20 FLOPs per sqrt operation
+        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+
+
+def test_cbrt():
+    """Test cube root operation (power of 1/3)."""
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 8, 27])
+        result = np.cbrt(a)
+        assert counter.flops == 75  # 25 FLOPs per cbrt operation
+        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+
+
+def test_reciprocal():
+    """Test reciprocal operation (power of -1)."""
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 4])
+        result = np.reciprocal(a)
+        assert counter.flops == 3  # 1 FLOP (division) per element
+        np.testing.assert_array_equal(result, np.array([1, 0.5, 0.25]))
+
+
+def test_negative_integer_power():
+    """Test negative integer powers."""
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        result = a ** (-2)
+        assert counter.flops == 6  # (2-1) multiplications + 1 division per element
+        np.testing.assert_array_almost_equal(result, np.array([1, 0.25, 1 / 9]))
+
+
+def test_fractional_power():
+    """Test general fractional power."""
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        result = a ** (1.5)  # Neither sqrt nor cbrt
+        assert counter.flops == 120  # 40 FLOPs per element for general fractional power
+        np.testing.assert_array_almost_equal(
+            result, np.array([1, 2.8284271247461903, 5.196152422706632])
+        )
+
 
 def test_power_broadcasting():
     counter = FlopCounter(test_mode=True)
