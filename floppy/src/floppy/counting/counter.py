@@ -115,12 +115,11 @@ class TrackedArray(np.ndarray):
         # Check if it's a tracked method using the registry
         ufunc_name = self.counter.registry.get_ufunc_name(name)
         if ufunc_name:
-
             def wrapped_method(*args, **kwargs):
                 # Unwrap TrackedArray arguments
                 clean_args = []
                 for arg in args:
-                    while isinstance(arg, TrackedArray):
+                    if isinstance(arg, TrackedArray):
                         arg = arg.view(np.ndarray)
                     clean_args.append(arg)
 
@@ -187,6 +186,8 @@ class FlopCounter(ContextDecorator):
                     while isinstance(arg, TrackedArray):
                         arg = arg.view(np.ndarray)
                     clean_args.append(arg)
+                else:
+                    clean_args.append(arg)  # Add non-TrackedArray arguments too
 
             # Clean kwargs
             clean_kwargs = {}
@@ -260,27 +261,22 @@ class FlopCounter(ContextDecorator):
         """
         frame = inspect.currentframe()
         try:
-            # If we're in __array_ufunc__, check if there's a wrapper higher in the stack
-            in_array_ufunc = False
+            # First check if we're in a high-level operation
             in_wrapper = False
-            wrapper_depth = 0
-            array_ufunc_depth = 0
-            depth = 0
-
             temp_frame = frame
             while temp_frame:
                 if temp_frame.f_code.co_name == "wrapper":
                     in_wrapper = True
-                    wrapper_depth = depth
-                elif temp_frame.f_code.co_name == "__array_ufunc__":
-                    in_array_ufunc = True
-                    array_ufunc_depth = depth
+                    break
                 temp_frame = temp_frame.f_back
-                depth += 1
 
-            # Skip if we're in __array_ufunc__ and there's a wrapper higher in the stack
-            if in_array_ufunc and in_wrapper and array_ufunc_depth > wrapper_depth:
-                return True
+            # If we're in a wrapper and this is an array_ufunc call, skip it
+            if in_wrapper:
+                temp_frame = frame
+                while temp_frame:
+                    if temp_frame.f_code.co_name == "__array_ufunc__":
+                        return True
+                    temp_frame = temp_frame.f_back
 
             # Path-based skipping logic
             while frame:
