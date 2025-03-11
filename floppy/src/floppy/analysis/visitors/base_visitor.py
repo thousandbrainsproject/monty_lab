@@ -92,6 +92,25 @@ class BaseLibraryVisitor(ast.NodeVisitor):
                         if isinstance(target, ast.Name):
                             self.imports[target.id] = full_import
 
+            # Handle assignments from subscript operations on library variables
+            elif isinstance(node.value, ast.Subscript):
+                if (
+                    isinstance(node.value.value, ast.Name)
+                    and node.value.value.id in self.variables
+                ):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            self.variables.add(target.id)
+
+            # Handle assignments from binary operations on library variables
+            elif isinstance(node.value, ast.BinOp):
+                if self._is_library_variable(
+                    node.value.left
+                ) or self._is_library_variable(node.value.right):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            self.variables.add(target.id)
+
         self.generic_visit(node)
 
     def visit_Call(self, node):
@@ -99,7 +118,8 @@ class BaseLibraryVisitor(ast.NodeVisitor):
         # Handle direct calls
         if isinstance(node.func, ast.Name):
             if node.func.id in self.imports:
-                self._add_call("call", node.func.id, node.lineno)
+                # Use the full import path instead of just the function name
+                self._add_call("direct", self.imports[node.func.id], node.lineno)
             elif self.star_imported:
                 self._add_call(
                     "call", f"{self.library_name}.{node.func.id}", node.lineno
@@ -117,20 +137,46 @@ class BaseLibraryVisitor(ast.NodeVisitor):
                 current = current.value
                 if isinstance(current, ast.Name):
                     base_var = current.id
+                elif isinstance(current, ast.Call):
+                    # For chained calls, visit the inner call first
+                    self.visit(current)
+                    # Then look for the most recent attribute or direct call to get the class path
+                    for call_type, name, line in reversed(list(self.calls)):
+                        if (
+                            call_type in ("direct", "attribute")
+                            and self.library_name in name
+                        ):
+                            # Get the base class path by removing the last component (method name)
+                            base_class = name.rsplit(".", 1)[0]
+                            base_var = None  # Clear base_var to avoid double processing
+                            method_chain.insert(0, base_class)
+                            break
 
             if base_var:
                 if base_var in self.variables:
-                    # Method call on a tracked object
-                    self._add_call("call", method_chain[-1], node.lineno)
+                    # For method calls on tracked objects, add library prefix
+                    self._add_call(
+                        "attribute",
+                        f"{self.library_name}.{method_chain[-1]}",
+                        node.lineno,
+                    )
                 elif base_var in self.imports:
                     # Module attribute call
                     full_path = f"{self.imports[base_var]}.{'.'.join(method_chain)}"
                     self._add_call("attribute", full_path, node.lineno)
-            elif isinstance(current, ast.Call):
-                # Handle chained calls
-                self.visit(current)
-                if method_chain:
-                    self._add_call("call", method_chain[-1], node.lineno)
+            elif method_chain:
+                # Handle chained calls where we found the base class
+                if len(method_chain) > 1:
+                    base_path = method_chain[0]
+                    method = method_chain[-1]
+                    full_path = f"{base_path}.{method}"
+                    self._add_call("attribute", full_path, node.lineno)
+                else:
+                    self._add_call(
+                        "attribute",
+                        f"{self.library_name}.{method_chain[-1]}",
+                        node.lineno,
+                    )
 
         # Visit arguments and keywords
         for arg in node.args:
@@ -184,15 +230,17 @@ class BaseLibraryVisitor(ast.NodeVisitor):
         if isinstance(current, ast.Name):
             base_name = current.id
             if base_name in self.variables:
-                # Add the attribute access
-                self._add_call("call", method_chain[-1], node.lineno)
+                # Add the attribute access with library prefix
+                self._add_call(
+                    "attribute", f"{self.library_name}.{method_chain[-1]}", node.lineno
+                )
 
         self.generic_visit(node)
 
     def visit_Subscript(self, node):
         """Handle subscript operations (indexing and slicing)."""
         if isinstance(node.value, ast.Name) and node.value.id in self.variables:
-            self._add_call("call", "getitem", node.lineno)
+            self._add_call("attribute", f"{self.library_name}.getitem", node.lineno)
         self.generic_visit(node)
 
     def _is_library_variable(self, node):

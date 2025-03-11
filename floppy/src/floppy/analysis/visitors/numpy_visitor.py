@@ -16,6 +16,5 @@ class NumpyCallVisitor(BaseLibraryVisitor):
             node.right
         ):
             # NumPy-specific handling of array operations
-            op_name = type(node.op).__name__.lower()
-            self._add_call("attribute", f"numpy.{op_name}", node.lineno)
+            self._add_call("attribute", "numpy.binary_operation", node.lineno)
         self.generic_visit(node)

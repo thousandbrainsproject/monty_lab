@@ -18,12 +18,12 @@ from scipy import *
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    imports = visitor.scipy_imports
+    imports = set(visitor.imports.values())
     assert "scipy" in imports
     assert "scipy.stats" in imports
     assert "scipy.linalg" in imports
-    assert "scipy.optimize" in imports
-    assert "scipy.sparse" in imports
+    assert "scipy.optimize.minimize" in imports
+    assert "scipy.sparse.csr_matrix" in imports
 
 
 def test_scipy_optimization():
@@ -42,9 +42,9 @@ res2 = fmin(objective, x0)
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.scipy_calls
-    assert ("call", "minimize", 8) in calls
-    assert ("call", "fmin", 9) in calls
+    calls = visitor.calls
+    assert ("direct", "scipy.optimize.minimize", 9) in calls
+    assert ("direct", "scipy.optimize.fmin", 10) in calls
 
 
 def test_scipy_stats():
@@ -61,10 +61,68 @@ norm_test = stats.normaltest(data)
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.scipy_calls
-    assert ("call", "kstest", 5) in calls
-    assert ("call", "ttest_1samp", 6) in calls
-    assert ("call", "normaltest", 7) in calls
+    calls = visitor.calls
+    assert ("attribute", "scipy.stats.kstest", 6) in calls
+    assert ("attribute", "scipy.stats.ttest_1samp", 7) in calls
+    assert ("attribute", "scipy.stats.normaltest", 8) in calls
+
+
+def test_scipy_attribute_access():
+    code = """
+from scipy import stats
+import numpy as np
+
+data = np.random.randn(100)
+result = stats.norm.pdf(data)
+params = stats.norm.fit(data)
+entropy = stats.norm.entropy()
+"""
+    tree = ast.parse(code)
+    visitor = ScipyCallVisitor()
+    visitor.visit(tree)
+
+    calls = visitor.calls
+    assert ("attribute", "scipy.stats.norm.pdf", 6) in calls
+    assert ("attribute", "scipy.stats.norm.fit", 7) in calls
+    assert ("attribute", "scipy.stats.norm.entropy", 8) in calls
+
+
+def test_scipy_method_chaining():
+    code = """
+from scipy.sparse import csr_matrix
+import numpy as np
+
+matrix = csr_matrix([[1, 2, 3], [4, 5, 6]])
+result = matrix.tocoo().tocsc().todense()
+"""
+    tree = ast.parse(code)
+    visitor = ScipyCallVisitor()
+    visitor.visit(tree)
+
+    calls = visitor.calls
+    print(calls)
+    assert ("direct", "scipy.sparse.csr_matrix", 5) in calls  # Constructor call
+    assert ("attribute", "scipy.tocoo", 6) in calls
+    assert ("attribute", "scipy.tocsc", 6) in calls
+    assert ("attribute", "scipy.todense", 6) in calls
+
+
+def test_scipy_with_error_handling():
+    code = """
+try:
+    from scipy import special
+    x = special.gamma(5)
+    y = special.invalid_function()
+except AttributeError:
+    pass
+"""
+    tree = ast.parse(code)
+    visitor = ScipyCallVisitor()
+    visitor.visit(tree)
+
+    calls = visitor.calls
+    assert ("attribute", "scipy.special.gamma", 4) in calls
+    assert ("attribute", "scipy.special.invalid_function", 5) in calls
 
 
 def test_scipy_linalg():
@@ -84,11 +142,11 @@ inv = la.inv(A)
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.scipy_calls
-    assert ("call", "solve", 7) in calls
-    assert ("call", "eigvals", 8) in calls
-    assert ("call", "det", 9) in calls
-    assert ("call", "inv", 10) in calls
+    calls = visitor.calls
+    assert ("attribute", "scipy.linalg.solve", 8) in calls
+    assert ("attribute", "scipy.linalg.eigvals", 9) in calls
+    assert ("attribute", "scipy.linalg.det", 10) in calls
+    assert ("attribute", "scipy.linalg.inv", 11) in calls
 
 
 def test_scipy_sparse():
@@ -106,9 +164,9 @@ lil = lil_matrix((4, 4))
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.scipy_calls
-    assert ("call", "csr_matrix", 7) in calls
-    assert ("call", "lil_matrix", 8) in calls
+    calls = visitor.calls
+    assert ("direct", "scipy.sparse.csr_matrix", 8) in calls
+    assert ("direct", "scipy.sparse.lil_matrix", 9) in calls
 
 
 def test_scipy_signal():
@@ -126,10 +184,10 @@ peaks = signal.find_peaks(sig)
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.scipy_calls
-    assert ("call", "butter", 6) in calls
-    assert ("call", "hamming", 7) in calls
-    assert ("call", "find_peaks", 8) in calls
+    calls = visitor.calls
+    assert ("attribute", "scipy.signal.butter", 7) in calls
+    assert ("attribute", "scipy.signal.windows.hamming", 8) in calls
+    assert ("attribute", "scipy.signal.find_peaks", 9) in calls
 
 
 def test_scipy_interpolate():
@@ -146,6 +204,77 @@ spline = UnivariateSpline(x, y)
     visitor = ScipyCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.scipy_calls
-    assert ("call", "interp1d", 6) in calls
-    assert ("call", "UnivariateSpline", 7) in calls
+    calls = visitor.calls
+    assert ("direct", "scipy.interpolate.interp1d", 7) in calls
+    assert ("direct", "scipy.interpolate.UnivariateSpline", 8) in calls
+
+
+def test_scipy_rotation():
+    code = """
+from scipy.spatial.transform import Rotation as R
+import numpy as np
+
+# Create rotation from various inputs
+rot1 = R.from_euler('xyz', [90, 45, 30], degrees=True)
+rot2 = R.from_quat([0, 0, 0, 1])
+rot3 = R.from_matrix(np.eye(3))
+
+# Method chaining and operations
+angles = rot1.as_euler('xyz', degrees=True)
+quat = rot1.as_quat()
+matrix = rot1.as_matrix()
+
+# Composition of rotations
+combined = rot1 * rot2
+inverse = rot1.inv()
+
+# Apply rotation to vectors
+vec = np.array([1, 0, 0])
+rotated = rot1.apply(vec)
+"""
+    tree = ast.parse(code)
+    visitor = ScipyCallVisitor()
+    visitor.visit(tree)
+
+    calls = visitor.calls
+    # Class methods (keep full path)
+    assert ("attribute", "scipy.spatial.transform.Rotation.from_euler", 6) in calls
+    assert ("attribute", "scipy.spatial.transform.Rotation.from_quat", 7) in calls
+    assert ("attribute", "scipy.spatial.transform.Rotation.from_matrix", 8) in calls
+
+    # Instance methods (use simple scipy.method_name format)
+    assert ("attribute", "scipy.as_euler", 11) in calls
+    assert ("attribute", "scipy.as_quat", 12) in calls
+    assert ("attribute", "scipy.as_matrix", 13) in calls
+    assert ("attribute", "scipy.inv", 17) in calls
+    assert ("attribute", "scipy.apply", 21) in calls
+
+
+def test_scipy_rotation_interpolation():
+    code = """
+from scipy.spatial.transform import Rotation as R
+import numpy as np
+
+# Create some rotations
+key_rots = R.from_euler('xyz', [[0, 0, 0], [90, 0, 0]], degrees=True)
+key_times = [0, 1]
+
+# Interpolation
+slerp = key_rots.slerp(key_times)
+
+# Get the interpolated rotation in different formats
+angles = key_rots.as_euler('xyz', degrees=True)
+quat = key_rots.as_quat()
+"""
+    tree = ast.parse(code)
+    visitor = ScipyCallVisitor()
+    visitor.visit(tree)
+
+    calls = visitor.calls
+    # Class methods (keep full path)
+    assert ("attribute", "scipy.spatial.transform.Rotation.from_euler", 6) in calls
+
+    # Instance methods (use simple scipy.method_name format)
+    assert ("attribute", "scipy.slerp", 10) in calls
+    assert ("attribute", "scipy.as_euler", 13) in calls
+    assert ("attribute", "scipy.as_quat", 14) in calls

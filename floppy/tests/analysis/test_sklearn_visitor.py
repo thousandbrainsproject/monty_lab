@@ -18,13 +18,13 @@ from sklearn.metrics import accuracy_score
     visitor = SklearnCallVisitor()
     visitor.visit(tree)
 
-    imports = visitor.sklearn_imports
+    imports = set(visitor.imports.values())
     assert "sklearn" in imports
     assert "sklearn.datasets" in imports
-    assert "sklearn.model_selection" in imports
-    assert "sklearn.preprocessing" in imports
-    assert "sklearn.ensemble" in imports
-    assert "sklearn.metrics" in imports
+    assert "sklearn.model_selection.train_test_split" in imports
+    assert "sklearn.preprocessing.StandardScaler" in imports
+    assert "sklearn.ensemble.RandomForestClassifier" in imports
+    assert "sklearn.metrics.accuracy_score" in imports
 
 
 def test_sklearn_preprocessing():
@@ -43,11 +43,11 @@ X_minmax = minmax.fit_transform(X)
     visitor = SklearnCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.sklearn_calls
-    assert ("call", "StandardScaler", 5) in calls
-    assert ("call", "MinMaxScaler", 8) in calls
-    assert ("attribute", "fit_transform", 6) in visitor.sklearn_attributes
-    assert ("attribute", "fit_transform", 9) in visitor.sklearn_attributes
+    calls = visitor.calls
+    assert ("direct", "sklearn.preprocessing.StandardScaler", 6) in calls
+    assert ("direct", "sklearn.preprocessing.MinMaxScaler", 9) in calls
+    assert ("attribute", "sklearn.fit_transform", 7) in calls
+    assert ("attribute", "sklearn.fit_transform", 10) in calls
 
 
 def test_sklearn_model_selection():
@@ -71,11 +71,12 @@ grid_search.fit(X, y)
     visitor = SklearnCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.sklearn_calls
-    assert ("call", "train_test_split", 8) in calls
-    assert ("call", "RandomForestClassifier", 9) in calls
-    assert ("call", "cross_val_score", 10) in calls
-    assert ("call", "GridSearchCV", 13) in calls
+    calls = visitor.calls
+    assert ("direct", "sklearn.model_selection.train_test_split", 9) in calls
+    assert ("direct", "sklearn.ensemble.RandomForestClassifier", 10) in calls
+    assert ("direct", "sklearn.model_selection.cross_val_score", 11) in calls
+    assert ("direct", "sklearn.model_selection.GridSearchCV", 14) in calls
+    assert ("attribute", "sklearn.fit", 15) in calls
 
 
 def test_sklearn_pipeline():
@@ -96,12 +97,12 @@ predictions = pipe.predict(X_test)
     visitor = SklearnCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.sklearn_calls
-    assert ("call", "Pipeline", 5) in calls
-    assert ("call", "StandardScaler", 6) in calls
-    assert ("call", "SVC", 7) in calls
-    assert ("attribute", "fit", 10) in visitor.sklearn_attributes
-    assert ("attribute", "predict", 11) in visitor.sklearn_attributes
+    calls = visitor.calls
+    assert ("direct", "sklearn.pipeline.Pipeline", 6) in calls
+    assert ("direct", "sklearn.preprocessing.StandardScaler", 7) in calls
+    assert ("direct", "sklearn.svm.SVC", 8) in calls
+    assert ("attribute", "sklearn.fit", 11) in calls
+    assert ("attribute", "sklearn.predict", 12) in calls
 
 
 def test_sklearn_metrics():
@@ -120,12 +121,12 @@ report = classification_report(y_test, y_pred)
     visitor = SklearnCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.sklearn_calls
-    assert ("call", "accuracy_score", 5) in calls
-    assert ("call", "precision_score", 6) in calls
-    assert ("call", "recall_score", 7) in calls
-    assert ("call", "confusion_matrix", 8) in calls
-    assert ("call", "classification_report", 9) in calls
+    calls = visitor.calls
+    assert ("direct", "sklearn.metrics.accuracy_score", 6) in calls
+    assert ("direct", "sklearn.metrics.precision_score", 7) in calls
+    assert ("direct", "sklearn.metrics.recall_score", 8) in calls
+    assert ("direct", "sklearn.metrics.confusion_matrix", 9) in calls
+    assert ("direct", "sklearn.metrics.classification_report", 10) in calls
 
 
 def test_sklearn_clustering():
@@ -146,7 +147,10 @@ gmm_labels = gmm.fit_predict(X)
     visitor = SklearnCallVisitor()
     visitor.visit(tree)
 
-    calls = visitor.sklearn_calls
-    assert ("call", "KMeans", 4) in calls
-    assert ("call", "DBSCAN", 7) in calls
-    assert ("call", "GaussianMixture", 10) in calls
+    calls = visitor.calls
+    assert ("direct", "sklearn.cluster.KMeans", 5) in calls
+    assert ("direct", "sklearn.cluster.DBSCAN", 8) in calls
+    assert ("direct", "sklearn.mixture.GaussianMixture", 11) in calls
+    assert ("attribute", "sklearn.fit_predict", 6) in calls
+    assert ("attribute", "sklearn.fit_predict", 9) in calls
+    assert ("attribute", "sklearn.fit_predict", 12) in calls
