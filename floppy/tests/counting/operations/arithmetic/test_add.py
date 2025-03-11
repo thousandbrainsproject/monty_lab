@@ -23,8 +23,6 @@ def test_add_ufunc_syntax():
         assert counter.flops == 3
         np.testing.assert_array_equal(result, np.array([5, 7, 9]))
 
-# FIXME
-@pytest.mark.xfail(reason="TrackedArray object has no attribute 'add'")
 def test_add_method_syntax():
     counter = FlopCounter(test_mode=True)
     with counter:
