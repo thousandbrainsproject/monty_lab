@@ -8,7 +8,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""Configs for Figure 9: Structured Object Representations
+"""Configs for Figure 4: Structured Object Representations
 
 This module defines the following experiments:
  - `dist_agent_1lm_randrot_noise_10simobj`
@@ -28,7 +28,7 @@ from copy import deepcopy
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 
 from .common import SelectiveEvidenceLoggingConfig
-from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
+from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
 dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (

@@ -15,13 +15,13 @@ paper figures. The configs defined are:
 - `fig3_evidence_run`: A one-episode experiment used to collect evidence
    and sensor data for every step. The output is read and plotted by functions in
     `scripts/fig3.py`.
-- `fig3_symmetry_run`: Runs `dist_agent_1lm_randrot_noise` with storage of
+- `fig4_symmetry_run`: Runs `dist_agent_1lm_randrot_noise` with storage of
    evidence and symmetry including symmetry data for the MLH object only, and only
    for the terminal step of each episode. The output is read and plotted by
-   functions in `scripts/fig3.py`.
-- `fig4_visualize_8lm_patches`: An one-episode, one-step experiment that is used to
+   functions in `scripts/fig4.py`.
+- `fig5_visualize_8lm_patches`: An one-episode, one-step experiment that is used to
   collect one set of observations for the 8-LM model. The output is read and plotted
-  by functions in `scripts/fig4.py` to show how the sensors patches fall on the object.
+  by functions in `scripts/fig5.py` to show how the sensors patches fall on the object.
 
 All experiments save their results to subdirectories of `DMC_ROOT` / `visualizations`.
 
@@ -46,7 +46,7 @@ from .common import (
     SelectiveEvidenceLoggingConfig,
 )
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
-from .fig4_rapid_inference_with_voting import (
+from .fig5_rapid_inference_with_voting import (
     dist_agent_1lm_randrot_noise,
     dist_agent_8lm_half_lms_match,
 )
@@ -130,15 +130,20 @@ fig3_evidence_run.update(
 )
 fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
 
-# `fig3_symmetry_run`: Experiment for collecting data on symmetric rotations, the
-# results of which are used in `scripts/fig3.py` to investigate rotation error
+"""
+Figure 4
+-------------------------------------------------------------------------------
+"""
+
+# `fig4_symmetry_run`: Experiment for collecting data on symmetric rotations, the
+# results of which are used in `scripts/fig4.py` to investigate rotation error
 # metrics when Monty has detected symmetry.
-fig3_symmetry_run = deepcopy(dist_agent_1lm_randrot_noise)
-fig3_symmetry_run.update(
+fig4_symmetry_run = deepcopy(dist_agent_1lm_randrot_noise)
+fig4_symmetry_run.update(
     dict(
         logging_config=SelectiveEvidenceLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
-            run_name="fig3_symmetry_run",
+            run_name="fig4_symmetry_run",
             monty_handlers=[
                 BasicCSVStatsHandler,
                 MLHEvidenceHandler,
@@ -151,15 +156,15 @@ fig3_symmetry_run.update(
 
 
 """
-Figure 4
+Figure 5
 -------------------------------------------------------------------------------
 """
 
-# `fig4_visualize_8lm_patches`: An experiment that runs one eval step with the 8-LM
+# `fig5_visualize_8lm_patches`: An experiment that runs one eval step with the 8-LM
 # the 8-LM model so we can collect enough sensor data to visualize the arrangement
-# of the sensors patches on the object. Used in `scripts/fig4.py`. Run in serial.
-fig4_visualize_8lm_patches = deepcopy(dist_agent_8lm_half_lms_match)
-fig4_visualize_8lm_patches.update(
+# of the sensors patches on the object. Used in `scripts/fig5.py`. Run in serial.
+fig5_visualize_8lm_patches = deepcopy(dist_agent_8lm_half_lms_match)
+fig5_visualize_8lm_patches.update(
     dict(
         experiment_args=EvalExperimentArgs(
             model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_8lm/pretrained"),
@@ -170,7 +175,7 @@ fig4_visualize_8lm_patches.update(
         # Exclude LM data to save space.
         logging_config=SelectiveEvidenceLoggingConfig(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
-            run_name="fig4_visualize_8lm_patches",
+            run_name="fig5_visualize_8lm_patches",
             selective_handler_args=dict(exclude=[f"LM_{i}" for i in range(8)]),
         ),
         eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
@@ -179,20 +184,17 @@ fig4_visualize_8lm_patches.update(
         ),
     )
 )
-# Need to reduce num_exploratory_steps to 1 to ensure we only take one step. ??
-# fig4_visualize_8lm_patches["monty_config"].monty_args.num_exploratory_steps = 1
-
 # Set view-finder resolution to 256 x 256 for a denser "background" image. The remaining
 # patches use the standard resolution for this model (64 x 64).
 resolutions = [[64, 64]] * 9
 resolutions[-1] = [256, 256]
-dataset_args = fig4_visualize_8lm_patches["dataset_args"]
+dataset_args = fig5_visualize_8lm_patches["dataset_args"]
 dataset_args.env_init_args["agents"][0].agent_args["resolutions"] = resolutions
 dataset_args.__post_init__()
 
 
 CONFIGS = {
     "fig3_evidence_run": fig3_evidence_run,
-    "fig3_symmetry_run": fig3_symmetry_run,
-    "fig4_visualize_8lm_patches": fig4_visualize_8lm_patches,
+    "fig4_symmetry_run": fig4_symmetry_run,
+    "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
 }

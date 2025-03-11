@@ -20,10 +20,12 @@ Here we are showing the performance of the "standard" version of Monty, using:
 
 The main output measures are accuracy, rotation error (degrees), and Chamfer distance for each condition.
 
+Figure 3 also include an analysis of symmetric rotations, the data for which is generated with the experiment `fig3_symmetry_run` which is defined in `visualizations.py`.
+
 ## Default Parameters for Figures 4+
 Unless specified otherwise, the following figures/experiments use:
 - 77 objects
-- 5 random rotations
+- 5 predefined "random" rotations. These rotations were randomly generated but are kept constant across experiments. 
 - Sensor noise
 
 This captures core model performance in a realistic setting.
@@ -151,7 +153,7 @@ This performance is evaluated with:
 
 The main output measure is accuracy and FLOPs as a function of `x_percent threshold` and whether hypothesis testing was used or not.
 
-## Figure 9: Multi-Modal Transfer
+## Supplemental Figure 9: Multi-Modal Transfer
 
 Consists of 4 experiments:
 - `dist_agent_1lm_randrot_noise_10distinctobj` - "Standard" Monty ("dist_on_dist")

@@ -8,7 +8,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""Configs for Figure 5: Rapid Inference with Model-Based Policies.
+"""Configs for Figure 6: Rapid Inference with Model-Based Policies.
 
 This module defines the following experiments:
 - `dist_agent_1lm_randrot_noise_nohyp`
@@ -57,7 +57,7 @@ from .common import (
     get_view_finder_config,
     make_randrot_noise_variant,
 )
-from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
+from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
 # Surface agent
 surf_agent_1lm = dict(
@@ -118,4 +118,3 @@ CONFIGS = {
     "surf_agent_1lm_randrot_noise": surf_agent_1lm_randrot_noise,
     "surf_agent_1lm_randrot_noise_nohyp": surf_agent_1lm_randrot_noise_nohyp,
 }
-

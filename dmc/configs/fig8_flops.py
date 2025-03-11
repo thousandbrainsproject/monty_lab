@@ -8,7 +8,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""Configs for Figure 7: Flops Comparison.
+"""Configs for Figure 8: Flops Comparison.
 
 This module defines the following experiments:
  - `dist_agent_1lm_randrot_nohyp_x_percent_5p`
@@ -36,10 +36,10 @@ hypothesis testing is used.
 
 import copy
 
-from .fig4_rapid_inference_with_voting import (
+from .fig5_rapid_inference_with_voting import (
     dist_agent_1lm_randrot_noise,  # With hypothesis testing
 )
-from .fig5_rapid_inference_with_model_based_policies import (
+from .fig6_rapid_inference_with_model_based_policies import (
     dist_agent_1lm_randrot_noise_nohyp,
 )  # No hypothesis testing
 

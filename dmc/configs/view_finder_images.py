@@ -71,7 +71,7 @@ from tbp.monty.simulators.habitat.configs import (
 )
 
 from .common import DMC_PRETRAIN_DIR, DMC_ROOT_DIR, RANDOM_ROTATIONS_5
-from .fig6_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
+from .fig7_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
 
 # All view-finder image experiments will be stored under 'view_finder_images',
 # a directory at the same level as the results directory.

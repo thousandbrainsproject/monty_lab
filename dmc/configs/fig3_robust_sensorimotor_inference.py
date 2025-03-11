@@ -107,9 +107,9 @@ dist_agent_1lm_noise = make_noise_variant(dist_agent_1lm)
 # - Random rotation variant (14 random rotations)
 dist_agent_1lm_randrot_all = deepcopy(dist_agent_1lm)
 dist_agent_1lm_randrot_all["logging_config"].run_name = "dist_agent_1lm_randrot_all"
-dist_agent_1lm_randrot_all["eval_dataloader_args"].object_init_sampler = (
-    RandomRotationObjectInitializer(),
-)
+dist_agent_1lm_randrot_all[
+    "eval_dataloader_args"
+].object_init_sampler = RandomRotationObjectInitializer()
 
 # - Random rotation variant (14 random rotations) and sensor noise
 dist_agent_1lm_randrot_all_noise = make_noise_variant(

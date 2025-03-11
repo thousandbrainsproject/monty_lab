@@ -7,7 +7,7 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-"""Figure 6: Rapid Learning
+"""Figure 7: Rapid Learning
 
 Consists of one pretraining experiment and 6 evaluation experiments:
 - pretrain_dist_agent_1lm_checkpoints
@@ -94,6 +94,7 @@ TRAIN_ROTATIONS = [
     [240, 143, 10],
 ]
 
+
 class PretrainingExperimentWithCheckpointing(
     MontySupervisedObjectPretrainingExperiment
 ):
@@ -158,8 +159,9 @@ def make_partially_trained_eval_config(n_rot: int) -> dict:
     and loads a model pretrained after `n_rot` observations per object.
 
     Args:
-        n_rot (int): Number of training rotations.
-
+        n_rot (int): Number of rotations trained on. This controls which model
+          checkpoint is loaded, so if we want to evaluate using a model that has only
+          been trained on, say, 4 rotations, we should pass `n_rot=4`.
     Returns:
         dict: Config for a partially trained model.
     """

@@ -7,7 +7,7 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-"""Configs for Figure 4: Rapid Inference with Voting.
+"""Configs for Figure 5: Rapid Inference with Voting.
 
 This module defines the following single-LM config:
  - `dist_agent_1lm_randrot_noise`
@@ -204,36 +204,36 @@ dist_agent_2lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_2lm_half_lms_match_randrot_noise
 )
 dist_agent_2lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_2lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
-    "dist_agent_2lm_fixed_min_lms_match_randrot_noise"
-)
+dist_agent_2lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_2lm_fixed_min_lms_match_randrot_noise"
 
 # - 4 LMs
 dist_agent_4lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_4lm_half_lms_match_randrot_noise
 )
 dist_agent_4lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_4lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
-    "dist_agent_4lm_fixed_min_lms_match_randrot_noise"
-)
+dist_agent_4lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_4lm_fixed_min_lms_match_randrot_noise"
 
 # - 8 LMs
 dist_agent_8lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_8lm_half_lms_match_randrot_noise
 )
 dist_agent_8lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_8lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
-    "dist_agent_8lm_fixed_min_lms_match_randrot_noise"
-)
+dist_agent_8lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_8lm_fixed_min_lms_match_randrot_noise"
 
 # - 16 LMs
 dist_agent_16lm_fixed_min_lms_match_randrot_noise = deepcopy(
     dist_agent_16lm_half_lms_match_randrot_noise
 )
 dist_agent_16lm_fixed_min_lms_match_randrot_noise["experiment_args"].min_lms_match = 2
-dist_agent_16lm_fixed_min_lms_match_randrot_noise["logging_config"].run_name = (
-    "dist_agent_16lm_fixed_min_lms_match_randrot_noise"
-)
+dist_agent_16lm_fixed_min_lms_match_randrot_noise[
+    "logging_config"
+].run_name = "dist_agent_16lm_fixed_min_lms_match_randrot_noise"
 
 
 CONFIGS = {

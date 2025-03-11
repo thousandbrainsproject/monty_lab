@@ -455,7 +455,8 @@ pretrain_touch_agent_1lm = dict(
     ),
 )
 
-# Make 10distinctobj variants. Used in `fig8.py` eval experiments.
+# Make 10distinctobj variants. Used in `supplemental_fig9_multimodal_transfer.py`
+# eval experiments.
 pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
     pretrain_dist_agent_1lm
 )

@@ -418,7 +418,7 @@ def make_randrot_variant(
     template: Mapping,
     run_name: Optional[str] = None,
 ) -> Mapping:
-    """Create a copy of an experiment config that uses the 5 "random" rotations.
+    """Create a copy of an experiment config that uses the 5 predefined random rotations.
 
     Args:
         template (Mapping): Experiment config to copy.
@@ -427,12 +427,12 @@ def make_randrot_variant(
           but the run name can be specified directly via this parameter.
 
     Returns:
-        Mapping: Copy of `template` that uses the 5 "random" rotations.
+        Mapping: Copy of `template` that uses the 5 predefined random rotations.
     """
 
     config = deepcopy(template)
 
-    # Optionally, use the provided run name. Otherwise, append "_noise" to the
+    # Optionally, use the provided run name. Otherwise, append "_randrot" to the
     # existing run name (if one exists).
     if run_name:
         config["logging_config"].run_name = run_name
@@ -455,7 +455,7 @@ def make_randrot_noise_variant(
     color: bool = True,
     run_name: Optional[str] = None,
 ) -> Mapping:
-    """Create a copy of an experiment config w/ sensor noise and  5 "random" rotations.
+    """Create a copy of an experiment config w/ sensor noise and  5 random rotations.
 
     Args:
         template (Mapping): Experiment config to copy.
@@ -465,7 +465,7 @@ def make_randrot_noise_variant(
           possible), but the run name can be specified directly via this parameter.
 
     Returns:
-        Mapping: Copy of `template` that uses the 5 "random" rotations and has
+        Mapping: Copy of `template` that uses the 5 predefined random rotations and has
         added sensor noise.
     """
 
@@ -580,7 +580,6 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
 
         Populates the `buffer_data` dict with LM and SM data, though either may be
         modified or removed based on `self.handler_args`.
-
 
         Args:
             data (Mapping): Data from the episode.
