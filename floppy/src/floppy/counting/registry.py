@@ -131,6 +131,7 @@ class OperationRegistry:
         # Register array operations
         registry.register("clip", ClipOperation)
         registry.register("matmul", MatmulOperation)
+        registry.register("dot", MatmulOperation, method_name="dot")
         registry.register("sum", SumOperation)
         registry.register("mean", MeanOperation)
         registry.register("std", StdOperation)

@@ -31,7 +31,6 @@ def test_dot_function():
         assert counter.flops == 12
 
 
-@pytest.mark.skip(reason="Not implemented")
 def test_dot_method():
     counter = FlopCounter(test_mode=True)
     with counter:
