@@ -160,7 +160,7 @@ Figure 5
 -------------------------------------------------------------------------------
 """
 
-# `fig5_visualize_8lm_patches`: An experiment that runs one eval step with the 8-LM
+# `fig5_visualize_8lm_patches`: An experiment that runs one eval step with
 # the 8-LM model so we can collect enough sensor data to visualize the arrangement
 # of the sensors patches on the object. Used in `scripts/fig5.py`. Run in serial.
 fig5_visualize_8lm_patches = deepcopy(dist_agent_8lm_half_lms_match)
