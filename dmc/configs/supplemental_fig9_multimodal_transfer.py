@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -8,7 +7,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""Configs for Figure 8: Multi-Modal Transfer
+"""Configs for Supplemental Figure 9: Multi-Modal Transfer
 
 This module defines the following experiments:
  - `dist_agent_1lm_randrot_noise_10distinctobj`
@@ -57,7 +56,7 @@ from .common import (
     get_view_finder_config,
     make_randrot_noise_variant,
 )
-from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
+from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
 # `touch_agent_1lm_10distinctobj`: a morphology-only model.
 touch_agent_1lm_10distinctobj = dict(
@@ -89,12 +88,6 @@ touch_agent_1lm_10distinctobj = dict(
     eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
         object_names=DISTINCT_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
-    ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(),
     ),
 )
 

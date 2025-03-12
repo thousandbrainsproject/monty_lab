@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -8,12 +7,12 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-"""Configs for Figure 5: Rapid Inference with Model-Based Policies.
+"""Configs for Figure 6: Rapid Inference with Model-Based Policies.
 
 This module defines the following experiments:
+- `dist_agent_1lm_randrot_noise_nohyp`
  - `surf_agent_1lm_randrot_noise`
  - `surf_agent_1lm_randrot_noise_nohyp`
- - `dist_agent_1lm_randrot_noise_nohyp`
 
  Experiments use:
  - 77 objects
@@ -57,7 +56,7 @@ from .common import (
     get_view_finder_config,
     make_randrot_noise_variant,
 )
-from .fig4_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
+from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
 # Surface agent
 surf_agent_1lm = dict(
@@ -89,13 +88,17 @@ surf_agent_1lm = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=RANDOM_ROTATIONS_5),
     ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(),
-    ),
 )
+
+# Distant agent: No hypothesis-testing
+dist_agent_1lm_randrot_noise_nohyp = deepcopy(dist_agent_1lm_randrot_noise)
+dist_agent_1lm_randrot_noise_nohyp[
+    "logging_config"
+].run_name = "dist_agent_1lm_randrot_noise_nohyp"
+dist_agent_1lm_randrot_noise_nohyp[
+    "monty_config"
+].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
+
 
 # Surface agent: Standard hypothesis-testing
 surf_agent_1lm_randrot_noise = make_randrot_noise_variant(surf_agent_1lm)
@@ -109,18 +112,8 @@ surf_agent_1lm_randrot_noise_nohyp[
     "monty_config"
 ].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
 
-# Distant agent: No hypothesis-testing
-dist_agent_1lm_randrot_noise_nohyp = deepcopy(dist_agent_1lm_randrot_noise)
-dist_agent_1lm_randrot_noise_nohyp[
-    "logging_config"
-].run_name = "dist_agent_1lm_randrot_noise_nohyp"
-dist_agent_1lm_randrot_noise_nohyp[
-    "monty_config"
-].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
-
 CONFIGS = {
     "dist_agent_1lm_randrot_noise_nohyp": dist_agent_1lm_randrot_noise_nohyp,
     "surf_agent_1lm_randrot_noise": surf_agent_1lm_randrot_noise,
     "surf_agent_1lm_randrot_noise_nohyp": surf_agent_1lm_randrot_noise_nohyp,
 }
-

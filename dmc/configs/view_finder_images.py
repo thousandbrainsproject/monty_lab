@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -71,7 +70,7 @@ from tbp.monty.simulators.habitat.configs import (
 )
 
 from .common import DMC_PRETRAIN_DIR, DMC_ROOT_DIR, RANDOM_ROTATIONS_5
-from .fig6_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
+from .fig7_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
 
 # All view-finder image experiments will be stored under 'view_finder_images',
 # a directory at the same level as the results directory.
@@ -344,12 +343,6 @@ view_finder_base = dict(
         object_init_sampler=PredefinedObjectInitializer(
             positions=[[0.0, 1.5, -0.2]], rotations=train_rotations
         ),
-    ),
-    # Doesn't get used, but currently needs to be set anyways.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=train_rotations),
     ),
 )
 # Set viewfinder resolution to 224 x 224.

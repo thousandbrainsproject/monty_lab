@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -27,6 +26,8 @@ NOTE: random rotation variants use the random object initializer and 14 rotation
 is defined in `fig4_rapid_inference_with_voting.py`.
 """
 
+from copy import deepcopy
+
 from tbp.monty.frameworks.config_utils.config_args import (
     MontyArgs,
     PatchAndViewMontyConfig,
@@ -36,6 +37,7 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
     PredefinedObjectInitializer,
+    RandomRotationObjectInitializer,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
 from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
@@ -58,8 +60,6 @@ from .common import (
     get_dist_patch_config,
     get_view_finder_config,
     make_noise_variant,
-    make_randrot_all_noise_variant,
-    make_randrot_all_variant,
 )
 
 # - 14 Rotation used during training (cube faces + corners)
@@ -95,21 +95,25 @@ dist_agent_1lm = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=TEST_ROTATIONS),
     ),
-    # Configure dummy train dataloader. Required but not used.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=["mug"],
-        object_init_sampler=PredefinedObjectInitializer(),
-    ),
 )
 
 # Noisy/random rotation variants
 # ------------------------------------------------------------------------------
 
+# - Noisy sensor variant
 dist_agent_1lm_noise = make_noise_variant(dist_agent_1lm)
-dist_agent_1lm_randrot_all = make_randrot_all_variant(dist_agent_1lm)
-dist_agent_1lm_randrot_all_noise = make_randrot_all_noise_variant(dist_agent_1lm)
 
+# - Random rotation variant (14 random rotations)
+dist_agent_1lm_randrot_all = deepcopy(dist_agent_1lm)
+dist_agent_1lm_randrot_all["logging_config"].run_name = "dist_agent_1lm_randrot_all"
+dist_agent_1lm_randrot_all[
+    "eval_dataloader_args"
+].object_init_sampler = RandomRotationObjectInitializer()
+
+# - Random rotation variant (14 random rotations) and sensor noise
+dist_agent_1lm_randrot_all_noise = make_noise_variant(
+    dist_agent_1lm_randrot_all, run_name="dist_agent_1lm_randrot_all_noise"
+)
 
 CONFIGS = {
     "dist_agent_1lm": dist_agent_1lm,
