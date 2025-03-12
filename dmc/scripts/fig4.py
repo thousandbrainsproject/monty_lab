@@ -455,20 +455,20 @@ def plot_symmetry_objects():
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
         plt.close()
 
-
-all_objects = list(detailed_stats["0"]["LM_0"]["evidences_ls"].keys())
-num_obj = len(all_objects)
-rel_obj_evidence_matrix = np.zeros((num_obj, num_obj))
-for episode in list(detailed_stats.keys()):  # [:-1]:
-    #     target_object = eval_stats['target_object'][int(episode)]
-    detected_object = detailed_stats[str(episode)]["LM_0"]["current_mlh"][-1][
-        "graph_id"
-    ]
-    detected_evidence = np.max(
-        detailed_stats[str(episode)]["LM_0"]["evidences_ls"][detected_object]
-    )
-    for object_id, object_name in enumerate(all_objects):
-        rel_obj_evidence_matrix[int(episode), object_id] = (
-            np.max(detailed_stats[str(episode)]["LM_0"]["evidences_ls"][object_name])
-            - detected_evidence
-        )
+# path =
+# all_objects = list(detailed_stats["0"]["LM_0"]["evidences_ls"].keys())
+# num_obj = len(all_objects)
+# rel_obj_evidence_matrix = np.zeros((num_obj, num_obj))
+# for episode in list(detailed_stats.keys()):  # [:-1]:
+#     #     target_object = eval_stats['target_object'][int(episode)]
+#     detected_object = detailed_stats[str(episode)]["LM_0"]["current_mlh"][-1][
+#         "graph_id"
+#     ]
+#     detected_evidence = np.max(
+#         detailed_stats[str(episode)]["LM_0"]["evidences_ls"][detected_object]
+#     )
+#     for object_id, object_name in enumerate(all_objects):
+#         rel_obj_evidence_matrix[int(episode), object_id] = (
+#             np.max(detailed_stats[str(episode)]["LM_0"]["evidences_ls"][object_name])
+#             - detected_evidence
+#         )
