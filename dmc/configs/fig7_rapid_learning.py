@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -7,7 +6,7 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-"""Figure 6: Rapid Learning
+"""Figure 7: Rapid Learning
 
 Consists of one pretraining experiment and 6 evaluation experiments:
 - pretrain_dist_agent_1lm_checkpoints
@@ -28,8 +27,8 @@ This means performance is evaluated with:
 
 """
 
-import copy
 import time
+from copy import deepcopy
 from pathlib import Path
 
 import torch
@@ -49,10 +48,10 @@ from tbp.monty.frameworks.experiments.pretraining_experiments import (
 
 from .common import DMC_PRETRAIN_DIR, make_randrot_variant
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
-from .pretraining_experiments import pretrain_dist_agent_1lm
+from .pretraining_experiments import DMCPretrainLoggingConfig, pretrain_dist_agent_1lm
 
 """
-Rapid Learning Config (for storing checkpoints)
+Pretraining Configs
 --------------------------------------------------------------------------------
 """
 
@@ -94,6 +93,7 @@ TRAIN_ROTATIONS = [
     [240, 143, 10],
 ]
 
+
 class PretrainingExperimentWithCheckpointing(
     MontySupervisedObjectPretrainingExperiment
 ):
@@ -103,10 +103,7 @@ class PretrainingExperimentWithCheckpointing(
     """
 
     def post_epoch(self):
-        """Save the model.
-        TODO: Check how well this works in parallel runs. Could be problematic.
-        TODO: Save checkpoints every...
-        """
+        """Store a model checkpoint."""
         super().post_epoch()
 
         # Check which epooch?
@@ -120,7 +117,6 @@ class PretrainingExperimentWithCheckpointing(
 
         # Save the model.
         checkpoints_dir = Path(self.output_dir) / "checkpoints"
-        # checkpoints_dir = Path(self.output_dir).parent / "checkpoints"
         output_dir = checkpoints_dir / f"{self.train_epochs}"
         output_dir.mkdir(parents=True, exist_ok=True)
         model_path = output_dir / "model.pt"
@@ -128,7 +124,7 @@ class PretrainingExperimentWithCheckpointing(
         torch.save(model_state_dict, model_path)
 
 
-pretrain_dist_agent_1lm_checkpoints = copy.deepcopy(pretrain_dist_agent_1lm)
+pretrain_dist_agent_1lm_checkpoints = deepcopy(pretrain_dist_agent_1lm)
 pretrain_dist_agent_1lm_checkpoints.update(
     dict(
         experiment_class=PretrainingExperimentWithCheckpointing,
@@ -136,10 +132,7 @@ pretrain_dist_agent_1lm_checkpoints.update(
             n_train_epochs=len(TRAIN_ROTATIONS),
             do_eval=False,
         ),
-        logging_config=PretrainLoggingConfig(
-            output_dir=str(DMC_PRETRAIN_DIR),
-            run_name="dist_agent_1lm_checkpoints",
-        ),
+        logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_1lm_checkpoints"),
         train_dataloader_class=ED.InformedEnvironmentDataLoader,
         train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=SHUFFLED_YCB_OBJECTS,
@@ -155,11 +148,19 @@ Evaluation Configs
 
 
 def make_partially_trained_eval_config(n_rot: int) -> dict:
-    """Make a config for a partially trained model.
+    """Make an eval config that loads a pretrained model checkpoint.
+
+    The returned config specifies a 1-LM distant agent that evaluates on
+      - All 77 YCB objects
+      - 5 (predetermined) random rotations
+      - no sensor noise
+      - no hypothesis-driven actions
+    and loads a model pretrained after `n_rot` observations per object.
 
     Args:
-        n_rot (int): Number of rotations trained on.
-
+        n_rot (int): Number of rotations trained on. This controls which model
+          checkpoint is loaded, so if we want to evaluate using a model that has only
+          been trained on, say, 4 rotations, we should pass `n_rot=4`.
     Returns:
         dict: Config for a partially trained model.
     """

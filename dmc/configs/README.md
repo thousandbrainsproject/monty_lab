@@ -6,28 +6,49 @@ Below is a summary of configs that correspond to figures in the Demonstrating Mo
 
 ## Figure 3: Robust Sensorimotor Inference
 
-Consists of 4 experiments:
-- `dist_agent_1lm` (i.e. no noise)
-- `dist_agent_1lm_noise` - Sensor noise
-- `dist_agent_1lm_randrot_all` - 14 random rotations.
-- `dist_agent_1lm_randrot_all_noise` - Sensor noise and 14 random rotations.
+This figure presents results from four inference experiments testing Monty's robustness under different conditions. Monty was pre-trained on 14 standard rotations derived from cube face and corner views (see full configuration details in `pretraining_experiments/dist_agent_1lm`).
+
+- `dist_agent_1lm`: Standard inference with no sensor noise or random rotations
+- `dist_agent_1lm_noise`: Tests robustness to sensor noise
+- `dist_agent_1lm_randrot_all`: Tests performance across 14 random rotations
+- `dist_agent_1lm_randrot_all_noise`: Tests performance with both random rotations and sensor noise
 
 Here we are showing the performance of the "standard" version of Monty, using:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
 - A single LM (no voting)
 
-The main output measure is accuracy and rotation error as a function of noise conditions.
+The main output measures are accuracy, rotation error (degrees), and Chamfer distance for each condition.
+
+Figure 3 also include an analysis of symmetric rotations, the data for which is generated with the experiment `fig3_symmetry_run` which is defined in `visualizations.py`.
 
 ## Default Parameters for Figures 4+
 Unless specified otherwise, the following figures/experiments use:
 - 77 objects
-- 5 random rotations
+- 5 predefined "random" rotations. These rotations were randomly generated but are kept constant across experiments. 
 - Sensor noise
 
 This captures core model performance in a realistic setting.
 
-## Figure 4: Rapid Inference with Voting
+## Figure 4: Structured Object Representations
+
+Consists of 1 experiment:
+- `dist_agent_1lm_randrot_noise_10simobj`
+
+This means performance is evaluated with:
+- 10 morphologically similar objects
+- Random rotations
+- Sensor noise
+- Hypothesis-testing policy active
+- No voting
+
+The main output measure is a dendrogram showing evidence score clustering for the 10 objects.
+
+**Notes:**
+- Although evaluating on 10 objects, the model is trained on 77 objects.
+- We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
+  
+## Figure 5: Rapid Inference with Voting
 
 Consists of 9 experiments:
 - `dist_agent_1lm_randrot_noise`
@@ -41,12 +62,12 @@ Consists of 9 experiments:
 - `dist_agent_16lm_fixed_min_lms_match_randrot_noise`
 
 There are two variations, either
-- `half_lms_match`: Half the number of LMs must match; this will tend to increase accuracy, but with a smaller improvement in convergence as a function of matching steps.
-  - `min_lms_match=int(num_lms/2)`
-- `fixed_min_lms_match`: The minimum number of LMs that must match is 2; this will tend to increase convergence very quickly, but with a smaller/minimal improvement in accuracy.
-  - `min_lms_match=min(num_lms, 2)`
+- `half_lms_match`: At least half of the available LMs must match. This tends to improve accuracy but results in a slower increase in convergence speed as a function of matching steps.
+  - Defined as: `min_lms_match=int(num_lms/2)`
+- `fixed_min_lms_match`: A minimum of two LMs must match, regardless of the total number of LMs. This tends to increase convergence speed significantly but provides only a small improvement in accuracy.
+  - Defined as: `min_lms_match=min(num_lms, 2)`
 
-This means performance is evaluated with:
+Performance is evaluated on:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
 - Sensor noise and 5 random rotations
@@ -54,7 +75,7 @@ This means performance is evaluated with:
 
 The main output measure is accuracy and rotation error as a function of number of LMs. The two variations show that accuracy and convergence speed can be traded off against each other.
 
-## Figure 5: Rapid Inference with Model-Free and Model-Based Policies
+## Figure 6: Rapid Inference with Model-Free and Model-Based Policies
 
 Consists of 3 experiments:
 - `dist_agent_1lm_randrot_noise_nohyp` - No hypothesis-testing, and random-walk policy
@@ -69,9 +90,10 @@ This means performance is evaluated with:
 
 The main output measure is accuracy and rotation error as a function of the policy used.
 
-## Figure 6: Rapid Learning
+## Figure 7: Rapid Learning
 
-Consists of 6 experiments:
+Consists of 7 experiments:
+- `pretrain_dist_agent_1lm_checkpoints`
 - `dist_agent_1lm_randrot_nohyp_1rot_trained`
 - `dist_agent_1lm_randrot_nohyp_2rot_trained`
 - `dist_agent_1lm_randrot_nohyp_4rot_trained`
@@ -97,7 +119,7 @@ The main output measure is accuracy and rotation error as a function of training
   2. Next 8 rotations = cube corners
   3. Remaining = random rotations (as otherwise introduces redundancy)
 
-## Figure 7: Computationally Efficient Learning and Inference
+## Figure 8: Computationally Efficient Learning and Inference
 
 ### Inference (12 experiments)
 
@@ -131,7 +153,7 @@ This performance is evaluated with:
 
 The main output measure is accuracy and FLOPs as a function of `x_percent threshold` and whether hypothesis testing was used or not.
 
-## Figure 8: Multi-Modal Transfer
+## Supplemental Figure 9: Multi-Modal Transfer
 
 Consists of 4 experiments:
 - `dist_agent_1lm_randrot_noise_10distinctobj` - "Standard" Monty ("dist_on_dist")
@@ -147,21 +169,3 @@ This means performance is evaluated with:
 - No voting
 
 The main output measure is accuracy and rotation error for within/across modality inference.
-
-## Figure 9: Structured Object Representations
-
-Consists of 1 experiment:
-- `dist_agent_1lm_randrot_noise_10simobj`
-
-This means performance is evaluated with:
-- 10 morphologically similar objects
-- Random rotations
-- Sensor noise
-- Hypothesis-testing policy active
-- No voting
-
-The main output measure is a dendrogram showing evidence score clustering for the 10 objects.
-
-**Notes:**
-- Although evaluating on 10 objects, the model is trained on 77 objects.
-- We need to run this experiment with SELECTIVE logging on so we get the evidence values to analyze.
