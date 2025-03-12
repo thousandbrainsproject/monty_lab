@@ -160,7 +160,7 @@ def get_surf_lm_config(
           False, then color-related parameters are removed.
 
     Returns:
-        dict: A dictionry with two items:
+        dict: A dictionary with two items:
             - "learning_module_class": The EvidenceGraphLM class.
             - "learning_module_args": A dictionary of arguments for the EvidenceGraphLM
               class.
