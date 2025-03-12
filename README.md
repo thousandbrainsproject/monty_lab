@@ -3,8 +3,46 @@
 This is where we (the TBP team) keep our day-to-day experiment files and data analysis scripts. The code in this repository is not unit tested or actively maintained. Some older projects in here are just for informational purposes or to replicate old experiments.
 
 ## Setup
-To run the code in this repository it is best to make a new conda environment by cloning the tbp.monty environment. For setup instructions for this see https://thousandbrainsproject.readme.io/docs/getting-started.
-`conda create --clone tbp.monty -n monty_lab`
+
+To run the code in this repository requires Conda to install the dependencies. For instructions on how to install Conda (Miniconda or Anaconda) on your machine see https://conda.io/projects/conda/en/latest/user-guide/install/index.html.
+
+NOTE: By default, Conda will activate the base environment when you open a new terminal. If you do not want Conda to change your global shell when you open a new terminal, run: `conda config --set auto_activate_base false`.
+
+To setup `monty_lab`, **use the conda commands below**. Make sure to `cd` into the `monty_lab` directory before running these commands.
+
+Note that the commands are slightly different depending on whether you are setting up the environment on an Intel or ARM64 architecture, and whether you are using the zsh shell or another shell.
+
+You can create the environment with the following commands:
+
+### ARM64 (Apple Silicon) (zsh shell)
+```
+conda env create -f environment.yml --subdir=osx-64
+conda init zsh
+conda activate monty_lab
+conda config --env --set subdir osx-64
+```
+
+### ARM64 (Apple Silicon) (bash shell)
+```
+conda env create -f environment.yml --subdir=osx-64
+conda init
+conda activate monty_lab
+conda config --env --set subdir osx-64
+```
+
+### Intel (zsh shell)
+```
+conda env create -f environment.yml
+conda init zsh
+conda activate monty_lab
+```
+
+### Intel (bash shell)
+```
+conda env create -f environment.yml
+conda init
+conda activate monty_lab
+```
 
 Then, you can install any additional dependencies your specific project requires like this:
 
