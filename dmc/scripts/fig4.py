@@ -7,918 +7,468 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
+"""Get overview plots for DMC experiments.
+
+This script generates basic figures for each set of experiments displaying number
+of monty matching steps, accuracy, and rotation error. If functions are called with
+`save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
 """
-Figure 4: Visualize 8-patch view finder
-"""
-import copy
+
+import json
 import os
-from numbers import Number
-from pathlib import Path
-from typing import (
-    Container,
-    List,
-    Optional,
-    Union,
-)
+from types import SimpleNamespace
+from typing import List, Mapping, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import skimage
+import scipy
+import seaborn as sns
 from data_utils import (
     DMC_ANALYSIS_DIR,
-    DMC_RESULTS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
-    get_frequency,
+    ObjectModel,
     load_eval_stats,
+    load_object_model,
 )
-from matplotlib.lines import Line2D
-from plot_utils import TBP_COLORS, add_legend, axes3d_set_aspect_equal, violinplot
+from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.transform import Rotation as R
+from tbp.monty.frameworks.utils.logging_utils import (
+    deserialize_json_chunks,
+    get_pose_error,
+    load_stats,
+)
+from tbp.monty.frameworks.utils.plot_utils import plot_graph
 
 plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"
 plt.rcParams["svg.fonttype"] = "none"
 
+
+# Directories to save plots and tables to.
 OUT_DIR = DMC_ANALYSIS_DIR / "fig4"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-PERFORMANCE_OPTIONS = (
-    "correct",
-    "confused",
-    "no_match",
-    "correct_mlh",
-    "confused_mlh",
-    "time_out",
-    "pose_time_out",
-    "no_label",
-    "patch_off_object",
-)
-
-def plot_8lm_patches():
-    """Plot the 8-SM + view_finder visualization for figure 4.
-
-    Uses data from the experiment `fig4_visualize_8lm_patches` defined in
-    `configs/visualizations.py`. This function renders the sensor module
-    RGBA data in the scene (in 3D) and overlays the sensor module's patch
-    boundaries.
-
-    Creates:
-     - $DMC_ANALYSIS_DIR/fig4/8lm_patches.png
-     - $DMC_ANALYSIS_DIR/fig4/8lm_patches.svg
-
-    """
-
-    # Load the detailed stats.
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_visualize_8lm_patches"
-    detailed_stats_path = experiment_dir / "detailed_run_stats.json"
-    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[0]
-
-    def pull(sm_num: int):
-        """Helper function for extracting necessary sensor data."""
-        sm_dict = stats[f"SM_{sm_num}"]
-        # Extract RGBA sensor patch.
-        rgba_2d = np.array(sm_dict["raw_observations"][0]["rgba"]) / 255.0
-        n_rows, n_cols = rgba_2d.shape[0], rgba_2d.shape[1]
-
-        # Extract locations and on-object filter.
-        semantic_3d = np.array(sm_dict["raw_observations"][0]["semantic_3d"])
-        pos_1d = semantic_3d[:, 0:3]
-        pos_2d = pos_1d.reshape(n_rows, n_cols, 3)
-        on_object_1d = semantic_3d[:, 3].astype(int) > 0
-        on_object_2d = on_object_1d.reshape(n_rows, n_cols)
-
-        # Filter out points that aren't on-object. Yields a flat list of points/colors.
-        return rgba_2d, pos_2d, on_object_2d
-
-    # Create a 3D plot of the semantic point cloud
-    fig = plt.figure(figsize=(4, 4))
-    ax = fig.add_subplot(1, 1, 1, projection="3d")
-    ax.view_init(elev=90, azim=-90, roll=0)
-    ax.set_proj_type("persp", focal_length=0.125)
-    ax.dist = 4.55
-
-    # Render the view finder's RGBA data in the scene.
-    rgba_2d, pos_2d, on_object_2d = pull(8)
-    rows, cols = np.where(on_object_2d)
-    pos_valid_1d = pos_2d[on_object_2d]
-    rgba_valid_1d = rgba_2d[on_object_2d]
-    ax.scatter(
-        pos_valid_1d[:, 0],
-        pos_valid_1d[:, 1],
-        pos_valid_1d[:, 2],
-        c=rgba_valid_1d,
-        marker="o",
-        alpha=0.3,
-        zorder=5,
-        s=10,
-        edgecolors="none",
-    )
-
-    # Render patches and patch boundaries for all sensors.
-    for i in range(8):
-        # Load sensor data.
-        rgba_2d, pos_2d, on_object_2d = pull(i)
-        rows, cols = np.where(on_object_2d)
-        pos_valid_1d = pos_2d[on_object_2d]
-        rgba_valid_1d = rgba_2d[on_object_2d]
-
-        # Render the patch.
-        ax.scatter(
-            pos_valid_1d[:, 0],
-            pos_valid_1d[:, 1],
-            pos_valid_1d[:, 2],
-            c=rgba_valid_1d,
-            marker="o",
-            alpha=1,
-            zorder=10,
-            edgecolors="none",
-            s=1,
-        )
-
-        # Draw the patch boundaries (complicated).
-        n_rows, n_cols = on_object_2d.shape
-        row_mid, col_mid = n_rows // 2, n_cols // 2
-        n_pix_on_object = on_object_2d.sum()
-
-        if n_pix_on_object == 0:
-            contours = []
-        elif n_pix_on_object == on_object_2d.size:
-            temp = np.zeros((n_rows, n_cols), dtype=bool)
-            temp[0, :] = True
-            temp[-1, :] = True
-            temp[:, 0] = True
-            temp[:, -1] = True
-            contours = [np.argwhere(temp)]
-        else:
-            contours = skimage.measure.find_contours(
-                on_object_2d, level=0.5, positive_orientation="low"
-            )
-            contours = [] if contours is None else contours
-
-        for ct in contours:
-            row_mid, col_mid = n_rows // 2, n_cols // 2
-
-            # Contour may be floating point (fractional indices from scipy). If so,
-            # round rows/columns towards the center of the patch.
-            if not np.issubdtype(ct.dtype, np.integer):
-                # Round towards the center.
-                rows, cols = ct[:, 0], ct[:, 1]
-                rows_new, cols_new = np.zeros_like(rows), np.zeros_like(cols)
-                rows_new[rows >= row_mid] = np.floor(rows[rows >= row_mid])
-                rows_new[rows < row_mid] = np.ceil(rows[rows < row_mid])
-                cols_new[cols >= col_mid] = np.floor(cols[cols >= col_mid])
-                cols_new[cols < col_mid] = np.ceil(cols[cols < col_mid])
-                ct_new = np.zeros_like(ct, dtype=int)
-                ct_new[:, 0] = rows_new.astype(int)
-                ct_new[:, 1] = cols_new.astype(int)
-                ct = ct_new
-
-            # Drop any points that happen to be off-object (it's possible that
-            # some boundary points got rounded off-object).
-            points_on_object = on_object_2d[ct[:, 0], ct[:, 1]]
-            ct = ct[points_on_object]
-
-            # In order to plot the boundary as a line, we need the points to
-            # be in order. We can order them by associating each point with its
-            # angle from the center of the patch. This isn't a general solution,
-            # but it works here.
-            Y, X = row_mid - ct[:, 0], ct[:, 1] - col_mid  # pixel to X/Y coords.
-            theta = np.arctan2(Y, X)
-            sort_order = np.argsort(theta)
-            ct = ct[sort_order]
-
-            # Finally, plot the contour.
-            xyz = pos_2d[ct[:, 0], ct[:, 1]]
-            ax.plot(xyz[:, 0], xyz[:, 1], xyz[:, 2], c="k", linewidth=3, zorder=20)
-
-    axes3d_set_aspect_equal(ax)
-    ax.axis("off")
-    plt.show()
-
-    fig.savefig(OUT_DIR / "8lm_patches.png", dpi=300)
-    fig.savefig(OUT_DIR / "8lm_patches.svg")
 
 """
--------------------------------------------------------------------------------
-Analysis
+--------------------------------------------------------------------------------
+Symmetrical rotations
+--------------------------------------------------------------------------------
 """
 
 
-class Experiment:
-    _eval_stats: Optional[pd.DataFrame] = None
-    _reduced_stats: Optional[pd.DataFrame] = None
-    _detailed_stats: Optional[DetailedJSONStatsInterface] = None
-
-    def __init__(self, name: os.PathLike, **attrs):
-        path = Path(name).expanduser()
-        if path.is_dir():
-            # Case 1: Given a path to an experiment directory.
-            self.path = path
-            self.name = path.name
-        else:
-            # Given a run name. Assume results in DMC results folder.
-            self.path = DMC_RESULTS_DIR / name
-            self.name = self.path.name
-            assert self.path.exists()
-        for key, val in attrs.items():
-            setattr(self, key, val)
-
-    @property
-    def eval_stats(self) -> pd.DataFrame:
-        if self._eval_stats is None:
-            csv_path = self.path / "eval_stats.csv"
-            self._eval_stats = load_eval_stats(csv_path)
-        return self._eval_stats
-
-    @eval_stats.setter
-    def eval_stats(self, eval_stats: pd.DataFrame):
-        self._eval_stats = eval_stats
-
-    @property
-    def reduced_stats(self) -> pd.DataFrame:
-        if self._reduced_stats is None:
-            self._reduced_stats = reduce_eval_stats(self.eval_stats)
-        return self._reduced_stats
-
-    @reduced_stats.setter
-    def reduced_stats(self, reduced_stats: pd.DataFrame):
-        self._reduced_stats = reduced_stats
-
-    @property
-    def detailed_stats(self) -> DetailedJSONStatsInterface:
-        if self._detailed_stats is None:
-            json_path = self.path / "detailed_run_stats.json"
-            self._detailed_stats = DetailedJSONStatsInterface(json_path)
-        return self._detailed_stats
-
-    @detailed_stats.setter
-    def detailed_stats(self, detailed_stats: DetailedJSONStatsInterface):
-        self._detailed_stats = detailed_stats
-
-    def copy(self, deep: bool = False) -> "Experiment":
-        return copy.deepcopy(self) if deep else copy.copy(self)
-
-    def get_accuracy(
-        self,
-        primary_performance: Optional[Union[str, Container[str]]] = [
-            "correct",
-            "correct_mlh",
-        ],
-    ) -> float:
-        return 100 * get_frequency(
-            self.reduced_stats["primary_performance"], primary_performance
-        )
-
-    def get_n_steps(
-        self,
-        step_mode: str = "num_steps",
-    ) -> np.ndarray:
-        if step_mode == "monty_matching_steps":
-            return (
-                self.eval_stats.groupby("episode").monty_matching_steps.first().values
-            )
-        elif step_mode == "num_steps":
-            return self.eval_stats.num_steps.values
-        elif step_mode == "num_steps_terminal":
-            # just num_steps for terminal LMs
-            terminated = self.eval_stats.primary_performance.isin(
-                ["correct", "confused"]
-            )
-            return self.eval_stats.num_steps[terminated].values
-        else:
-            raise ValueError(f"Invalid step mode: {step_mode}")
-
-    def __repr__(self):
-        return f"Experiment('{self.name}')"
-
-
-all_experiments = [
-    Experiment(
-        name="dist_agent_1lm_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=1,
-    ),
-    Experiment(
-        name="dist_agent_2lm_half_lms_match_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=2,
-    ),
-    Experiment(
-        name="dist_agent_4lm_half_lms_match_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=2,
-        n_lms=4,
-    ),
-    Experiment(
-        name="dist_agent_8lm_half_lms_match_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=4,
-        n_lms=8,
-    ),
-    Experiment(
-        name="dist_agent_16lm_half_lms_match_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=8,
-        n_lms=16,
-    ),
-    Experiment(
-        name="dist_agent_1lm_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=1,
-        n_lms=1,
-    ),
-    Experiment(
-        name="dist_agent_2lm_fixed_min_lms_match_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=2,
-        n_lms=2,
-    ),
-    Experiment(
-        name="dist_agent_4lm_fixed_min_lms_match_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=2,
-        n_lms=4,
-    ),
-    Experiment(
-        name="dist_agent_8lm_fixed_min_lms_match_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=4,
-        n_lms=8,
-    ),
-    Experiment(
-        name="dist_agent_16lm_fixed_min_lms_match_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=8,
-        n_lms=16,
-    ),
-]
-
-
-def get_experiments(**filters) -> List[Experiment]:
-    experiments = copy.deepcopy(all_experiments)
-    for key, val in filters.items():
-        experiments = [exp for exp in experiments if getattr(exp, key, None) == val]
-    return experiments
-
-
-def reduce_eval_stats(eval_stats: pd.DataFrame, require_majority: bool = True):
-    """Reduce the eval stats dataframe to a single row per episode.
-
-    The main purpose of this function is to classify an episode as either "correct"
-    or "confused" based on the number of correct and confused performances (or
-    "correct_mlh" and "confused_mlh" for timed-out episodes).
+def get_emd_distance(
+    pc1: Union[np.ndarray, ObjectModel],
+    pc2: Union[np.ndarray, ObjectModel],
+) -> float:
+    """Computes the Earth Mover's Distance (EMD) between two point clouds.
 
     Args:
-        eval_stats (pd.DataFrame): The eval stats dataframe.
-        require_majority (bool): Whether to require a majority of correct performances
-            for 'correct' classification.
+        pc1: A numpy array of shape (N, 3) representing the first point cloud.
+        pc2: A numpy array of shape (N, 3) representing the second point cloud.
+
     Returns:
-        pd.DataFrame: A dataframe with a single row per episode.
+        float: The EMD distance between the two point clouds.
     """
-    episodes = np.arange(eval_stats.episode.max() + 1)
-    assert np.array_equal(eval_stats.episode.unique(), episodes)  # sanity check
-    n_episodes = len(episodes)
 
-    # Columns of output dataframe. More are added later.
-    output_data = {
-        "primary_performance": np.zeros(n_episodes, dtype=object),
-    }
-    for name in PERFORMANCE_OPTIONS:
-        output_data[f"n_{name}"] = np.zeros(n_episodes, dtype=int)
+    pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
+    # Compute pairwise distances
+    cost_matrix = scipy.spatial.distance.cdist(pc1, pc2)
+    # Solve transport problem
+    row_ind, col_ind = scipy.optimize.linear_sum_assignment(cost_matrix)
+    return cost_matrix[row_ind, col_ind].sum() / len(pc1)
 
-    episode_groups = eval_stats.groupby("episode")
-    for episode, df in episode_groups:
-        # Find one result given many LM results.
-        row = {}
 
-        perf_counts = {key: 0 for key in PERFORMANCE_OPTIONS}
-        perf_counts.update(df.primary_performance.value_counts())
-        found = []
-        for name in PERFORMANCE_OPTIONS:
-            row[f"n_{name}"] = perf_counts[name]
-            if perf_counts[name] > 0:
-                found.append(name)
-        performance = found[0]
+def get_chamfer_distance(
+    pc1: Union[np.ndarray, ObjectModel],
+    pc2: Union[np.ndarray, ObjectModel],
+) -> float:
+    """Compute the Chamfer Distance between two point clouds.
 
-        # Require a majority of correct performances for 'correct' classification.
-        if require_majority:
-            if performance == "correct":
-                if row["n_confused"] > row["n_correct"]:
-                    performance = "confused"
-                elif row["n_confused"] < row["n_correct"]:
-                    performance = "correct"
-                else:
-                    # Ties go to "confused" by default, but the tie can be broken
-                    # in favor of "correct" if the number of LMs with "correct_mlh"
-                    # exceeds the number of LMs with "confused_mlh".
-                    performance = "confused"
-                    if row["n_correct_mlh"] > row["n_confused_mlh"]:
-                        performance = "correct"
+    Args:
+        pc1: A numpy array of shape (N, 3) representing the first point cloud.
+        pc2: A numpy array of shape (N, 3) representing the second point cloud.
 
-            elif performance == "correct_mlh":
-                if row["n_confused_mlh"] >= row["n_correct_mlh"]:
-                    performance = "confused_mlh"
+    Returns:
+        The Chamfer distance between the two point clouds as a float.
+    """
+    pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
+    pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
 
-        row["primary_performance"] = performance
+    dists1 = np.min(scipy.spatial.distance.cdist(pc1, pc2), axis=1)
+    dists2 = np.min(scipy.spatial.distance.cdist(pc2, pc1), axis=1)
+    return np.mean(dists1) + np.mean(dists2)
 
-        for key, val in row.items():
-            output_data[key][episode] = val
 
-    # Add episode data not specific to the LM.
-    output_data["monty_matching_steps"] = (
-        episode_groups.monty_matching_steps.first().values
+def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
+    """Load symmetric rotations for the MLH.
+
+    Returns:
+        List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
+        the id, rotation, and evidence value.
+    """
+
+    # Get MLH object name -- symmetric rotations are only computed for the MLH object.
+    object_name = episode_stats["LM_0"]["current_mlh"][-1]["graph_id"]
+
+    # Load evidence values and possible locations.
+    evidences = np.array(episode_stats["LM_0"]["evidences_ls"][object_name])
+    # TODO: delete this once confident. It's only used as a sanity check below.
+    possible_rotations = np.array(
+        episode_stats["LM_0"]["possible_rotations_ls"][object_name]
     )
-    output_data["primary_target_object"] = (
-        episode_groups.primary_target_object.first().values
-    )
-    output_data["primary_target_rotation"] = (
-        episode_groups.primary_target_object.first().values
-    )
-    output_data["episode"] = episode_groups.episode.first().values
-    output_data["epoch"] = episode_groups.epoch.first().values
 
-    out = pd.DataFrame(output_data)
-    return out
+    # Load symmetric rotations.
+    symmetric_rotations = np.array(episode_stats["LM_0"]["symmetric_rotations"])
+    symmetric_locations = np.array(episode_stats["LM_0"]["symmetric_locations"])
 
+    # To get evidence values for each rotation, we need to find hypothesis IDs for the
+    # symmetric rotations. To do this, we find the evidence threshold that would yield
+    # the number of symmetric rotations given.
+    n_hypotheses = len(symmetric_rotations)
+    sorting_inds = np.argsort(evidences)[::-1]
+    evidences_sorted = evidences[sorting_inds]
+    evidence_threshold = np.mean(evidences_sorted[n_hypotheses - 1 : n_hypotheses + 1])
+    above_threshold = evidences >= evidence_threshold
+    hypothesis_ids = np.arange(len(evidences))[above_threshold]
+    symmetric_evidences = evidences[hypothesis_ids]
 
-"""
--------------------------------------------------------------------------------
-Plotting
-"""
+    # Sanity checks.
+    assert len(hypothesis_ids) == n_hypotheses
+    assert np.allclose(symmetric_rotations, possible_rotations[hypothesis_ids])
 
-
-def double_accuracy_plot(
-    groups: List[List[Experiment]],
-    colors: Container[str] = (TBP_COLORS["blue"], TBP_COLORS["purple"]),
-    labels: Optional[Container[str]] = None,
-    title: str = "Accuracy",
-    xlabel: str = "Num. LMs",
-    ylabel: str = "% Correct",
-    ylim: Container[Number] = (0, 100),
-    gap: float = 0.02,
-    width: float = 0.4,
-    legend: bool = False,
-    ax: Optional[plt.Axes] = None,
-    **kw,
-) -> plt.Axes:
-    if ax is None:
-        _, ax = plt.subplots(1, 1, figsize=kw.get("figsize", (3, 3)))
-
-    xticks = np.arange(len(groups[0]))
-    left_positions = xticks - width / 2 - gap / 2
-    right_positions = xticks + width / 2 + gap / 2
-    positions = [left_positions, right_positions]
-    if not labels:
-        labels = ("a", "b")
-
-    for i, g in enumerate(groups):
-        accuracies = [exp.get_accuracy() for exp in g]
-        ax.bar(
-            positions[i],
-            accuracies,
-            color=colors[i],
-            width=width,
-            label=labels[i],
-        )
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_xticks(xticks)
-    ax.set_xticklabels([exp.n_lms for exp in groups[0]])
-    ax.set_ylabel(ylabel)
-    ax.set_ylim(ylim)
-    if legend:
-        legend_kw = {name: kw.get(name) for name in ("loc", "fontsize")}
-        ax.legend(labels=labels, **legend_kw)
-
-    return ax
-
-
-def double_n_steps_plot(
-    groups: List[List[Experiment]],
-    colors: Container[str] = (TBP_COLORS["blue"], TBP_COLORS["purple"]),
-    labels: Optional[Container[str]] = None,
-    title: str = "Steps",
-    xlabel: str = "Num. LMs",
-    ylabel: str = "Steps",
-    ylim: Container[Number] = (0, 500),
-    gap: float = 0.02,
-    width: float = 0.4,
-    showmeans: bool = True,
-    legend: bool = False,
-    loc: Optional[str] = "upper right",
-    ax: Optional[plt.Axes] = None,
-    **kw,
-) -> plt.Axes:
-    if ax is None:
-        _, ax = plt.subplots(1, 1, figsize=kw.get("figsize", (3, 3)))
-
-    xticks = np.arange(len(groups[0]))
-    n_steps = []
-    for g in groups:
-        n_steps.append([exp.get_n_steps() for exp in g])
-
-    sides = ["left", "right"]
-    alpha = 0.75 if showmeans else 1
-    for i, g in enumerate(groups):
-        violinplot(
-            n_steps[i],
-            xticks,
-            width=width,
-            gap=gap,
-            color=colors[i],
-            alpha=alpha,
-            showmedians=True,
-            median_style=dict(color="lightgray"),
-            side=sides[i],
-            ax=ax,
+    rotations = []
+    for i in range(n_hypotheses):
+        rotations.append(
+            SimpleNamespace(
+                id=i,
+                hypothesis_id=hypothesis_ids[i],
+                rot=R.from_matrix(symmetric_rotations[i]).inv(),
+                location=symmetric_locations[i],
+                evidence=symmetric_evidences[i],
+            )
         )
 
-    # Plot means.
-    if showmeans:
-        for i, g in enumerate(groups):
-            means = [np.mean(arr) for arr in n_steps[i]]
-            if sides[i] == "left":
-                x_pos = xticks - width / 2 - gap / 2
-            else:
-                x_pos = xticks + width / 2 + gap / 2
-            ax.scatter(x_pos, means, color=colors[i], marker="o", edgecolor="black")
-            ax.plot(x_pos, means, color=colors[i], linestyle="-", linewidth=2)
-
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_xticks(xticks)
-    ax.set_xticklabels([exp.n_lms for exp in groups[0]])
-    ax.set_ylabel(ylabel)
-    ax.set_ylim(ylim)
-    if legend:
-        if labels is None:
-            labels = ("a", "b")
-        legend_handles = []
-        for i in range(len(colors)):
-            handle = Line2D([0], [0], color=colors[i], lw=4, label=labels[i])
-            legend_handles.append(handle)
-        ax.legend(handles=legend_handles, loc=loc, fontsize=8)
-
-    return ax
+    return rotations
 
 
-def double_accuracy_and_n_steps_plot(
-    group: List[Experiment],
-    colors: Container[str] = (TBP_COLORS["blue"], TBP_COLORS["purple"]),
-    title: Optional[str] = None,
-    xlabel: str = "Num. LMs",
-    left_ylabel: str = "% Correct",
-    left_ylim: Container[Number] = (0, 100),
-    right_ylabel: str = "Steps",
-    right_ylim: Container[Number] = (0, 500),
-    gap: float = 0.02,
-    width: float = 0.4,
-    ax: Optional[plt.Axes] = None,
-    **kw,
-) -> plt.Axes:
-    """Make figure where accuracies and num_steps are on the same axes."""
-    if ax is None:
-        _, ax = plt.subplots(1, 1, figsize=kw.get("figsize", (3, 3)))
-    ax_1 = ax
-    ax_2 = ax_1.twinx()
-    xticks = np.arange(len(group))
+def get_relative_rotation(
+    rot_a: scipy.spatial.transform.Rotation,
+    rot_b: scipy.spatial.transform.Rotation,
+    degrees: bool = False,
+) -> Tuple[float, np.ndarray]:
+    """Computes the angle and axis of rotation between two rotation matrices.
 
-    # amount of white space between violins
-    xticks = np.arange(len(group))
-    bar_positions = xticks - width / 2 - gap / 2
-    violin_positions = xticks + width / 2 + gap / 2
+    Args:
+        rot_a (scipy.spatial.transform.Rotation): The first rotation.
+        rot_b (scipy.spatial.transform.Rotation): The second rotation.
 
-    # Plot accuracy.
-    accuracies = [exp.get_accuracy() for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies,
-        color=colors[0],
-        width=width,
+    Returns:
+        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
+    """
+    # Compute rotation angle
+    rel = rot_a * rot_b.inv()
+    mat = rel.as_matrix()
+    trace = np.trace(mat)
+    theta = np.arccos((trace - 1) / 2)
+
+    if np.isclose(theta, 0):  # No rotation
+        return 0.0, np.array([0.0, 0.0, 0.0])
+
+    # Compute rotation axis
+    axis = np.array(
+        [
+            mat[2, 1] - mat[1, 2],
+            mat[0, 2] - mat[2, 0],
+            mat[1, 0] - mat[0, 1],
+        ]
     )
+    axis = axis / (2 * np.sin(theta))  # Normalize
+    if degrees:
+        theta, axis = np.degrees(theta), np.degrees(axis)
 
-    # Plot num steps.
-    n_steps = [exp.get_n_steps() for exp in group]
-    violinplot(
-        n_steps,
-        violin_positions,
-        width=width,
-        color=colors[1],
-        showmedians=True,
-        median_style=dict(color="lightgray"),
-        ax=ax_2,
+    return theta, axis
+
+
+def get_symmetry_stats(
+    experiment: os.PathLike = "fig4_symmetry_run",
+) -> Mapping:
+    """Compute pose errors and Chamfer distances for symmetric rotations.
+
+    Used to generate data by `plot_symmetry_stats`.
+
+    Computes the pose errors and Chamfer distances between symmetric rotations
+    and the target rotation. The following rotations are considered:
+     - "best": the rotation with the lowest pose error.
+     - "mlh": the rotation of the MLH.
+     - "other": another rotation from the same group of symmetric rotation.
+     - "random": a random rotation.
+
+    Returns:
+        The computed pose errors and Chamfer distances for the best, MLH, and
+        random rotations, as well as another random rotation from the same group
+        of symmetric rotations. Has the items "pose_error" and "Chamfer", each of
+        which is a dict with "best", "mlh", "other", and "random" (all numpy arrays)
+
+    """
+    experiment_dir = VISUALIZATION_RESULTS_DIR / experiment
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
     )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
 
-    ax_1.set_title(title)
-    ax_1.set_xlabel(xlabel)
-    ax_1.set_xticks(xticks)
-    ax_1.set_xticklabels([exp.n_lms for exp in group])
-    ax_1.set_ylabel(left_ylabel)
-    ax_1.set_ylim(left_ylim)
-    ax_2.set_ylabel(right_ylabel)
-    ax_2.set_ylim(right_ylim)
-    for ax in [ax_1, ax_2]:
-        ax.spines["top"].set_visible(False)
-
-    return ax
-
-
-"""
--------------------------------------------------------------------------------
-Figure Functions
-"""
-
-
-def plot_1_and_2_lms():
-    lm1 = Experiment(
-        name="dist_agent_1lm_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=1,
-    )
-    lm2_1 = Experiment(
-        name="dist_agent_2lm_half_lms_match_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=2,
-    )
-    lm2_2 = Experiment(
-        name="dist_agent_2lm_fixed_min_lms_match_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=2,
-        n_lms=2,
-    )
-
-    group = [lm1, lm2_1, lm2_2]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    labels = ["match: n_lms / 2", "match: 2"]
-    sides = ["left", "right"]
-
-    fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
-    ax_2 = ax_1.twinx()
-
-    # amount of white space between violins
-    gap = 0.02
-    item_width = 0.4
-    xticks = np.arange(3)
-    bar_positions = xticks - item_width / 2 - gap / 2
-    violin_positions = xticks + item_width / 2 + gap / 2
-
-    # Plot accuracy.
-    accuracies_correct = [exp.get_accuracy("correct") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_correct,
-        color=colors[0],
-        width=item_width,
-        label="correct",
-    )
-    bottom = np.array(accuracies_correct)
-
-    accuracies_correct_mlh = [exp.get_accuracy("correct_mlh") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_correct_mlh,
-        color=colors[0],
-        width=item_width,
-        bottom=bottom,
-        hatch="///",
-        label="correct_mlh",
-    )
-    bottom += accuracies_correct_mlh
-
-    accuracies_confused = [exp.get_accuracy("confused") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_confused,
-        color="red",
-        width=item_width,
-        bottom=bottom,
-        label="confused",
-    )
-    bottom += accuracies_confused
-
-    accuracies_confused_mlh = [exp.get_accuracy("confused_mlh") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_confused_mlh,
-        color="red",
-        width=item_width,
-        bottom=bottom,
-        hatch="///",
-        label="confused_mlh",
-    )
-
-    # Plot num steps.
-    n_steps = [exp.get_n_steps("num_steps") for exp in group]
-    violinplot(
-        n_steps,
-        violin_positions,
-        width=item_width,
-        color=colors[1],
-        alpha=1,
-        showmedians=True,
-        median_style=dict(lw=1, color="lightgray", ls="-"),
-        ax=ax_2,
-    )
-
-    ax_1.set_xlabel("Num. LMs : min_lms_match")
-    ax_1.set_xticks(xticks)
-    ax_1.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
-    ax_1.set_ylabel("% Correct")
-    ax_1.set_ylim(50, 100)
-    ax_2.set_ylabel("Steps")
-    ax_2.set_ylim(0, 500)
-
-    axes = [ax_1, ax_2]
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-        ax.set_xlim([-0.55, 3])
-    ax_1.legend()
-
-    # ------------------------------------------------------------------------------
-    # Plot num steps for confused  vs correct, all cases.
-
-    correct_group = []
-    confused_group = []
-    for exp in group:
-        eval_stats = exp.eval_stats
-        x = eval_stats[eval_stats.primary_performance == "correct"].num_steps
-        correct_group.append(x)
-        x = eval_stats[eval_stats.primary_performance == "confused"].num_steps
-        confused_group.append(x)
-
-    xticks = np.arange(3)
-    item_width = 0.4
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
-    colors = [TBP_COLORS["blue"], "red"]
-    violinplot(
-        correct_group,
-        xticks,
-        width=0.4,
-        color=colors[0],
-        showmedians=True,
-        side="left",
-        gap=0.01,
-        ax=ax,
-    )
-    violinplot(
-        confused_group,
-        xticks,
-        width=0.4,
-        color=colors[1],
-        showmedians=True,
-        side="right",
-        gap=0.01,
-        ax=ax,
-    )
-    ax.set_ylim([0, 500])
-    add_legend(ax, colors, labels=["correct", "confused"])
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
-    ax.set_xlabel("Num. LMs : min_lms_match")
-    ax.set_ylabel("Steps")
-    plt.show()
-
-    # Plot num steps for confused  vs correct, all cases.
-
-    # Let's look at symmetry evidence for confused vs correct.
-    correct_group = []
-    confused_group = []
-    for exp in group:
-        eval_stats = exp.eval_stats
-        x = eval_stats[eval_stats.primary_performance == "correct"].symmetry_evidence
-        correct_group.append(x)
-        x = eval_stats[eval_stats.primary_performance == "confused"].symmetry_evidence
-        confused_group.append(x)
-
-    xticks = np.arange(3)
-    item_width = 0.4
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
-    colors = [TBP_COLORS["blue"], "red"]
-    violinplot(
-        correct_group,
-        xticks,
-        width=0.4,
-        color=colors[0],
-        showmedians=True,
-        showextrema=True,
-        side="left",
-        gap=0.01,
-        ax=ax,
-    )
-    violinplot(
-        confused_group,
-        xticks,
-        width=0.4,
-        color=colors[1],
-        showmedians=True,
-        showextrema=True,
-        side="right",
-        gap=0.01,
-        ax=ax,
-    )
-    ax.set_ylim([0, 100])
-    add_legend(ax, colors, labels=["correct", "confused"])
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
-    ax.set_xlabel("Num. LMs : min_lms_match")
-    ax.set_ylabel("Steps")
-    plt.show()
-
-    exp = group[2]
-    confused_df = exp.reduced_stats[exp.reduced_stats.primary_performance == "confused"]
-    n_correct = confused_df.n_correct.values
-    confused_eps_with_1_correct = (n_correct == 1).sum() / len(n_correct)
-    print(f"confused eps with 1 correct: {100*confused_eps_with_1_correct:.2f}%")
-
-
-def plot_performance_1lm():
-    exp = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    fn_kw = {
-        "left_ylim": (50, 100),
-        "right_ylim": (0, 500),
+    # Preload models that we'll be rotating.
+    models = {
+        name: load_object_model("dist_agent_1lm", name)
+        for name in eval_stats.primary_target_object.unique()
     }
 
-    fig, ax = plt.subplots(1, 1, figsize=(1.5, 3))
-    double_accuracy_and_n_steps_plot([exp], colors, ax=ax, **fn_kw)
-
-    ax.spines["top"].set_visible(False)
-
-    fig.tight_layout()
-    plt.show()
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_1lm.png", dpi=300)
-    fig.savefig(out_dir / "performance_1lm.svg")
-
-
-def plot_performance_multi_lm_hom():
-    """Make figure where accuracies and num_steps are on separate axes."""
-    half = get_experiments(group="half_lms_match")[1:]
-    fixed = get_experiments(group="fixed_min_lms_match")[1:]
-    groups = [half, fixed]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-
-    double_accuracy_plot(groups, colors, ylim=(50, 100), ax=axes[0])
-    double_n_steps_plot(
-        groups,
-        colors,
-        ylim=(0, 100),
-        legend=True,
-        labels=["n = LMs / 2", "n = 2"],
-        ax=axes[1],
-    )
-
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-    fig.tight_layout()
-    plt.show()
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_multi_lm_hom.png", dpi=300)
-    fig.savefig(out_dir / "performance_multi_lm_hom.svg")
-
-
-def plot_performance_multi_lm_het():
-    """Make figure where accuracies and num_steps are on separate axes."""
-    half = get_experiments(group="half_lms_match")[1:]
-    fixed = get_experiments(group="fixed_min_lms_match")[1:]
-
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    fn_kw = {
-        "left_ylim": (50, 100),
-        "right_ylim": (0, 100),
+    # Initialize dict that we'll be returning.
+    stat_arrays = {
+        "pose_error": {"best": [], "mlh": [], "other": [], "random": []},
+        "Chamfer": {"best": [], "mlh": [], "other": [], "random": []},
     }
+    for episode, stats in enumerate(detailed_stats):
+        # print(f"Episode {episode}/{len(detailed_stats)}")
+        # Check valid symmetry rotations.
+        # - Must be correct performance
+        row = eval_stats.iloc[episode]
+        if not row.primary_performance.startswith("correct"):
+            continue
+        # - Must have at least two symmetry rotations.
+        sym_rots = stats["LM_0"]["symmetric_rotations"]
+        if sym_rots is None or len(sym_rots) < 2:
+            continue
 
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-    double_accuracy_and_n_steps_plot(
-        half, colors, title="Half LMs Match", ax=axes[0], **fn_kw
-    )
-    double_accuracy_and_n_steps_plot(
-        fixed, colors, title="2 LMs Match", ax=axes[1], **fn_kw
-    )
+        # - Load the target rotation.
+        target = SimpleNamespace(
+            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True),
+            location=row.primary_target_position,
+        )
 
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
+        # - Create a random rotation.
+        random = SimpleNamespace(
+            rot=R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True),
+            location=np.array([0, 1.5, 0]),
+        )
+
+        # - Load symmetry rotations, and computed pose error.
+        rotations = load_symmetry_rotations(stats)
+        for r in rotations + [target, random]:
+            r.pose_error = np.degrees(
+                get_pose_error(r.rot.as_quat(), target.rot.as_quat())
+            )
+
+        # - Find mlh, best, and some other symmetric.
+        rotations = sorted(rotations, key=lambda x: x.pose_error)
+        best = sorted(rotations, key=lambda x: x.pose_error)[0]
+        other = rotations[np.random.randint(1, len(rotations))]
+        mlh = sorted(rotations, key=lambda x: x.evidence)[-1]
+
+        # - Compute chamfer distances, and store the stats.
+        rotations = dict(best=best, mlh=mlh, other=other, random=random)
+        model = models[row.primary_target_object] - [0, 1.5, 0]
+        target_obj = model.rotated(target.rot)
+        for name, r in rotations.items():
+            obj = model.rotated(r.rot)
+            stat_arrays["Chamfer"][name].append(get_chamfer_distance(obj, target_obj))
+            stat_arrays["pose_error"][name].append(r.pose_error)
+
+    # - Convert lists to arrays, and return the data.
+    for key_1, dct_1 in stat_arrays.items():
+        for key_2 in dct_1.keys():
+            stat_arrays[key_1][key_2] = np.array(stat_arrays[key_1][key_2])
+
+    return stat_arrays
+
+
+def plot_symmetry_stats():
+    """Plot the symmetry stats."""
+    stat_arrays = get_symmetry_stats()
+
+    fig, axes = plt.subplots(1, 2, figsize=(4.5, 2.3))
+
+    rotation_types = ["best", "mlh", "other", "random"]
+    colors = [TBP_COLORS["blue"]] * len(rotation_types)
+    xticks = list(range(1, len(rotation_types) + 1))
+    xticklabels = ["min. error", "MLH", "other", "random"]
+
+    # Pose Error
+    ax = axes[0]
+    arrays = [stat_arrays["pose_error"][name] for name in rotation_types]
+    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
+    for j, body in enumerate(vp["bodies"]):
+        body.set_facecolor(colors[j])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticks([0, 45, 90, 135, 180])
+    ax.set_ylim(0, 180)
+    ax.set_ylabel("degrees")
+    ax.set_title("Pose Error")
+
+    # Chamfer
+    ax = axes[1]
+    arrays = [stat_arrays["Chamfer"][name] for name in rotation_types]
+    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
+    for j, body in enumerate(vp["bodies"]):
+        body.set_facecolor(colors[j])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_ylabel("meters")
+    ymax = max(np.percentile(arr, 95) for arr in arrays)
+    ax.set_ylim(0, ymax)
+    ax.set_title("Chamfer Distance")
 
     fig.tight_layout()
+
     plt.show()
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_multi_lm_het.png", dpi=300)
-    fig.savefig(out_dir / "performance_multi_lm_het.svg")
+    out_dir = OUT_DIR / "symmetry"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_dir / "symmetry_stats.png", dpi=300)
+    fig.savefig(out_dir / "symmetry_stats.svg")
 
 
-plot_performance_1lm()
-plot_performance_multi_lm_hom()
-plot_performance_multi_lm_het()
+def plot_symmetry_objects():
+    """Render symmetric objects and their rotations."""
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    episode_params = {
+        # clamp - god. 180 degree rotation.
+        130: {
+            "other_index": 1,
+            "random_rotation": np.array([98, 86, 134]),
+            "elev": 55,
+            "azim": 0,
+        },
+        # bowl - good
+        309: {
+            "other_index": 1,
+            "random_rotation": np.array([172, 68, -25]),
+            "elev": 30,
+            "azim": -90,
+        },
+        # mug - not totally symmetric, mixed messages
+        154: {
+            "other_index": 1,
+            "random_rotation": np.array([172, 68, -25]),
+            "elev": -70,
+            "azim": -80,
+        },
+    }
+    for episode in episode_params.keys():
+        params = episode_params.get(episode, {})
+
+        row = eval_stats.iloc[episode]
+        primary_target_object = row.primary_target_object
+        target = SimpleNamespace(
+            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+        )
+
+        # Load rotations, compute rotation error for each, and sort them by error.
+        stats = detailed_stats[episode]
+        rotations = load_symmetry_rotations(stats)
+        for r in rotations:
+            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
+            r.theta = theta
+            r.axis = axis
+        rotations = sorted(rotations, key=lambda x: x.theta)
+
+        # Get rotation with lowest error and any other symmetrical rotation.
+        best = rotations[0]
+        mlh = sorted(rotations, key=lambda x: x.evidence)[-1]
+        other_index = params.get("other_index", np.random.randint(1, len(rotations)))
+        other = rotations[other_index]
+
+        # Get a random rotation, and compute its error.
+        random_euler = params.get(
+            "random_rotation", np.random.randint(0, 360, size=(3,))
+        )
+        random = SimpleNamespace(rot=R.from_euler("xyz", random_euler, degrees=True))
+        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
+        random.theta = theta
+        random.axis = axis
+
+        base_model = load_object_model("dist_agent_1lm", primary_target_object)
+        base_model = base_model - [0, 1.5, 0]
+
+        poses = dict(target=target, best=best, mlh=mlh, other=other, random=random)
+        for name, obj in poses.items():
+            obj.model = base_model.rotated(obj.rot)
+
+        fig, axes = plt.subplots(2, 5, figsize=(8, 4), subplot_kw={"projection": "3d"})
+        elev, azim = params.get("elev", 30), params.get("azim", -90)
+
+        for i, (name, obj) in enumerate(poses.items()):
+            # Plot object.
+            ax = axes[0, i]
+            model = obj.model
+            ax.scatter(
+                model.x,
+                model.y,
+                model.z,
+                color=model.rgba,
+                alpha=0.5,
+                edgecolors="none",
+                s=10,
+            )
+            axes3d_clean(ax, grid=False)
+            axes3d_set_aspect_equal(ax)
+            ax.view_init(elev, azim)
+
+            # Plot basis vectors.
+            ax = axes[1, i]
+            mat = obj.rot.as_matrix()
+            origin = np.array([0, 0, 0])
+            colors = ["red", "green", "blue"]
+            axis_names = ["x", "y", "z"]
+            for i in range(3):
+                ax.quiver(
+                    *origin,
+                    *mat[:, i],
+                    color=colors[i],
+                    length=1,
+                    arrow_length_ratio=0.2,
+                    normalize=True,
+                )
+                getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+            axes3d_clean(ax)
+            axes3d_set_aspect_equal(ax)
+            ax.view_init(elev, azim)
+            ax.axis("off")
+            ax.set_title(name)
+
+        plt.show()
+        out_dir = OUT_DIR / "symmetry"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
+        fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
+        plt.close()
+
+
+all_objects = list(detailed_stats["0"]["LM_0"]["evidences_ls"].keys())
+num_obj = len(all_objects)
+rel_obj_evidence_matrix = np.zeros((num_obj, num_obj))
+for episode in list(detailed_stats.keys()):  # [:-1]:
+    #     target_object = eval_stats['target_object'][int(episode)]
+    detected_object = detailed_stats[str(episode)]["LM_0"]["current_mlh"][-1][
+        "graph_id"
+    ]
+    detected_evidence = np.max(
+        detailed_stats[str(episode)]["LM_0"]["evidences_ls"][detected_object]
+    )
+    for object_id, object_name in enumerate(all_objects):
+        rel_obj_evidence_matrix[int(episode), object_id] = (
+            np.max(detailed_stats[str(episode)]["LM_0"]["evidences_ls"][object_name])
+            - detected_evidence
+        )
