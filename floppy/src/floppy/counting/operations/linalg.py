@@ -13,35 +13,61 @@ __all__ = [
 ]
 
 class CrossOperation:
-    """FLOP counter for vector cross product operations."""
+    """Counts floating point operations (FLOPs) for vector cross product operations.
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> Optional[int]:
-        """Count FLOPs for cross product operation.
+    Handles both single vector pairs and batched computations of 3D cross products.
+    Each 3D cross product requires 9 FLOPs (6 multiplications, 3 subtractions).
+
+    Example shapes:
+        Single: (3,) x (3,) -> (3,)
+        Batched: (N, 3) x (N, 3) -> (N, 3)
+    """
+
+    # Constants for the cross product operation
+    VECTOR_DIM = 3  # Standard 3D vector dimension
+    MULTS_PER_CROSS = 6  # Number of multiplications per cross product
+    SUBS_PER_CROSS = 3  # Number of subtractions per cross product
+    FLOPS_PER_CROSS = MULTS_PER_CROSS + SUBS_PER_CROSS
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing vector cross products.
 
         Args:
-            *args: Input arrays (vectors to compute cross product)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.cross parameters.
-                     These currently don't affect the FLOP count.
+            *args: Tuple[np.ndarray, ...], Input arrays where each array contains vectors
+                  to compute cross product. Typically two 3D vectors.
+            result: np.ndarray, The resulting array from the cross product operation.
+                   Used to determine the number of cross products computed.
+            **kwargs: Additional numpy.cross parameters (e.g., axis, out).
+                     These do not affect the FLOP count.
 
         Returns:
-            Optional[int]: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Cross product is only defined for 3D vectors (and 7D, though rarely used).
-            For 3D vectors, cross product requires:
-            - 6 multiplications
-            - 3 subtractions
-            Total: 9 FLOPs per cross product
+            Cross product computation:
+            - Only defined for 3D vectors (and 7D vectors, though rarely used)
+            - Each 3D cross product requires 9 FLOPs:
+                * 6 multiplications (2 per component)
+                * 3 subtractions (1 per component)
+            - For batched inputs, total FLOPs = 9 * number_of_cross_products
         """
-        # Get number of cross products being computed
-        num_operations = max(
-            1,
-            result.shape[0]
-            if (isinstance(result, np.ndarray) and len(result.shape) > 1)
-            else 1,
-        )
-        return 9 * num_operations
+        # Validate input
+        if not isinstance(result, np.ndarray):
+            return None
+
+        # Validate vector dimension
+        if result.shape[-1] != self.VECTOR_DIM:
+            return None  # Not a 3D vector cross product
+
+        # Calculate number of cross products from result shape
+        # For single vector: shape = (3,)
+        # For batch: shape = (N, 3) where N is batch size
+        batch_size = result.shape[0] if result.ndim > 1 else 1
+
+        return self.FLOPS_PER_CROSS * batch_size
 
 
 class MatmulOperation:
