@@ -20,7 +20,7 @@ This module defines the following experiments:
  - Hypothesis-testing policy active
  - No voting
  - SELECTIVE evidence logging
- - Probably best run in serial.
+ - Run in serial due to memory needed for detailed logging
 """
 
 from copy import deepcopy
@@ -34,6 +34,7 @@ dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
     SelectiveEvidenceLoggingConfig(
         run_name="dist_agent_1lm_randrot_noise_10simobj",
+        selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
     )
 )
 dist_agent_1lm_randrot_noise_10simobj[
