@@ -11,12 +11,7 @@ from .operations import (
     ArcSineOperation,
     ArcTangent2Operation,
     ArcTangentOperation,
-    ArgmaxOperation,
-    ArgminOperation,
     AverageOperation,
-    BitwiseAndOperation,
-    BitwiseOrOperation,
-    ClipOperation,
     CondOperation,
     ConvolveOperation,
     CosineOperation,
@@ -27,24 +22,19 @@ from .operations import (
     EigOperation,
     EinsumOperation,
     ExponentialOperation,
-    FloorDivideOperation,
     InnerOperation,
     InvOperation,
-    IsnanOperation,
     LinspaceOperation,
     LogOperation,
     MatmulOperation,
-    MaxOperation,
     MeanOperation,
     MedianOperation,
-    MinOperation,
     ModuloOperation,
     Multiplication,
     NormOperation,
     OuterOperation,
     PowerOperation,
     RadiansOperation,
-    RoundOperation,
     SineOperation,
     SolveOperation,
     StdOperation,
@@ -53,7 +43,6 @@ from .operations import (
     TangentOperation,
     TraceOperation,
     VarOperation,
-    WhereOperation,
 )
 
 
@@ -126,12 +115,7 @@ class OperationRegistry:
         registry.register("sqrt", PowerOperation)
         registry.register("cbrt", PowerOperation)
         registry.register("reciprocal", PowerOperation)
-        registry.register("floor_divide", FloorDivideOperation)
         registry.register("remainder", ModuloOperation, method_name="mod")
-
-        # Register bitwise operations
-        registry.register("bitwise_and", BitwiseAndOperation)
-        registry.register("bitwise_or", BitwiseOrOperation)
 
         # Register mathematical functions
         registry.register("sin", SineOperation)
@@ -147,7 +131,6 @@ class OperationRegistry:
         registry.register("exp", ExponentialOperation)
 
         # Register array operations
-        registry.register("clip", ClipOperation)
         registry.register("convolve", ConvolveOperation)
         registry.register("diff", DiffOperation)
         registry.register("einsum", EinsumOperation)
@@ -166,13 +149,6 @@ class OperationRegistry:
         registry.register("var", VarOperation)
         registry.register("average", AverageOperation)
         registry.register("trace", TraceOperation, method_name="trace")
-        registry.register("min", MinOperation)
-        registry.register("max", MaxOperation)
-        registry.register("argmin", ArgminOperation)
-        registry.register("argmax", ArgmaxOperation)
-        registry.register("round", RoundOperation)
-        registry.register("where", WhereOperation)
-        registry.register("isnan", IsnanOperation)
 
         # Register linear algebra operations
         registry.register("linalg.norm", NormOperation, module_path="linalg")
