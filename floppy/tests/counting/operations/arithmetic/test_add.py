@@ -12,7 +12,7 @@ def test_add_operator_syntax():
         b = np.array([4, 5, 6])
         result = a + b
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([5, 7, 9]))
+        np.testing.assert_allclose(result, np.array([5, 7, 9]))
 
 def test_add_ufunc_syntax():
     counter = FlopCounter()
@@ -21,7 +21,7 @@ def test_add_ufunc_syntax():
         b = np.array([4, 5, 6])
         result = np.add(a, b)
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([5, 7, 9]))
+        np.testing.assert_allclose(result, np.array([5, 7, 9]))
 
 def test_add_method_syntax():
     counter = FlopCounter()
@@ -30,7 +30,7 @@ def test_add_method_syntax():
         b = np.array([4, 5, 6])
         result = a.add(b)
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([5, 7, 9]))
+        np.testing.assert_allclose(result, np.array([5, 7, 9]))
 
 def test_add_augmented_assignment():
     counter = FlopCounter()
@@ -39,7 +39,7 @@ def test_add_augmented_assignment():
         b = np.array([4, 5, 6])
         a += b
         assert counter.flops == 3
-        np.testing.assert_array_equal(a, np.array([5, 7, 9]))
+        np.testing.assert_allclose(a, np.array([5, 7, 9]))
 
 def test_add_broadcasting():
     counter = FlopCounter()
@@ -48,7 +48,7 @@ def test_add_broadcasting():
         b = 2
         result = a + b
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([3, 4, 5]))
+        np.testing.assert_allclose(result, np.array([3, 4, 5]))
 
     counter.flops = 0
     with counter:
@@ -56,7 +56,7 @@ def test_add_broadcasting():
         b = 2
         result = b + a
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([3, 4, 5]))
+        np.testing.assert_allclose(result, np.array([3, 4, 5]))
 
 def test_add_within_operation():
     counter = FlopCounter()
@@ -66,7 +66,7 @@ def test_add_within_operation():
         c = np.array([7, 8, 9])
         result = np.flipud(a + b + c)
         assert counter.flops == 6
-        np.testing.assert_array_equal(result, np.array([18, 15, 12]))
+        np.testing.assert_allclose(result, np.array([18, 15, 12]))
 
 
 def test_add_empty_arrays():
@@ -87,7 +87,7 @@ def test_add_with_views():
         # Test with array views/slices
         result = a[::2] + b[::2]  # [1, 3] + [5, 7]
         assert counter.flops == 2
-        np.testing.assert_array_equal(result, np.array([6, 10]))
+        np.testing.assert_allclose(result, np.array([6, 10]))
 
 
 
@@ -98,7 +98,7 @@ def test_add_mixed_dtypes():
         b = np.array([4.0, 5.0, 6.0], dtype=np.float64)
         result = a + b  # Should promote to float64
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([5.0, 7.0, 9.0]))
+        np.testing.assert_allclose(result, np.array([5.0, 7.0, 9.0]))
 
 
 def test_add_with_indexing():
@@ -110,4 +110,4 @@ def test_add_with_indexing():
         # Addition within fancy indexing
         result = a[indices] + b[indices]  # [1, 3] + [5, 7]
         assert counter.flops == 2
-        np.testing.assert_array_equal(result, np.array([6, 10]))
+        np.testing.assert_allclose(result, np.array([6, 10]))

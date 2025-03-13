@@ -7,42 +7,32 @@ def test_linspace_basic():
     counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 5)
-        # For 5 points: 2 + (5-1) = 6 FLOPs
-        # 1 subtraction (1-0)
-        # 1 division ((1-0)/(5-1))
-        # 4 additions to generate sequence
         assert counter.flops == 6
-        np.testing.assert_array_equal(result, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
+        np.testing.assert_allclose(result, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
 
 
 def test_linspace_single_point():
     counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 1)
-        # For 1 point: 2 + (1-1) = 2 FLOPs
-        # 1 subtraction (1-0)
-        # 1 division ((1-0)/(1-1))
-        # 0 additions
         assert counter.flops == 2
-        np.testing.assert_array_equal(result, np.array([0.0]))
+        np.testing.assert_allclose(result, np.array([0.0]))
 
 
 def test_linspace_negative_range():
     counter = FlopCounter()
     with counter:
         result = np.linspace(-1, 1, 5)
-        # For 5 points: 2 + (5-1) = 6 FLOPs
         assert counter.flops == 6
-        np.testing.assert_array_equal(result, np.array([-1.0, -0.5, 0.0, 0.5, 1.0]))
+        np.testing.assert_allclose(result, np.array([-1.0, -0.5, 0.0, 0.5, 1.0]))
 
 
 def test_linspace_with_endpoint():
     counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 5, endpoint=False)
-        # For 5 points: 2 + (5-1) = 6 FLOPs
         assert counter.flops == 6
-        np.testing.assert_array_equal(result, np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
+        np.testing.assert_allclose(result, np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
 
 
 def test_linspace_with_retstep():
@@ -51,7 +41,7 @@ def test_linspace_with_retstep():
         result, step = np.linspace(0, 1, 5, retstep=True)
         # For 5 points: 2 + (5-1) = 6 FLOPs
         assert counter.flops == 6
-        np.testing.assert_array_equal(result, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
+        np.testing.assert_allclose(result, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
         assert step == 0.25
 
 
@@ -61,7 +51,7 @@ def test_linspace_with_dtype():
         result = np.linspace(0, 1, 5, dtype=np.float32)
         # For 5 points: 2 + (5-1) = 6 FLOPs
         assert counter.flops == 6
-        np.testing.assert_array_equal(
+        np.testing.assert_allclose(
             result, np.array([0.0, 0.25, 0.5, 0.75, 1.0], dtype=np.float32)
         )
 

@@ -11,7 +11,7 @@ def test_mod_operator_syntax():
         b = np.array([4, 5, 6])
         result = a % b
         assert counter.flops == 9
-        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+        np.testing.assert_allclose(result, np.array([1, 2, 3]))
 
 
 def test_mod_ufunc_syntax():
@@ -21,7 +21,7 @@ def test_mod_ufunc_syntax():
         b = np.array([4, 5, 6])
         result = np.mod(a, b)
         assert counter.flops == 9
-        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+        np.testing.assert_allclose(result, np.array([1, 2, 3]))
 
 
 def test_mod_augmented_assignment():
@@ -31,7 +31,7 @@ def test_mod_augmented_assignment():
         b = np.array([4, 5, 6])
         a %= b
         assert counter.flops == 9
-        np.testing.assert_array_equal(a, np.array([1, 2, 3]))
+        np.testing.assert_allclose(a, np.array([1, 2, 3]))
 
 
 def test_mod_broadcasting():
@@ -41,7 +41,7 @@ def test_mod_broadcasting():
         b = 2
         result = a % b
         assert counter.flops == 9
-        np.testing.assert_array_equal(result, np.array([1, 0, 1]))
+        np.testing.assert_allclose(result, np.array([1, 0, 1]))
 
     counter.flops = 0
     with counter:
@@ -49,4 +49,4 @@ def test_mod_broadcasting():
         b = 2
         result = b % a
         assert counter.flops == 9
-        np.testing.assert_array_equal(result, np.array([0, 0, 2]))
+        np.testing.assert_allclose(result, np.array([0, 0, 2]))

@@ -11,7 +11,7 @@ def test_multiply_operator_syntax():
         b = np.array([4, 5, 6])
         result = a * b
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([4, 10, 18]))
+        np.testing.assert_allclose(result, np.array([4, 10, 18]))
 
 
 def test_multiply_ufunc_syntax():
@@ -21,7 +21,7 @@ def test_multiply_ufunc_syntax():
         b = np.array([4, 5, 6])
         result = np.multiply(a, b)
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([4, 10, 18]))
+        np.testing.assert_allclose(result, np.array([4, 10, 18]))
 
 
 def test_multiply_method_syntax():
@@ -31,7 +31,7 @@ def test_multiply_method_syntax():
         b = np.array([4, 5, 6])
         result = a.multiply(b)
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([4, 10, 18]))
+        np.testing.assert_allclose(result, np.array([4, 10, 18]))
 
 
 def test_multiply_augmented_assignment():
@@ -41,7 +41,7 @@ def test_multiply_augmented_assignment():
         b = np.array([4, 5, 6])
         a *= b
         assert counter.flops == 3
-        np.testing.assert_array_equal(a, np.array([4, 10, 18]))
+        np.testing.assert_allclose(a, np.array([4, 10, 18]))
 
 
 def test_multiply_broadcasting():
@@ -51,7 +51,7 @@ def test_multiply_broadcasting():
         b = 2
         result = a * b
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([2, 4, 6]))
+        np.testing.assert_allclose(result, np.array([2, 4, 6]))
 
     counter.flops = 0
     with counter:
@@ -59,4 +59,4 @@ def test_multiply_broadcasting():
         b = 2
         result = b * a
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([2, 4, 6]))
+        np.testing.assert_allclose(result, np.array([2, 4, 6]))

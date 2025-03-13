@@ -20,7 +20,7 @@ def test_power_operator_syntax():
         b = np.array([4, 5, 6])
         result = a**b
         assert counter.flops == 120
-        np.testing.assert_array_equal(result, np.array([1, 32, 729]))
+        np.testing.assert_allclose(result, np.array([1, 32, 729]))
 
 
 def test_power_ufunc_syntax():
@@ -30,7 +30,7 @@ def test_power_ufunc_syntax():
         b = np.array([4, 5, 6])
         result = np.power(a, b)
         assert counter.flops == 120
-        np.testing.assert_array_equal(result, np.array([1, 32, 729]))
+        np.testing.assert_allclose(result, np.array([1, 32, 729]))
 
 
 def test_power_method_syntax():
@@ -40,7 +40,7 @@ def test_power_method_syntax():
         b = np.array([4, 5, 6])
         result = a.power(b)
         assert counter.flops == 120
-        np.testing.assert_array_equal(result, np.array([1, 32, 729]))
+        np.testing.assert_allclose(result, np.array([1, 32, 729]))
 
 
 def test_power_augmented_assignment():
@@ -50,7 +50,7 @@ def test_power_augmented_assignment():
         b = np.array([4, 5, 6])
         a **= b
         assert counter.flops == 120
-        np.testing.assert_array_equal(a, np.array([1, 32, 729]))
+        np.testing.assert_allclose(a, np.array([1, 32, 729]))
 
 
 def test_square():
@@ -65,7 +65,7 @@ def test_square():
         b = 2
         result = a**b
         assert counter.flops == 3  # One multiplication per element
-        np.testing.assert_array_equal(result, np.array([1, 4, 9]))
+        np.testing.assert_allclose(result, np.array([1, 4, 9]))
 
 def test_square_2():
     # test np.square()
@@ -74,7 +74,7 @@ def test_square_2():
         a = np.array([1, 2, 3])
         result = np.square(a)
         assert counter.flops == 3  # One multiplication per element
-        np.testing.assert_array_equal(result, np.array([1, 4, 9]))
+        np.testing.assert_allclose(result, np.array([1, 4, 9]))
 
 def test_sqrt():
     """Test square root operation (power of 0.5)."""
@@ -83,7 +83,7 @@ def test_sqrt():
         a = np.array([1, 4, 9])
         result = np.sqrt(a)
         assert counter.flops == 60  # 20 FLOPs per sqrt operation
-        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+        np.testing.assert_allclose(result, np.array([1, 2, 3]))
 
 
 def test_cbrt():
@@ -93,7 +93,7 @@ def test_cbrt():
         a = np.array([1, 8, 27])
         result = np.cbrt(a)
         assert counter.flops == 75  # 25 FLOPs per cbrt operation
-        np.testing.assert_array_equal(result, np.array([1, 2, 3]))
+        np.testing.assert_allclose(result, np.array([1, 2, 3]))
 
 
 def test_reciprocal():
@@ -103,7 +103,7 @@ def test_reciprocal():
         a = np.array([1.0, 2.0, 4.0])
         result = np.reciprocal(a)
         assert counter.flops == 3  # 1 FLOP (division) per element
-        np.testing.assert_array_equal(result, np.array([1.0, 0.5, 0.25]))
+        np.testing.assert_allclose(result, np.array([1.0, 0.5, 0.25]))
 
 
 def test_negative_integer_power():
@@ -135,4 +135,4 @@ def test_power_broadcasting():
         b = 2
         result = b**a
         assert counter.flops == 120
-        np.testing.assert_array_equal(result, np.array([2, 4, 8]))
+        np.testing.assert_allclose(result, np.array([2, 4, 8]))

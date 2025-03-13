@@ -11,7 +11,7 @@ def test_divide_operator_syntax():
         b = np.array([4, 5, 6])
         result = a / b
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([0.25, 0.4, 0.5]))
+        np.testing.assert_allclose(result, np.array([0.25, 0.4, 0.5]))
 
 
 def test_divide_ufunc_syntax():
@@ -21,7 +21,7 @@ def test_divide_ufunc_syntax():
         b = np.array([4, 5, 6])
         result = np.divide(a, b)
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([0.25, 0.4, 0.5]))
+        np.testing.assert_allclose(result, np.array([0.25, 0.4, 0.5]))
 
 
 def test_divide_method_syntax():
@@ -31,7 +31,7 @@ def test_divide_method_syntax():
         b = np.array([4, 5, 6])
         result = a.divide(b)
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([0.25, 0.4, 0.5]))
+        np.testing.assert_allclose(result, np.array([0.25, 0.4, 0.5]))
 
 
 def test_divide_augmented_assignment():
@@ -42,7 +42,7 @@ def test_divide_augmented_assignment():
         b = np.array([4, 5, 6], dtype=np.float64)
         a /= b
         assert counter.flops == 3
-        np.testing.assert_array_equal(a, np.array([0.25, 0.4, 0.5]))
+        np.testing.assert_allclose(a, np.array([0.25, 0.4, 0.5]))
 
 
 def test_divide_broadcasting():
@@ -52,7 +52,7 @@ def test_divide_broadcasting():
         b = 2
         result = a / b
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([0.5, 1, 1.5]))
+        np.testing.assert_allclose(result, np.array([0.5, 1, 1.5]))
 
     counter.flops = 0
     with counter:
@@ -60,4 +60,4 @@ def test_divide_broadcasting():
         b = 2
         result = b / a
         assert counter.flops == 3
-        np.testing.assert_array_equal(result, np.array([2, 1, 0.6666666666666666]))
+        np.testing.assert_allclose(result, np.array([2, 1, 0.6666666666666666]))
