@@ -12,196 +12,302 @@ __all__ = [
 
 
 class MeanOperation:
-    """FLOP count for mean operation.
+    """Counts floating point operations (FLOPs) for mean operations.
 
-    This class implements FLOP counting for numpy's mean operation.
-    The mean operation requires summing all elements and dividing by
-    the total count.
+    Handles both single array and batched computations of arithmetic means.
+    Each mean calculation requires summing all elements and dividing by the count.
+
+    The mean computation requires:
+    - (n-1) additions to sum all elements
+    - 1 division for the final average
+    Total: n FLOPs
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for mean operation.
+    # Constants for the mean operation
+    ADDS_PER_ELEMENT = 1  # Number of additions per element (except first)
+    DIV_COST = 1  # Cost of final division operation
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing mean.
 
         Args:
-            *args: Input arrays (first argument is the array to compute mean)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.mean parameters.
-                     These currently don't affect the FLOP count.
+            *args: Input arrays where the first array contains the values
+                  to compute mean. Must be at least 1D.
+            result: The resulting array from the mean operation.
+                   Used to determine the number of means computed.
+            **kwargs: Additional numpy.mean parameters (e.g., axis, keepdims).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Mean calculation requires:
-            - (n-1) additions to sum all elements
-            - 1 division for the final average
-            Total: n FLOPs where n is the total number of elements
+            Mean computation:
+            - Each mean requires:
+                * (n-1) additions to sum elements
+                * 1 division for final average
+            - Total FLOPs per mean = n
+            - For batched inputs, multiply by batch size
         """
         if not args:
-            return 0
+            return None
 
         array = args[0]
-        return np.size(array)  # (n-1) additions + 1 division
+        if not isinstance(array, np.ndarray):
+            return None
+
+        n = np.size(array)
+        if n == 0:
+            return 0  # Empty array
+
+        return n  # (n-1) additions + 1 division
 
 
 class StdOperation:
-    """FLOP count for standard deviation operation.
+    """Counts floating point operations (FLOPs) for standard deviation operations.
 
-    This class implements FLOP counting for numpy's std operation.
-    The standard deviation requires computing the mean, subtracting
-    it from each element, squaring the differences, computing their
-    mean, and taking the square root.
+    Handles both single array and batched computations of standard deviations.
+    The computation involves mean calculation, squared differences, and square root.
+
+    The standard deviation computation requires:
+    - n FLOPs for mean calculation (from MeanOperation)
+    - n subtractions from mean
+    - n multiplications for squaring
+    - (n-1) additions for sum of squares
+    - 1 division for mean of squares
+    - 1 square root (costs 20 FLOPs)
+    Total: 4n + 21 FLOPs
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for standard deviation operation.
+    # Cost of square root operation (other operations cost 1 FLOP each)
+    SQRT_COST = 20
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing standard deviation.
 
         Args:
-            *args: Input arrays (first argument is the array to compute std)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.std parameters.
-                     These currently don't affect the FLOP count.
+            *args: Input arrays where the first array contains the values
+                  to compute standard deviation. Must be at least 1D.
+            result: The resulting array from the std operation.
+                   Used to determine the number of stds computed.
+            **kwargs: Additional numpy.std parameters (e.g., axis, ddof).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Standard deviation calculation requires:
-            - n FLOPs for mean calculation
-            - n subtractions from mean
-            - n multiplications for squaring
-            - (n-1) additions for sum
-            - 1 division for mean of squares
-            - 1 square root
-            Total: 4n + 1 FLOPs where n is the total number of elements
+            Standard deviation computation:
+            - Each std requires:
+                * n FLOPs for mean calculation (from MeanOperation)
+                * n subtractions from mean
+                * n multiplications for squaring
+                * (n-1) additions for sum
+                * 1 division for mean of squares
+                * 1 square root (costs 20 FLOPs)
+            - Total FLOPs per std = 4n + 21
+            - For batched inputs, multiply by batch size
         """
         if not args:
-            return 0
+            return None
 
         array = args[0]
+        if not isinstance(array, np.ndarray):
+            return None
+
         n = np.size(array)
-        return 4 * n + 1
+        if n == 0:
+            return 0  # Empty array
+
+        # Calculate total FLOPs
+        # n FLOPs for mean + n subtractions + n multiplications + (n-1) additions + 1 division + 1 sqrt
+        return 4 * n + self.SQRT_COST
 
 
 class VarOperation:
-    """FLOP count for variance operation.
+    """Counts floating point operations (FLOPs) for variance operations.
 
-    This class implements FLOP counting for numpy's var operation.
-    The variance requires computing the mean, subtracting it from
-    each element, squaring the differences, and computing their mean.
+    Handles both single array and batched computations of variances.
+    The computation involves mean calculation and squared differences.
+
+    The variance computation requires:
+    - n FLOPs for mean calculation
+    - n subtractions from mean
+    - n multiplications for squaring
+    - (n-1) additions for sum of squares
+    - 1 division for final result
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for variance operation.
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing variance.
 
         Args:
-            *args: Input arrays (first argument is the array to compute variance)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.var parameters.
-                     These currently don't affect the FLOP count.
+            *args: Input arrays where the first array contains the values
+                  to compute variance. Must be at least 1D.
+            result: The resulting array from the var operation.
+                   Used to determine the number of variances computed.
+            **kwargs: Additional numpy.var parameters (e.g., axis, ddof).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Variance calculation requires:
-            - n FLOPs for mean calculation
-            - n subtractions from mean
-            - n multiplications for squaring
-            - (n-1) additions for sum
-            - 1 division for final result
-            Total: 4n FLOPs where n is the total number of elements
+            Variance computation:
+            - Each variance requires:
+                * n FLOPs for mean calculation
+                * n subtractions from mean
+                * n multiplications for squaring
+                * (n-1) additions for sum
+                * 1 division for final result
+            - Total FLOPs per variance = 4n
+            - For batched inputs, multiply by batch size
         """
         if not args:
-            return 0
+            return None
 
         array = args[0]
+        if not isinstance(array, np.ndarray):
+            return None
+
         n = np.size(array)
+        if n == 0:
+            return 0  # Empty array
+
+        # Mean calculation (n) + squared differences (2n) + sum (n-1) + division (1)
         return 4 * n
 
 
 class AverageOperation:
-    """FLOP count for average operation.
+    """Counts floating point operations (FLOPs) for average operations.
 
-    This class implements FLOP counting for numpy's average operation.
-    Supports both weighted and unweighted averages, with different
-    FLOP counts for each case.
+    Handles both weighted and unweighted average computations.
+    Supports single array, batched, and multi-dimensional inputs.
+
+    The average computation requires:
+    Unweighted:
+    - n additions for sum
+    - 1 division
+    Total: n + 1 FLOPs
+
+    Weighted:
+    - n multiplications for weights
+    - n additions for weighted sum
+    - 1 division by sum of weights
+    Total: 2n + 1 FLOPs
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for average operation.
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing average.
 
         Args:
-            *args: Input arrays (first argument is the array to compute average)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.average parameters.
+            *args: Input arrays where the first array contains the values
+                  to compute average. Must be at least 1D.
+            result: The resulting array from the average operation.
+                   Used to determine the number of averages computed.
+            **kwargs: Additional numpy.average parameters (e.g., weights, axis).
                      The 'weights' parameter affects the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Unweighted average requires:
-            - n additions for sum
-            - 1 division
-            Total: n + 1 FLOPs
-
-            Weighted average requires:
-            - n multiplications for weights
-            - n additions for weighted sum
-            - 1 division by sum of weights
-            Total: 2n + 1 FLOPs
-
-            where n is the total number of elements
+            Average computation:
+            - Unweighted average requires:
+                * n additions for sum
+                * 1 division
+            - Weighted average requires:
+                * n multiplications for weights
+                * n additions for weighted sum
+                * 1 division by sum of weights
+            - Total FLOPs per average = n + 1 (unweighted) or 2n + 1 (weighted)
+            - For batched inputs, multiply by batch size
         """
         if not args:
-            return 0
+            return None
 
         array = args[0]
-        weights = kwargs.get("weights", None)
-        n = np.size(array)
+        if not isinstance(array, np.ndarray):
+            return None
 
+        n = np.size(array)
+        if n == 0:
+            return 0  # Empty array
+
+        weights = kwargs.get("weights", None)
         if weights is not None:
-            return 2 * n + 1  # weighted sum (2n) + division (1)
+            # Weighted sum (2n) + division (1)
+            return 2 * n + 1
         else:
-            return n + 1  # sum (n) + division (1)
+            # Sum (n) + division (1)
+            return n + 1
 
 
 class MedianOperation:
-    """FLOP count for median operation.
+    """Counts floating point operations (FLOPs) for median operations.
 
-    This class implements FLOP counting for numpy's median operation.
-    Only floating-point operations are counted - specifically the addition
-    and division required when averaging the middle elements for even-length arrays.
-    Sorting operations are not counted as they involve comparisons rather
-    than floating-point operations.
+    Handles both single array and batched computations of medians.
+    Only counts floating-point operations, not comparison operations.
+
+    The median computation requires:
+    - For even-length arrays:
+        * 1 addition to sum middle elements
+        * 1 division to compute average
+    - For odd-length arrays:
+        * No floating-point operations (just selection)
+    Total: 2 FLOPs for even-length arrays, 0 for odd-length arrays
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for median operation.
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing median.
 
         Args:
-            *args: Input arrays (first argument is the array to compute median)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.median parameters.
-                     These currently don't affect the FLOP count.
+            *args: Input arrays where the first array contains the values
+                  to compute median. Must be at least 1D.
+            result: The resulting array from the median operation.
+                   Used to determine the number of medians computed.
+            **kwargs: Additional numpy.median parameters (e.g., axis, keepdims).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Median calculation only counts floating-point operations:
-            - 1 addition + 1 division if array length is even (to sum and average middle elements)
-            - 0 FLOPs if array length is odd (just selecting middle element)
-            - Sorting operations are not counted as they are comparisons, not FLOPs
+            Median computation:
+            - For even-length arrays:
+                * 1 addition to sum middle elements
+                * 1 division to compute average
+            - For odd-length arrays:
+                * No floating-point operations (just selection)
+            - Total FLOPs per median = 2 (even) or 0 (odd)
+            - For batched inputs, multiply by batch size
+            - Sorting operations are not counted as they are comparisons
         """
         if not args:
-            return 0
+            return None
 
         array = args[0]
+        if not isinstance(array, np.ndarray):
+            return None
+
         n = np.size(array)
         if n <= 1:
-            return 0
+            return 0  # Empty or single-element array
 
         # Count both addition and division FLOPs for even-length arrays
         return 2 if n % 2 == 0 else 0
