@@ -5,9 +5,11 @@ from typing import Any, Dict, Optional, Tuple, Type
 import numpy as np
 
 from .operations import (
+    AbsoluteOperation,
     Addition,
     ArccosOperation,
     ArcSineOperation,
+    ArcTangent2Operation,
     ArcTangentOperation,
     ArgmaxOperation,
     ArgminOperation,
@@ -16,24 +18,35 @@ from .operations import (
     BitwiseOrOperation,
     ClipOperation,
     CondOperation,
+    ConvolveOperation,
     CosineOperation,
     CrossOperation,
+    DegreesOperation,
+    DiffOperation,
     Division,
     EigOperation,
+    EinsumOperation,
+    ExponentialOperation,
     FloorDivideOperation,
+    InnerOperation,
     InvOperation,
     IsnanOperation,
+    LinspaceOperation,
     LogOperation,
     MatmulOperation,
     MaxOperation,
     MeanOperation,
+    MedianOperation,
     MinOperation,
     ModuloOperation,
     Multiplication,
     NormOperation,
+    OuterOperation,
     PowerOperation,
+    RadiansOperation,
     RoundOperation,
     SineOperation,
+    SolveOperation,
     StdOperation,
     Subtraction,
     SumOperation,
@@ -103,6 +116,7 @@ class OperationRegistry:
         registry = cls()
 
         # Register arithmetic operations
+        registry.register("absolute", AbsoluteOperation, method_name="abs")
         registry.register("add", Addition)
         registry.register("subtract", Subtraction)
         registry.register("multiply", Multiplication)
@@ -126,14 +140,28 @@ class OperationRegistry:
         registry.register("arcsin", ArcSineOperation)
         registry.register("arccos", ArccosOperation)
         registry.register("arctan", ArcTangentOperation)
+        registry.register("arctan2", ArcTangent2Operation)
+        registry.register("degrees", DegreesOperation)
+        registry.register("radians", RadiansOperation)
         registry.register("log", LogOperation)
+        registry.register("exp", ExponentialOperation)
 
         # Register array operations
         registry.register("clip", ClipOperation)
+        registry.register("convolve", ConvolveOperation)
+        registry.register("diff", DiffOperation)
+        registry.register("einsum", EinsumOperation)
+        registry.register("inner", InnerOperation)
+        registry.register("linspace", LinspaceOperation)
         registry.register("matmul", MatmulOperation)
+        registry.register("outer", OuterOperation)
         registry.register("dot", MatmulOperation, method_name="dot")
         registry.register("sum", SumOperation)
+        registry.register("nansum", SumOperation)
+        registry.register("ma.sum", SumOperation)
+        registry.register("ma.average", AverageOperation)
         registry.register("mean", MeanOperation)
+        registry.register("median", MedianOperation)
         registry.register("std", StdOperation)
         registry.register("var", VarOperation)
         registry.register("average", AverageOperation)
@@ -151,6 +179,7 @@ class OperationRegistry:
         registry.register("linalg.cond", CondOperation, module_path="linalg")
         registry.register("linalg.inv", InvOperation, module_path="linalg")
         registry.register("linalg.eig", EigOperation, module_path="linalg")
+        registry.register("linalg.solve", SolveOperation, module_path="linalg")
         registry.register("cross", CrossOperation)
 
         return registry
