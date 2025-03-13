@@ -7,6 +7,7 @@ __all__ = [
     "StdOperation",
     "VarOperation",
     "AverageOperation",
+    "MedianOperation",
 ]
 
 
@@ -164,3 +165,43 @@ class AverageOperation:
             return 2 * n + 1  # weighted sum (2n) + division (1)
         else:
             return n + 1  # sum (n) + division (1)
+
+
+class MedianOperation:
+    """FLOP count for median operation.
+
+    This class implements FLOP counting for numpy's median operation.
+    Only floating-point operations are counted - specifically the addition
+    and division required when averaging the middle elements for even-length arrays.
+    Sorting operations are not counted as they involve comparisons rather
+    than floating-point operations.
+    """
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for median operation.
+
+        Args:
+            *args: Input arrays (first argument is the array to compute median)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.median parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            Median calculation only counts floating-point operations:
+            - 1 addition + 1 division if array length is even (to sum and average middle elements)
+            - 0 FLOPs if array length is odd (just selecting middle element)
+            - Sorting operations are not counted as they are comparisons, not FLOPs
+        """
+        if not args:
+            return 0
+
+        array = args[0]
+        n = np.size(array)
+        if n <= 1:
+            return 0
+
+        # Count both addition and division FLOPs for even-length arrays
+        return 2 if n % 2 == 0 else 0
