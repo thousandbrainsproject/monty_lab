@@ -14,10 +14,9 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 `save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
 """
 
-import json
 import os
 from types import SimpleNamespace
-from typing import List, Mapping, Tuple, Union
+from typing import Iterable, List, Mapping, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,15 +33,10 @@ from data_utils import (
     load_object_model,
 )
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
-from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.cluster.hierarchy import dendrogram, linkage, set_link_color_palette
 from scipy.spatial.transform import Rotation as R
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
-from tbp.monty.frameworks.utils.logging_utils import (
-    deserialize_json_chunks,
-    get_pose_error,
-    load_stats,
-)
-from tbp.monty.frameworks.utils.plot_utils import plot_graph
+from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
 plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"
@@ -457,67 +451,196 @@ def plot_symmetry_objects():
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
         plt.close()
 
-def plot_dendrogram_and_confusion_matrix():
-    path = (
-        DMC_RESULTS_DIR
-        / "dist_agent_1lm_randrot_noise_10simobj/detailed_run_stats.json"
-    )
+
+"""
+Dendrogram and confusion matrix.
+"""
+
+
+def get_relative_evidence_matrices(modality: str) -> np.ndarray:
+    """Get relative evidence matrices for a set of objects.
+
+    Args:
+        objects (Iterable[str]): The objects to get the relative evidence matrices for.
+
+    Returns:
+        np.ndarray: A 3D array of shape (n_epochs, n_objects, n_objects), where each
+        matrix is the relative evidence matrix for the corresponding epoch.
+
+    TODO: Maybe hard-code `objects` to `SIMILAR_OBJECTS` when done developing.
+    """
+
+    assert modality in ["dist", "surf"]
+    exp_dir = DMC_RESULTS_DIR / f"{modality}_agent_1lm_randrot_noise_10simobj"
+    eval_stats = load_eval_stats(exp_dir / "eval_stats.csv")
+    detailed_stats = DetailedJSONStatsInterface(exp_dir / "detailed_run_stats.json")
+
+    # Generate a relative evidence matrix for each epoch.
+    all_objects = SIMILAR_OBJECTS
+    id_to_object = {i: obj for i, obj in enumerate(all_objects)}
+    object_to_id = {obj: i for i, obj in id_to_object.items()}
+    n_epochs = eval_stats.epoch.max() + 1
+
+    rel_evidence_matrices = np.zeros((n_epochs, len(all_objects), len(all_objects)))
+    for episode, stats in enumerate(detailed_stats):
+        max_evidences = stats["LM_0"]["max_evidences_ls"]
+        row = eval_stats.iloc[episode]
+        target_object = row.primary_target_object
+        if target_object not in all_objects:
+            continue
+        target_object_id = object_to_id[target_object]
+        target_evidence = max_evidences[target_object]
+        for object_id, object_name in id_to_object.items():
+            rel_evidence_matrices[row.epoch, target_object_id, object_id] = np.abs(
+                max_evidences[object_name] - target_evidence
+            )
+
+    return rel_evidence_matrices
+
+
+def plot_dendrogram_and_confusion_matrix(modality: str):
+    """Plot the dendrogram and confusion matrix."""
+    assert modality in ["dist", "surf"]
     out_dir = OUT_DIR / "object_similarity"
     out_dir.mkdir(parents=True, exist_ok=True)
-    detailed_stats = DetailedJSONStatsInterface(path)
 
     all_objects = SIMILAR_OBJECTS
     id_to_object = {i: obj for i, obj in enumerate(all_objects)}
     object_to_id = {obj: i for i, obj in id_to_object.items()}
-    n_objects = len(all_objects)
-    n_episodes = len(detailed_stats)
-    rel_obj_evidence_matrix = np.zeros((n_objects, n_objects))
-    # for episode, stats in enumerate(detailed_stats):
-    for episode in range(n_objects):
-        stats = detailed_stats[episode]
-        detected_object = stats["LM_0"]["current_mlh"][-1]["graph_id"]
-        detected_evidence = np.max(stats["LM_0"]["evidences_ls"][detected_object])
-        for object_id, object_name in id_to_object.items():
-            rel_obj_evidence_matrix[episode, object_id] = (
-                np.max(stats["LM_0"]["evidences_ls"][object_name]) - detected_evidence
-            )
 
-    sums = rel_obj_evidence_matrix.sum(axis=1, keepdims=1)
-    sums[sums == 0] = 1
-    rel_obj_evidence_matrix_normed = rel_obj_evidence_matrix / sums
+    rel_evidence_matrices = get_relative_evidence_matrices(modality)
+    rel_evidence_matrix = rel_evidence_matrices.mean(axis=0)
 
-    Z = linkage(rel_obj_evidence_matrix_normed, "average")
-    fig, ax = plt.subplots(figsize=(4, 3))
+    # Normalize the rows of the evidence matrix.
+    sums = rel_evidence_matrix.sum(axis=1, keepdims=True)
+    rel_evidence_matrix_normed = rel_evidence_matrix / sums
 
-    dn = dendrogram(Z, labels=all_objects)  # ,orientation='top',leaf_font_size=15)
-    plt.xticks(rotation=45, fontsize=8, ha="right")
-    plt.ylabel("Cluster Distance", fontsize=10)
+    # Average off-diagonal/symmetric pairs.
+    for i in range(rel_evidence_matrix_normed.shape[0]):
+        for j in range(i + 1, rel_evidence_matrix_normed.shape[1]):
+            upper = rel_evidence_matrix_normed[i, j]
+            lower = rel_evidence_matrix_normed[j, i]
+            avg_value = (upper + lower) / 2
+            rel_evidence_matrix_normed[i, j] = avg_value
+            rel_evidence_matrix_normed[j, i] = avg_value
+
+    # Plot dendrogram.
+    if modality == "dist":
+        permuted_names = [
+            "fork",
+            "knife",
+            "spoon",
+            "cracker_box",
+            "sugar_box",
+            "pudding_box",
+            "mug",
+            "e_cups",
+            "d_cups",
+            "c_cups",
+        ]
+    else:
+        permuted_names = [
+            "knife",
+            "fork",
+            "spoon",
+            "pudding_box",
+            "sugar_box",
+            "cracker_box",
+            "mug",
+            "e_cups",
+            "d_cups",
+            "c_cups",
+        ]
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    Z = linkage(rel_evidence_matrix_normed, optimal_ordering=True)
+    link_color_palette = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["purple"]]
+    set_link_color_palette(link_color_palette)
+    dendrogram(
+        Z,
+        labels=all_objects,
+        color_threshold=0.150,
+        above_threshold_color="black",
+        ax=ax,
+    )
+    xticklabels = ax.get_xticklabels()
+    ax.set_xticklabels(xticklabels, rotation=45, fontsize=8, ha="right")
+    ax.set_ylabel("Cluster Distance", fontsize=10)
     sns.despine(left=False, bottom=False, right=True)
     plt.tight_layout()
     plt.show()
-    fig.savefig(out_dir / "dendrogram.png", dpi=300)
-    fig.savefig(out_dir / "dendrogram.svg")
+    fig.savefig(out_dir / f"dendrogram_{modality}.png", dpi=300)
+    fig.savefig(out_dir / f"dendrogram_{modality}.svg")
 
-    rel_obj_evidence_df = pd.DataFrame(
-        rel_obj_evidence_matrix_normed, columns=all_objects
-    )
-    # %%
-    fig, ax = plt.subplots(figsize=(4, 3))
+    # Plot confusion matrix.
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    # Rearrange the evidence matrix to match the dendrogram. We want to
+    # keep clustered objects close to each other.
+    permuted_inds = [object_to_id[obj] for obj in permuted_names]
+    permuted_matrix = rel_evidence_matrix_normed[np.ix_(permuted_inds, permuted_inds)]
+    rel_evidence_df = pd.DataFrame(permuted_matrix, columns=permuted_names)
+    sns.heatmap(rel_evidence_df, cmap="inferno", ax=ax)
+    ax.set_xticks(np.arange(permuted_matrix.shape[0]) + 0.5)
+    ax.set_yticks(np.arange(permuted_matrix.shape[1]) + 0.5)
+    ax.set_yticklabels(permuted_names, rotation=0)
+    ax.set_xticklabels(permuted_names, rotation=45, ha="right")
+    ax.tick_params(axis="x", which="both", bottom=False, top=False)
+    ax.tick_params(axis="y", which="both", left=False, right=False)
     ax.set_aspect("equal")
-    # sns.heatmap(rel_obj_evidence_df, linewidths=.5, ax=ax,vmin=0,vmax=1,annot=False, linecolor='black', annot_kws={"size": 15})
-    sns.heatmap(rel_obj_evidence_df, ax=ax, cmap="inferno")
-    ax.set_xticks(np.arange(n_objects) + 0.5)
-    ax.set_yticks(np.arange(n_objects) + 0.5)
-    ax.set_yticklabels(all_objects, rotation=0)
-    ax.set_xticklabels(all_objects, rotation=45, ha="right")
-
-    # cbar = ax.collections[0].colorbar
-    # cbar.ax.tick_params(labelsize=15)
-    # cbar.set_label(
-    #     "Evidence rel. Target (Normalized)", rotation=270, labelpad=20, fontsize=18
-    # )
+    cbar = ax.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=8)
+    cbar.set_label(
+        "Evidence rel. Target (Normalized)", rotation=270, labelpad=20, fontsize=10
+    )
     plt.tight_layout()
     plt.show()
-    fig.savefig(out_dir / "confusion_matrix.png", dpi=300)
-    fig.savefig(out_dir / "confusion_matrix.svg")
-    # %%
+    fig.savefig(out_dir / f"confusion_matrix_{modality}.png", dpi=300)
+    fig.savefig(out_dir / f"confusion_matrix_{modality}.svg")
+
+
+def plot_similar_object_models(modality: str):
+    assert modality in ["dist", "surf"]
+    """Plot the models of similar objects."""
+    all_objects = SIMILAR_OBJECTS
+    fig, axes = plt.subplots(2, 5, figsize=(7.5, 4), subplot_kw={"projection": "3d"})
+    plot_params = {
+        "mug": dict(elev=30, azim=-60, roll=0),
+        "e_cups": dict(elev=30, azim=-60, roll=0),
+        "fork": dict(elev=60, azim=-40, roll=0),
+        "knife": dict(elev=60, azim=-40, roll=0),
+        "spoon": dict(elev=60, azim=-40, roll=0),
+        "c_cups": dict(elev=30, azim=-30, roll=0),
+        "d_cups": dict(elev=30, azim=-30, roll=0),
+        "cracker_box": dict(elev=30, azim=-30, roll=0),
+        "sugar_box": dict(elev=30, azim=-30, roll=0),
+        "pudding_box": dict(elev=35, azim=-30, roll=0),
+    }
+    for i, ax in enumerate(axes.flatten()):
+        object_name = all_objects[i]
+        model = load_object_model(f"{modality}_agent_1lm", object_name)
+        model = model.rotated(R.from_euler("xyz", [90, 0, 0], degrees=True))
+        ax.scatter(
+            model.x,
+            model.y,
+            model.z,
+            color=model.rgba,
+            alpha=0.5,
+            edgecolors="none",
+            s=10,
+        )
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.set_proj_type("persp", focal_length=1)
+        params = plot_params[object_name]
+        ax.set_title(object_name)
+        ax.view_init(elev=params["elev"], azim=params["azim"], roll=params["roll"])
+    plt.show()
+    fig.savefig(OUT_DIR / f"object_models_{modality}.png", dpi=300)
+    fig.savefig(OUT_DIR / f"object_models_{modality}.svg")
+
+
+plot_dendrogram_and_confusion_matrix("dist")
+plot_dendrogram_and_confusion_matrix("surf")
+plot_similar_object_models("dist")
+plot_similar_object_models("surf")

@@ -919,6 +919,4 @@ def plot_performance_multi_lm_het():
     fig.savefig(out_dir / "performance_multi_lm_het.svg")
 
 
-plot_performance_1lm()
-plot_performance_multi_lm_hom()
-plot_performance_multi_lm_het()
+
