@@ -192,9 +192,7 @@ class LinspaceOperation:
     DIVS_PER_LINSPACE = 1  # Number of divisions per linspace
     ADDS_PER_ELEMENT = 1  # Number of additions per element (except first)
 
-    def count_flops(
-        self, *args: Any, result: np.ndarray, **kwargs: Any
-    ) -> Optional[int]:
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> Optional[int]:
         """Counts the floating point operations (FLOPs) for linspace operations.
 
         Args:
@@ -202,6 +200,7 @@ class LinspaceOperation:
                   The actual values don't affect the FLOP count.
             result: The resulting array from the linspace operation.
                    Used to determine the number of points generated.
+                   Can be either a numpy array or a tuple containing (array, step).
             **kwargs: Additional keyword arguments that match numpy.linspace parameters.
                      These currently don't affect the FLOP count.
 
@@ -216,6 +215,10 @@ class LinspaceOperation:
             - (n-1) additions to generate the sequence
             Total: 2 + (n-1) FLOPs where n is the number of points
         """
+        # Handle both array and tuple results (from retstep=True)
+        if isinstance(result, tuple):
+            result = result[0]  # Get the array part of the result
+
         if not isinstance(result, np.ndarray):
             return None
 

@@ -65,4 +65,4 @@ def test_linspace_large_array():
         assert len(result) == 1000
         assert result[0] == 0.0
         assert result[-1] == 1.0
-        assert np.all(np.diff(result) == 1 / 999)  # Check uniform spacing
+        np.testing.assert_allclose(np.diff(result), 1 / 999)  # Check uniform spacing
