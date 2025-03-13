@@ -9,6 +9,9 @@ __all__ = [
     "ArcSineOperation",
     "ArccosOperation",
     "ArcTangentOperation",
+    "ArcTangent2Operation",
+    "DegreesOperation",
+    "RadiansOperation",
 ]
 
 class SineOperation:
@@ -309,3 +312,110 @@ class ArcTangentOperation:
         # Handle both scalar and array inputs
         num_elements = 1 if np.isscalar(result) else np.size(result)
         return self.FLOPS_PER_ELEMENT * num_elements
+
+
+class ArcTangent2Operation:
+    """Counts floating point operations (FLOPs) for two-argument inverse tangent operations.
+
+    Each element-wise arctan2 operation counts as 40 FLOPs, based on implementation
+    that handles quadrant determination and special cases. Supports standard NumPy
+    broadcasting rules for input arrays.
+    """
+
+    # Constants for the arctan2 operation
+    FLOPS_PER_ELEMENT = 40  # FLOPs for one arctan2 calculation
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for arctan2 operations.
+
+        Args:
+            *args: Tuple[np.ndarray, ...], Input arrays (y, x) to compute arctan2.
+            result: np.ndarray or scalar, The resulting array or value from the arctan2 operation.
+                   Used to determine the total number of operations.
+            **kwargs: Additional numpy.arctan2 parameters (e.g., out).
+                     These do not affect the FLOP count.
+
+        Returns:
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
+
+        Note:
+            Arctan2 computation breakdown per element:
+            1. Division and sign handling: 5 FLOPs
+               - Division operation (y/x): 1 FLOP
+               - Sign checks and comparisons: 4 FLOPs
+            2. Basic arctangent computation: 20 FLOPs
+            3. Quadrant determination and π adjustments: 8 FLOPs
+               - Multiplications/additions with π: 3 FLOPs
+               - Additional comparisons and adjustments: 5 FLOPs
+            4. Special case handling (x=0, y=0): 7 FLOPs
+               - Additional comparisons: 3 FLOPs
+               - Conditional operations: 4 FLOPs
+
+            Total: 40 FLOPs per element
+        """
+        # Handle both scalar and array inputs
+        num_elements = 1 if np.isscalar(result) else np.size(result)
+        return self.FLOPS_PER_ELEMENT * num_elements
+
+
+class DegreesOperation:
+    """FLOP count for degrees conversion operation.
+
+    This class implements FLOP counting for numpy's degrees operation,
+    which converts angles from radians to degrees by multiplying by 180/π.
+    """
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for degrees conversion.
+
+        Args:
+            *args: Input arrays (first argument is the array to convert)
+            result: The result array
+            **kwargs: Additional keyword arguments (not used)
+
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            Degrees conversion requires:
+            - 1 multiplication per element (by 180/π)
+            Total: n FLOPs where n is the total number of elements
+        """
+        if not args:
+            return 0
+
+        array = args[0]
+        return np.size(array)  # one multiplication per element
+
+
+class RadiansOperation:
+    """FLOP count for radians conversion operation.
+
+    This class implements FLOP counting for numpy's radians operation,
+    which converts angles from degrees to radians by multiplying by π/180.
+    """
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for radians conversion.
+
+        Args:
+            *args: Input arrays (first argument is the array to convert)
+            result: The result array
+            **kwargs: Additional keyword arguments (not used)
+
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            Radians conversion requires:
+            - 1 multiplication per element (by π/180)
+            Total: n FLOPs where n is the total number of elements
+        """
+        if not args:
+            return 0
+
+        array = args[0]
+        return np.size(array)  # one multiplication per element
