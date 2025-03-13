@@ -4,9 +4,34 @@ from typing import Any
 import numpy as np
 
 __all__ = [
+    "ExponentialOperation",
     "LogOperation",
     "PowerOperation",
 ]
+
+
+class ExponentialOperation:
+    """FLOP count for exponential operation."""
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for exponential operation.
+
+        Each exponential typically requires ~20 FLOPs depending on the implementation
+        and desired precision. Common implementations use series expansions that
+        involve multiple multiplications and additions.
+        We use a conservative estimate of 20 FLOPs per exponential.
+
+        Args:
+            *args: Input arguments to the operation
+            result: Result of the operation
+
+        Returns:
+            Number of FLOPs
+        """
+        # Handle Python scalars by checking the first argument
+        if np.isscalar(args[0]) and not isinstance(args[0], np.ndarray):
+            return 20
+        return 20 * np.size(result)
 
 
 class LogOperation:
