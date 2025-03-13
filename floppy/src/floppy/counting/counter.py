@@ -157,7 +157,6 @@ class FlopCounter(ContextDecorator):
 
     def __init__(
         self,
-        test_mode=False,
         log_manager: Optional[LogManager] = None,
         skip_paths: Optional[List[str]] = None,
         include_paths: Optional[List[str]] = None,
@@ -165,7 +164,6 @@ class FlopCounter(ContextDecorator):
         self.flops = 0
         self._is_active = False
         self.log_manager = log_manager
-        self.test_mode = test_mode
         self.skip_paths = skip_paths if skip_paths is not None else []
         self.include_paths = include_paths if include_paths is not None else []
         self._original_array_func = None
