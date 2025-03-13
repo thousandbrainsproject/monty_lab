@@ -402,10 +402,9 @@ class DegreesOperation:
             return 0
 
         array = args[0]
-        if not isinstance(array, np.ndarray):
-            return None
-
-        return self.MULTS_PER_ELEMENT * np.size(array)
+        # Handle both scalar and array inputs
+        num_elements = 1 if np.isscalar(array) else np.size(array)
+        return self.MULTS_PER_ELEMENT * num_elements
 
 
 class RadiansOperation:
@@ -449,7 +448,6 @@ class RadiansOperation:
             return 0
 
         array = args[0]
-        if not isinstance(array, np.ndarray):
-            return None
-
-        return self.MULTS_PER_ELEMENT * np.size(array)
+        # Handle both scalar and array inputs
+        num_elements = 1 if np.isscalar(array) else np.size(array)
+        return self.MULTS_PER_ELEMENT * num_elements
