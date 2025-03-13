@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -39,9 +39,9 @@ class CrossOperation:
         """Returns the number of floating point operations for computing vector cross products.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays where each array contains vectors
+            *args: Input arrays where each array contains vectors
                   to compute cross product. Typically two 3D vectors.
-            result: np.ndarray, The resulting array from the cross product operation.
+            result: The resulting array from the cross product operation.
                    Used to determine the number of cross products computed.
             **kwargs: Additional numpy.cross parameters (e.g., axis, out).
                      These do not affect the FLOP count.
@@ -500,7 +500,7 @@ class EinsumOperation:
     The FLOP count depends on the einsum equation and input array shapes.
     """
 
-    def _parse_subscripts(self, subscripts: str) -> tuple[str, list[str], str]:
+    def _parse_subscripts(self, subscripts: str) -> Tuple[str, List[str], str]:
         """Parse einsum subscripts into input and output specifications.
 
         Args:
@@ -525,7 +525,7 @@ class EinsumOperation:
         return full, input_specs, output_spec
 
     def _compute_intermediate_size(
-        self, spec_chars: str, shapes: list[tuple[int, ...]]
+        self, spec_chars: str, shapes: List[Tuple[int, ...]]
     ) -> int:
         """Compute size of intermediate result for a set of dimensions.
 

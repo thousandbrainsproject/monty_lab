@@ -7,7 +7,6 @@ __all__ = [
     "Subtraction",
     "Multiplication",
     "Division",
-    "FloorDivideOperation",
     "ModuloOperation",
     "LinspaceOperation",
     "AbsoluteOperation",

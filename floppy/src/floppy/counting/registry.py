@@ -76,6 +76,8 @@ class OperationRegistry:
         # Determine the module and attribute for the function
         if module_path == "linalg":
             self._module_locations[ufunc_name] = (np.linalg, ufunc_name.split(".")[-1])
+        elif module_path == "ma":
+            self._module_locations[ufunc_name] = (np.ma, ufunc_name.split(".")[-1])
         else:
             self._module_locations[ufunc_name] = (np, ufunc_name)
 
@@ -141,8 +143,8 @@ class OperationRegistry:
         registry.register("dot", MatmulOperation, method_name="dot")
         registry.register("sum", SumOperation)
         registry.register("nansum", SumOperation)
-        registry.register("ma.sum", SumOperation)
-        registry.register("ma.average", AverageOperation)
+        registry.register("ma.sum", SumOperation, module_path="ma")
+        registry.register("ma.average", AverageOperation, module_path="ma")
         registry.register("mean", MeanOperation)
         registry.register("median", MedianOperation)
         registry.register("std", StdOperation)
