@@ -1,17 +1,8 @@
 import numpy as np
 import pytest
 
-from floppy.counting.counter import FlopCounter, TrackedArray
+from floppy.counting.counter import FlopCounter
 
-# TODO: Add test for fractional exponents
-# TODO: Add test for negative exponents
-# TODO: Add more tests for broadcasting
-# TODO: Add more test for square (or separate in a new file)
-# TODO: Find other "special" power cases
-# - square - for power of 2
-# - reciprocal - for power of -1
-# - cbrt - for power of 1/3
-# - sqrt - for power of 1/2
 
 def test_power_operator_syntax():
     counter = FlopCounter()
@@ -67,6 +58,7 @@ def test_square():
         assert counter.flops == 3  # One multiplication per element
         np.testing.assert_allclose(result, np.array([1, 4, 9]))
 
+
 def test_square_2():
     # test np.square()
     counter = FlopCounter()
@@ -75,6 +67,7 @@ def test_square_2():
         result = np.square(a)
         assert counter.flops == 3  # One multiplication per element
         np.testing.assert_allclose(result, np.array([1, 4, 9]))
+
 
 def test_sqrt():
     """Test square root operation (power of 0.5)."""
@@ -136,3 +129,21 @@ def test_power_broadcasting():
         result = b**a
         assert counter.flops == 120
         np.testing.assert_allclose(result, np.array([2, 4, 8]))
+
+    counter.flops = 0
+    with counter:
+        a = np.array([1, 2, 3])
+        b = 2
+        result = a**b
+        assert counter.flops == 3  # Uses square optimization
+        np.testing.assert_allclose(result, np.array([1, 4, 9]))
+
+
+def test_power_empty_arrays():
+    counter = FlopCounter()
+    with counter:
+        a = np.array([])
+        b = np.array([])
+        result = a**b
+        assert counter.flops == 0
+        assert len(result) == 0
