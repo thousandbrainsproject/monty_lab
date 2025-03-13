@@ -31,9 +31,9 @@ class SineOperation:
         """Returns the number of floating point operations for sine operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays to compute sine.
+            *args: Input arrays to compute sine.
                   Typically a single array of angles in radians.
-            result: np.ndarray or scalar, The resulting array or value from the sine operation.
+            result: The resulting array or value from the sine operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.sin parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -80,9 +80,9 @@ class CosineOperation:
         """Returns the number of floating point operations for cosine operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays to compute cosine.
+            *args: Input arrays to compute cosine.
                   Typically a single array of angles in radians.
-            result: np.ndarray or scalar, The resulting array or value from the cosine operation.
+            result: The resulting array or value from the cosine operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.cos parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -129,9 +129,9 @@ class TangentOperation:
         """Returns the number of floating point operations for tangent operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays to compute tangent.
+            *args: Input arrays to compute tangent.
                   Typically a single array of angles in radians.
-            result: np.ndarray or scalar, The resulting array or value from the tangent operation.
+            result: The resulting array or value from the tangent operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.tan parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -178,9 +178,9 @@ class ArcSineOperation:
         """Returns the number of floating point operations for arcsine operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays to compute arcsine.
+            *args: Input arrays to compute arcsine.
                   Typically a single array of values in [-1, 1].
-            result: np.ndarray or scalar, The resulting array or value from the arcsine operation.
+            result: The resulting array or value from the arcsine operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.arcsin parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -229,9 +229,9 @@ class ArccosOperation:
         """Returns the number of floating point operations for arccos operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays to compute arccos.
+            *args: Input arrays to compute arccos.
                   Typically a single array of values in [-1, 1].
-            result: np.ndarray or scalar, The resulting array or value from the arccos operation.
+            result: The resulting array or value from the arccos operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.arccos parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -282,9 +282,9 @@ class ArcTangentOperation:
         """Returns the number of floating point operations for arctangent operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays to compute arctangent.
+            *args: Input arrays to compute arctangent.
                   Typically a single array of values.
-            result: np.ndarray or scalar, The resulting array or value from the arctangent operation.
+            result: The resulting array or value from the arctangent operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.arctan parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -331,8 +331,8 @@ class ArcTangent2Operation:
         """Returns the number of floating point operations for arctan2 operations.
 
         Args:
-            *args: Tuple[np.ndarray, ...], Input arrays (y, x) to compute arctan2.
-            result: np.ndarray or scalar, The resulting array or value from the arctan2 operation.
+            *args: Input arrays (y, x) to compute arctan2.
+            result: The resulting array or value from the arctan2 operation.
                    Used to determine the total number of operations.
             **kwargs: Additional numpy.arctan2 parameters (e.g., out).
                      These do not affect the FLOP count.
@@ -362,60 +362,94 @@ class ArcTangent2Operation:
 
 
 class DegreesOperation:
-    """FLOP count for degrees conversion operation.
+    """Counts floating point operations (FLOPs) for angle conversion from radians to degrees.
 
-    This class implements FLOP counting for numpy's degrees operation,
-    which converts angles from radians to degrees by multiplying by 180/π.
+    Handles conversion of angles from radians to degrees by multiplying by 180/π.
+    Supports both scalar and array inputs with standard NumPy broadcasting rules.
+
+    The conversion requires:
+    - One multiplication per element (by 180/π)
+    Total: n FLOPs where n is the total number of elements
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for degrees conversion.
+    # Constants for the degrees conversion operation
+    MULTS_PER_ELEMENT = 1  # Number of multiplications per element
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for converting radians to degrees.
 
         Args:
-            *args: Input arrays (first argument is the array to convert)
-            result: The result array
-            **kwargs: Additional keyword arguments (not used)
+            *args: Input arrays where the first array contains angles in radians.
+                  Must be compatible with NumPy broadcasting rules.
+            result: The resulting array from the degrees conversion operation.
+                   Used to determine the number of elements converted.
+            **kwargs: Additional numpy.degrees parameters (e.g., out).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Degrees conversion requires:
-            - 1 multiplication per element (by 180/π)
-            Total: n FLOPs where n is the total number of elements
+            Degrees conversion computation:
+            - Each element requires one multiplication (by 180/π)
+            - Total FLOPs = number_of_elements
+            - Supports broadcasting for batched operations
         """
         if not args:
             return 0
 
         array = args[0]
-        return np.size(array)  # one multiplication per element
+        if not isinstance(array, np.ndarray):
+            return None
+
+        return self.MULTS_PER_ELEMENT * np.size(array)
 
 
 class RadiansOperation:
-    """FLOP count for radians conversion operation.
+    """Counts floating point operations (FLOPs) for angle conversion from degrees to radians.
 
-    This class implements FLOP counting for numpy's radians operation,
-    which converts angles from degrees to radians by multiplying by π/180.
+    Handles conversion of angles from degrees to radians by multiplying by π/180.
+    Supports both scalar and array inputs with standard NumPy broadcasting rules.
+
+    The conversion requires:
+    - One multiplication per element (by π/180)
+    Total: n FLOPs where n is the total number of elements
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for radians conversion.
+    # Constants for the radians conversion operation
+    MULTS_PER_ELEMENT = 1  # Number of multiplications per element
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for converting degrees to radians.
 
         Args:
-            *args: Input arrays (first argument is the array to convert)
-            result: The result array
-            **kwargs: Additional keyword arguments (not used)
+            *args: Input arrays where the first array contains angles in degrees.
+                  Must be compatible with NumPy broadcasting rules.
+            result: The resulting array from the radians conversion operation.
+                   Used to determine the number of elements converted.
+            **kwargs: Additional numpy.radians parameters (e.g., out).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            Radians conversion requires:
-            - 1 multiplication per element (by π/180)
-            Total: n FLOPs where n is the total number of elements
+            Radians conversion computation:
+            - Each element requires one multiplication (by π/180)
+            - Total FLOPs = number_of_elements
+            - Supports broadcasting for batched operations
         """
         if not args:
             return 0
 
         array = args[0]
-        return np.size(array)  # one multiplication per element
+        if not isinstance(array, np.ndarray):
+            return None
+
+        return self.MULTS_PER_ELEMENT * np.size(array)
