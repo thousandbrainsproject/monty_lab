@@ -1,5 +1,5 @@
 import inspect
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -11,72 +11,147 @@ __all__ = [
 
 
 class ExponentialOperation:
-    """FLOP count for exponential operation."""
+    """Counts floating point operations (FLOPs) for exponential operations.
 
-    def count_flops(self, *args: Any, result: Any) -> int:
-        """Count FLOPs for exponential operation.
+    Handles both scalar and array exponential operations. Each exponential operation
+    typically requires multiple FLOPs due to the series expansion or iterative methods
+    used in its implementation. The operation is counted as 20 FLOPs per element,
+    which is a conservative estimate based on common implementations.
 
-        Each exponential typically requires ~20 FLOPs depending on the implementation
-        and desired precision. Common implementations use series expansions that
-        involve multiple multiplications and additions.
-        We use a conservative estimate of 20 FLOPs per exponential.
+
+    """
+
+    # Constants for the exponential operation
+    FLOPS_PER_EXP = 20  # Conservative estimate of FLOPs per exponential
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> Optional[int]:
+        """Counts the floating point operations (FLOPs) for exponential operations.
 
         Args:
-            *args: Input arguments to the operation
-            result: Result of the operation
+            *args: Variable length argument list containing the input operand.
+                  Can be a scalar or numpy array.
+            result: The result of the exponential operation, used to determine the
+                   final shape after broadcasting.
+            **kwargs: Additional keyword arguments that match numpy.exp parameters.
+                     These currently don't affect the FLOP count.
 
         Returns:
-            Number of FLOPs
+            Optional[int]: The total number of FLOPs performed in the operation.
+                         Returns None if operation cannot be performed.
+                         Calculated as FLOPS_PER_EXP * size(result) where each element requires:
+                         - Series expansion or iterative method computations (~20 FLOPs)
+
+        Note:
+            The FLOP count is based on common implementations that use series expansions
+            or iterative methods. The actual number of FLOPs may vary depending on the
+            implementation and desired precision, but 20 FLOPs is a conservative estimate
+            that covers most practical cases.
         """
         # Handle Python scalars by checking the first argument
         if np.isscalar(args[0]) and not isinstance(args[0], np.ndarray):
-            return 20
-        return 20 * np.size(result)
+            return self.FLOPS_PER_EXP
+        return self.FLOPS_PER_EXP * np.size(result)
 
 
 class LogOperation:
-    """FLOP count for logarithm operation."""
+    """Counts floating point operations (FLOPs) for logarithm operations.
 
-    def count_flops(self, *args: Any, result: Any) -> int:
-        """Count FLOPs for logarithm operation.
+    Handles both scalar and array logarithm operations. Each logarithm operation
+    typically requires multiple FLOPs due to the series expansion or iterative methods
+    used in its implementation. The operation is counted as 20 FLOPs per element,
+    which is a conservative estimate based on common implementations.
 
-        Each logarithm typically requires ~20-30 FLOPs depending on the implementation
-        and desired precision. Common implementations use series expansions or
-        iterative methods that involve multiple multiplications and divisions.
-        We use a conservative estimate of 20 FLOPs per logarithm.
+    """
+
+    # Constants for the logarithm operation
+    FLOPS_PER_LOG = 20  # Conservative estimate of FLOPs per logarithm
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> Optional[int]:
+        """Counts the floating point operations (FLOPs) for logarithm operations.
 
         Args:
-            *args: Input arguments to the operation
-            result: Result of the operation
+            *args: Variable length argument list containing the input operand.
+                  Can be a scalar or numpy array.
+            result: The result of the logarithm operation, used to determine the
+                   final shape after broadcasting.
+            **kwargs: Additional keyword arguments that match numpy.log parameters.
+                     These currently don't affect the FLOP count.
 
         Returns:
-            Number of FLOPs
+            Optional[int]: The total number of FLOPs performed in the operation.
+                         Returns None if operation cannot be performed.
+                         Calculated as FLOPS_PER_LOG * size(result) where each element requires:
+                         - Series expansion or iterative method computations (~20 FLOPs)
+
+        Note:
+            The FLOP count is based on common implementations that use series expansions
+            or iterative methods. The actual number of FLOPs may vary depending on the
+            implementation and desired precision, but 20 FLOPs is a conservative estimate
+            that covers most practical cases.
         """
         # Handle Python scalars by checking the first argument
         if np.isscalar(args[0]) and not isinstance(args[0], np.ndarray):
-            return 20
-        return 20 * np.size(result)
+            return self.FLOPS_PER_LOG
+        return self.FLOPS_PER_LOG * np.size(result)
 
 
-# All operations now handled
 class PowerOperation:
-    """FLOP count for power operation."""
+    """Counts floating point operations (FLOPs) for power operations.
 
-    def count_flops(self, *args: Any, result: Any) -> int:
-        """Count FLOPs for power operation.
+    Handles various types of power operations including integer powers, square roots,
+    cube roots, reciprocals, and general fractional powers. The FLOP count varies
+    significantly based on the type of power operation being performed.
 
-        FLOP count depends on the exponent:
-        - For integer exponents > 0: Uses repeated multiplication, requiring (exponent-1) FLOPs
-        - For integer exponent = 0: No FLOPs (just returns 1)
-        - For integer exponent < 0: Same as positive + 1 division
-        - For sqrt operations: Uses ~20 FLOPs (specialized sqrt algorithm)
-        - For cbrt operations: Uses ~25 FLOPs (specialized cube root algorithm)
-        - For reciprocal operations: Uses 1 FLOP (single division)
-        - For other fractional exponents: Uses logarithm (~20 FLOPs) and exponential (~20 FLOPs), total ~40 FLOPs
+    Example shapes:
+        Integer power: base ** integer -> same shape as base
+        Square root: sqrt(array) -> same shape as array
+        Cube root: cbrt(array) -> same shape as array
+        Reciprocal: 1/array -> same shape as array
+        Fractional power: base ** fraction -> same shape as base
+    """
+
+    # Constants for different types of power operations
+    FLOPS_PER_SQRT = 20  # Specialized square root algorithm
+    FLOPS_PER_CBRT = 25  # Specialized cube root algorithm
+    FLOPS_PER_RECIPROCAL = 1  # Single division operation
+    FLOPS_PER_FRACTIONAL = 40  # Logarithm + exponential for fractional powers
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> Optional[int]:
+        """Counts the floating point operations (FLOPs) for power operations.
+
+        The FLOP count depends on the type of power operation:
+        - Integer powers > 0: Uses repeated multiplication (exponent-1 FLOPs)
+        - Integer power = 0: No FLOPs (returns 1)
+        - Integer power < 0: Same as positive + 1 division
+        - Square root: Uses specialized sqrt algorithm (~20 FLOPs)
+        - Cube root: Uses specialized cube root algorithm (~25 FLOPs)
+        - Reciprocal: Single division operation (1 FLOP)
+        - Other fractional powers: Uses logarithm (~20 FLOPs) and exponential (~20 FLOPs)
 
         Args:
-            args: (base, exponent) or just (base) for square/sqrt/cbrt/reciprocal operations
-            result: Result of the operation
+            *args: Variable length argument list containing:
+                  - For regular power: (base, exponent)
+                  - For special operations: (base) where the operation type is determined
+                    from the calling function name (sqrt, cbrt, reciprocal, square)
+            result: The result of the power operation, used to determine the
+                   final shape after broadcasting.
+            **kwargs: Additional keyword arguments that match numpy power operation parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            Optional[int]: The total number of FLOPs performed in the operation.
+                         Returns None if operation cannot be performed.
+                         Calculated as flops_per_element * size(result) where flops_per_element
+                         depends on the type of power operation.
+
+        Note:
+            The operation type is determined by:
+            1. The number of arguments (1 or 2)
+            2. The calling function name (for special operations)
+            3. The type and value of the exponent (for regular power operations)
+
+            The FLOP counts are based on common implementations and may vary depending
+            on the specific implementation and desired precision.
         """
         # Get the operation name from the stack
         frame = inspect.currentframe()
@@ -117,17 +192,15 @@ class PowerOperation:
                 if exponent < 0:
                     flops_per_element += 1  # Additional division for negative exponents
             elif exponent == 0.5:  # sqrt case
-                flops_per_element = 20  # Specialized sqrt algorithm
+                flops_per_element = self.FLOPS_PER_SQRT
             elif exponent == 1 / 3:  # cbrt case
-                flops_per_element = 25  # Specialized cube root algorithm
+                flops_per_element = self.FLOPS_PER_CBRT
             elif exponent == -1:  # reciprocal case
-                flops_per_element = 1  # Single division
+                flops_per_element = self.FLOPS_PER_RECIPROCAL
             else:
-                flops_per_element = (
-                    40  # Approximate FLOPs for other fractional exponents
-                )
+                flops_per_element = self.FLOPS_PER_FRACTIONAL
         else:
             # If exponent is an array, use worst case (fractional exponent)
-            flops_per_element = 40
+            flops_per_element = self.FLOPS_PER_FRACTIONAL
 
         return n * flops_per_element
