@@ -67,6 +67,14 @@ def test_square():
         assert counter.flops == 3  # One multiplication per element
         np.testing.assert_array_equal(result, np.array([1, 4, 9]))
 
+def test_square_2():
+    # test np.square()
+    counter = FlopCounter(test_mode=True)
+    with counter:
+        a = np.array([1, 2, 3])
+        result = np.square(a)
+        assert counter.flops == 3  # One multiplication per element
+        np.testing.assert_array_equal(result, np.array([1, 4, 9]))
 
 def test_sqrt():
     """Test square root operation (power of 0.5)."""
