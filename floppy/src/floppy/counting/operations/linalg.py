@@ -10,6 +10,10 @@ __all__ = [
     "CondOperation",
     "InvOperation",
     "EigOperation",
+    "OuterOperation",
+    "InnerOperation",
+    "EinsumOperation",
+    "SolveOperation",
 ]
 
 class CrossOperation:
@@ -432,3 +436,235 @@ class EigOperation:
         """
         n = args[0].shape[0]
         return 30 * n**3
+
+
+class OuterOperation:
+    """FLOP count for outer product operation."""
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for outer product operation.
+
+        For vectors a (M,) and b (N,), outer product creates an (M,N) matrix
+        where each element is a multiplication: result[i,j] = a[i] * b[j]
+
+        Args:
+            *args: Input arrays (two vectors)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.outer parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of multiplication operations (M * N)
+        """
+        return np.size(
+            result
+        )  # Size of result is M * N, one multiplication per element
+
+
+class InnerOperation:
+    """FLOP count for inner product operation."""
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for inner product operation.
+
+        For vectors a (M,) and b (M,), inner product performs:
+        - M multiplications (one per element pair)
+        - M-1 additions to sum up the products
+
+        For arrays with more dimensions, this is done over the last axis.
+
+        Args:
+            *args: Input arrays
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.inner parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of floating point operations
+        """
+        a, b = args[0], args[1]
+        inner_dim = a.shape[
+            -1
+        ]  # Size of the last axis over which inner product is computed
+        result_size = np.size(result)  # Number of inner products computed
+
+        # Each inner product requires inner_dim multiplications and (inner_dim - 1) additions
+        flops_per_inner = 2 * inner_dim - 1
+        return flops_per_inner * result_size
+
+
+class EinsumOperation:
+    """FLOP count for einsum operation.
+
+    This class implements FLOP counting for numpy's einsum operation.
+    The FLOP count depends on the einsum equation and input array shapes.
+    """
+
+    def _parse_subscripts(self, subscripts: str) -> tuple[str, list[str], str]:
+        """Parse einsum subscripts into input and output specifications.
+
+        Args:
+            subscripts: The einsum equation string (e.g., "ij,jk->ik")
+
+        Returns:
+            Tuple of (full_subscript, input_specs, output_spec)
+        """
+        # Split into input and output
+        full = subscripts.replace(" ", "")
+        input_output = full.split("->")
+
+        if len(input_output) == 1:
+            input_spec = input_output[0]
+            output_spec = ""  # Implicit output
+        else:
+            input_spec, output_spec = input_output
+
+        # Split input specs
+        input_specs = input_spec.split(",")
+
+        return full, input_specs, output_spec
+
+    def _compute_intermediate_size(
+        self, spec_chars: str, shapes: list[tuple[int, ...]]
+    ) -> int:
+        """Compute size of intermediate result for a set of dimensions.
+
+        Args:
+            spec_chars: String of dimension characters
+            shapes: List of input array shapes
+
+        Returns:
+            Product of unique dimension sizes
+        """
+        # Map each dimension character to its size
+        dim_sizes = {}
+        for shape, spec in zip(shapes, spec_chars):
+            for size, dim in zip(shape, spec):
+                if dim in dim_sizes:
+                    assert dim_sizes[dim] == size, (
+                        f"Inconsistent sizes for dimension {dim}"
+                    )
+                else:
+                    dim_sizes[dim] = size
+
+        # Compute product of all unique dimensions
+        size = 1
+        for dim in set(spec_chars):
+            size *= dim_sizes[dim]
+        return size
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for einsum operation.
+
+        Args:
+            *args: First arg is subscripts string, followed by input arrays
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.einsum parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            For each element in the output:
+            - One multiplication per input array (except the first)
+            - One addition per iteration (except the first)
+
+            Example: "ij,jk->ik" with shapes (M,N) and (N,K)
+            - Output shape: (M,K)
+            - For each M,K element: N multiplications and N-1 additions
+            Total: M*K*N*2 - M*K FLOPs
+        """
+        if len(args) < 2:
+            return 0
+
+        subscripts = args[0]
+        arrays = args[1:]
+        shapes = [np.shape(arr) for arr in arrays]
+
+        # Parse the einsum specification
+        full, input_specs, output_spec = self._parse_subscripts(subscripts)
+
+        # Special case for trace-like operations (e.g., "ii->")
+        if len(input_specs) == 1 and len(set(input_specs[0])) < len(input_specs[0]):
+            # Just need to sum along diagonal - similar to trace
+            n = shapes[0][0]  # Size of the diagonal
+            return n - 1  # n-1 additions
+
+        # For matrix multiplication style operations:
+        # Count multiplications and additions for the contracted dimensions
+        contracted_dims = set()
+        for spec in input_specs:
+            for dim in spec:
+                if sum(1 for s in input_specs if dim in s) > 1:
+                    contracted_dims.add(dim)
+
+        if not contracted_dims:
+            # Element-wise operation
+            return (len(arrays) - 1) * 2 * np.size(result)
+
+        # Compute size of the intermediate result (product of all dimensions)
+        intermediate_size = self._compute_intermediate_size(
+            "".join(input_specs), shapes
+        )
+
+        # For each element in intermediate result:
+        # - One multiplication per input array (except first)
+        # - One addition per iteration (except first)
+        mults_per_element = len(arrays) - 1
+        adds_per_element = len(arrays) - 2
+
+        return intermediate_size * (mults_per_element + adds_per_element)
+
+
+class SolveOperation:
+    """FLOP count for np.linalg.solve operation.
+
+    This class implements FLOP counting for solving a system of linear equations Ax = b.
+    The implementation uses LU decomposition followed by forward and backward substitution.
+    """
+
+    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
+        """Count FLOPs for solving linear system Ax = b.
+
+        Args:
+            *args: Input arrays (A matrix and b vector/matrix)
+            result: The result array
+            **kwargs: Additional keyword arguments that match numpy.linalg.solve parameters.
+                     These currently don't affect the FLOP count.
+
+        Returns:
+            int: Number of floating point operations
+
+        Note:
+            Solving Ax = b using LU decomposition requires:
+            1. LU decomposition of A: ~2/3 n³ FLOPs
+            2. Forward substitution (Ly = b): n² FLOPs
+            3. Backward substitution (Ux = y): n² FLOPs
+
+            For multiple right-hand sides (b is n×k matrix):
+            - Forward/backward substitution cost multiplied by k
+
+            Total FLOPs: 2/3 n³ + 2kn² where:
+            - n is the dimension of the system
+            - k is the number of right-hand sides
+
+            Reference: "Numerical Linear Algebra" by Trefethen and Bau
+        """
+        if len(args) < 2:
+            return 0
+
+        A, b = args[0], args[1]
+        n = A.shape[0]  # System dimension
+
+        # Handle multiple right-hand sides
+        k = 1 if b.ndim == 1 else b.shape[1]
+
+        if n == 1:  # Special case for 1x1 systems
+            return 1  # Just one division
+
+        # LU decomposition cost + forward/backward substitution cost
+        lu_flops = (2 * n**3) // 3  # ~2/3 n³ for LU
+        solve_flops = 2 * k * n**2  # 2n² per right-hand side
+
+        return lu_flops + solve_flops
