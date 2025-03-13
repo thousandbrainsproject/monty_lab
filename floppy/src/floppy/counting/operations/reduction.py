@@ -22,6 +22,9 @@ class SumOperation:
         reduction since the actual FLOP count would be less than or equal to
         this upper bound when summing along specific axes.
 
+        Note: For nansum and masked sum operations, NaN/mask checks are not counted
+        as FLOPs since they are comparisons.
+
         Args:
             *args: Input arrays (first argument is the array to sum)
             result: Result of the operation

@@ -63,3 +63,5 @@ def test_sum_empty():
         result = np.sum(a)
         assert counter.flops == 0
         np.testing.assert_equal(result, 0)
+
+# TODO: Add tests for nansum, masked sum, and masked average
