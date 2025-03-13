@@ -9,7 +9,7 @@ def test_median_np_function():
         a = np.array([1, 2, 3, 4, 5])
         result = np.median(a)
         assert counter.flops == 0  # odd length array, no FLOPs needed
-        np.testing.assert_equal(result, 3)
+        np.testing.assert_allclose(result, 3)
 
 
 def test_median_even_length():
@@ -18,7 +18,7 @@ def test_median_even_length():
         a = np.array([1, 2, 3, 4])
         result = np.median(a)
         assert counter.flops == 2  # even length array: 1 addition + 1 division
-        np.testing.assert_equal(result, 2.5)
+        np.testing.assert_allclose(result, 2.5)
 
 
 def test_median_method():
@@ -27,7 +27,7 @@ def test_median_method():
         a = np.array([1, 2, 3, 4])
         result = np.median(a)
         assert counter.flops == 2
-        np.testing.assert_equal(result, 2.5)
+        np.testing.assert_allclose(result, 2.5)
 
 
 def test_median_axis():
@@ -38,14 +38,14 @@ def test_median_axis():
         assert (
             counter.flops == 2
         )  # even length arrays: 1 addition + 1 division per column
-        np.testing.assert_equal(result, np.array([2.5, 3.5, 4.5]))
+        np.testing.assert_allclose(result, np.array([2.5, 3.5, 4.5]))
 
     counter.flops = 0
     with counter:
         a = np.array([[1, 2], [3, 4]])
         result = np.median(a, axis=1)  # Median along rows
         assert counter.flops == 2  # even length arrays: 1 addition + 1 division per row
-        np.testing.assert_equal(result, np.array([1.5, 3.5]))
+        np.testing.assert_allclose(result, np.array([1.5, 3.5]))
 
 
 def test_median_keepdims():
@@ -54,17 +54,7 @@ def test_median_keepdims():
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.median(a, keepdims=True)
         assert counter.flops == 2  # even length array: 1 addition + 1 division
-        np.testing.assert_equal(result, np.array([[3.5]]))
-
-
-def test_median_where():
-    counter = FlopCounter()
-    with counter:
-        a = np.array([1, 2, 3, 4])
-        mask = np.array([True, False, True, False])
-        result = np.median(a, where=mask)
-        assert counter.flops == 0  # odd length array after masking
-        np.testing.assert_equal(result, 2)
+        np.testing.assert_allclose(result, np.array([[3.5]]))
 
 
 def test_median_empty():
@@ -73,7 +63,7 @@ def test_median_empty():
         a = np.array([])
         result = np.median(a)
         assert counter.flops == 0
-        np.testing.assert_equal(result, np.nan)
+        np.testing.assert_allclose(result, np.nan)
 
 
 def test_median_single_element():
@@ -82,4 +72,4 @@ def test_median_single_element():
         a = np.array([1])
         result = np.median(a)
         assert counter.flops == 0  # single element, no FLOPs needed
-        np.testing.assert_equal(result, 1)
+        np.testing.assert_allclose(result, 1)

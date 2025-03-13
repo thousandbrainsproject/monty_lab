@@ -7,24 +7,24 @@ def test_condition_number_2x2():
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
-        _ = np.linalg.cond(a)
-        # For 2x2 matrix: 14*(2^3) + 1 = 113 FLOPs
+        result = np.linalg.cond(a)
         assert counter.flops == 113
+        np.testing.assert_allclose(result, 14.933034373659265)
 
 
 def test_condition_number_3x3():
     counter = FlopCounter()
     with counter:
-        a = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-        _ = np.linalg.cond(a)
-        # For 3x3 matrix: 14*(3^3) + 1 = 379 FLOPs
+        a = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 10]])
+        result = np.linalg.cond(a)
         assert counter.flops == 379
+        np.testing.assert_allclose(result, 88.4482799206987)
 
 
 def test_condition_number_4x4():
     counter = FlopCounter()
     with counter:
         a = np.eye(4)  # 4x4 identity matrix
-        _ = np.linalg.cond(a)
-        # For 4x4 matrix: 14*(4^3) + 1 = 897 FLOPs
+        result = np.linalg.cond(a)
         assert counter.flops == 897
+        np.testing.assert_allclose(result, 1)

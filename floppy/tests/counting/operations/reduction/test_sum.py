@@ -98,5 +98,3 @@ def test_masked_sum():
         result = np.sum(a, axis=0)
         assert counter.flops == 5
         np.testing.assert_allclose(result, np.array([4, 2, 6]))
-
-# Test for masked average

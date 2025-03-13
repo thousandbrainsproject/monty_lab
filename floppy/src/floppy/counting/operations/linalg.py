@@ -346,9 +346,11 @@ class NormOperation:
     ) -> int:
         """Count FLOPs for vector norm calculation."""
         n = np.size(x)
+        if n == 0:
+            return 0
 
         if ord is None or ord == 2:
-            return 2 * n + self.L2_SQRT_COST  # n multiplies, n-1 adds, sqrt cost
+            return 2 * n + self.L2_SQRT_COST  # n mults, n adds, sqrt cost
         elif ord == 1:
             return 2 * n - 1  # n absolute values, n-1 additions
         elif ord in (np.inf, float("inf"), -np.inf, float("-inf")):
@@ -366,9 +368,11 @@ class NormOperation:
     ) -> int:
         """Count FLOPs for matrix norm calculation."""
         m, n = x.shape
+        if m == 0 or n == 0:
+            return 0
 
         if ord is None or ord == "fro":
-            return m * n * 2  # mn multiplies, mn-1 adds, 1 sqrt
+            return m * n * 2 - 1 + self.L2_SQRT_COST  # mn mults, mn-1 adds, sqrt cost
         elif ord == 1:
             return m * n + m - 1  # mn abs, m(n-1) adds, m-1 comparisons
         elif ord in (np.inf, float("inf")):
@@ -570,8 +574,8 @@ class EigOperation:
     """
 
     # Constants for eigenvalue decomposition operation
-    HESSENBERG_COST = 10 / 3  # Cost of reduction to Hessenberg form per n³
-    QR_ITER_COST = 4 / 3  # Cost of one QR iteration per n³
+    HESSENBERG_COST = 10.0 / 3  # Cost of reduction to Hessenberg form per n³
+    QR_ITER_COST = 4.0 / 3  # Cost of one QR iteration per n³
     NUM_ITERATIONS = 20  # Typical number of QR iterations for convergence
 
     def count_flops(
@@ -619,10 +623,11 @@ class EigOperation:
         if n == 0:
             return 0  # Empty matrix
 
-        # Hessenberg reduction + QR iterations
-        hess_flops = int(self.HESSENBERG_COST * n**3)  # Cast to int since cost is float
-        qr_flops = int(self.QR_ITER_COST * n**3 * self.NUM_ITERATIONS)
-        flops_per_matrix = hess_flops + qr_flops
+        # Calculate total cost including both Hessenberg reduction and QR iterations
+        total_cost = (
+            self.HESSENBERG_COST + self.QR_ITER_COST * self.NUM_ITERATIONS
+        ) * n**3
+        flops_per_matrix = int(round(total_cost))  # Round to nearest integer
 
         # If more than 2D, multiply by number of matrices
         if arr.ndim > 2:
@@ -713,11 +718,11 @@ class InnerOperation:
     def count_flops(
         self, *args: Any, result: np.ndarray, **kwargs: Any
     ) -> Optional[int]:
-        """Returns the number of floating point operations for computing vector inner products.
+        """Returns the number of floating point operations for inner product operations.
 
         Args:
             *args: Input arrays where each array contains vectors
-                  to compute inner product. Must have matching shapes.
+                  to compute inner product. Must have same shape.
             result: The resulting array from the inner product operation.
                    Used to determine the number of operations computed.
             **kwargs: Additional numpy.inner parameters.
@@ -730,34 +735,37 @@ class InnerOperation:
         Note:
             Inner product computation:
             - Each element pair requires one multiplication
-            - Each sum requires (N-1) additions where N is the last axis size
-            - Total FLOPs per inner product = 2N - 1
-            - For batched inputs, total FLOPs = (2N - 1) * number_of_products
+            - Each sum requires (N-1) additions where N is the number of elements
+            - For batched inputs, the operation is performed independently on each pair
+            - For empty arrays, returns 0 as no operations are performed
         """
-        # Validate input
-        if not isinstance(args[0], np.ndarray) or not isinstance(args[1], np.ndarray):
-            return None
+        try:
+            a, b = np.asarray(args[0]), np.asarray(args[1])
 
-        a, b = args[0], args[1]
-        if a.shape != b.shape:
-            return None  # Shapes must match
+            # Handle empty arrays
+            if a.size == 0 or b.size == 0:
+                return 0
 
-        # Get size of the last axis over which inner product is computed
-        inner_dim = a.shape[-1]
-        if inner_dim == 0:
-            return 0  # Empty arrays
+            # Get the last axis size (N) which is the dimension over which inner product is computed
+            N = a.shape[-1]
+            if N != b.shape[-1]:
+                return None  # Shapes must match on last axis
 
-        # Calculate number of inner products to compute
-        result_size = np.size(result)
+            # Calculate number of inner products from result shape
+            # For single vectors: shape = ()
+            # For batched vectors: shape = (batch_size,)
+            # For multi-dimensional: shape = (...,)
+            batch_size = np.prod(result.shape) if result.shape else 1
 
-        # Each inner product requires:
-        # - inner_dim multiplications
-        # - (inner_dim - 1) additions
-        flops_per_inner = self.MULTS_PER_ELEMENT * inner_dim + self.ADDS_PER_SUM * (
-            inner_dim - 1
-        )
+            # Each inner product requires:
+            # - N multiplications (one per element pair)
+            # - (N-1) additions to sum the products
+            flops_per_inner = N + (N - 1)
 
-        return flops_per_inner * result_size
+            return flops_per_inner * batch_size
+
+        except Exception as e:
+            raise ValueError(f"Error counting inner product FLOPs: {str(e)}")
 
 
 class EinsumOperation:
@@ -844,10 +852,11 @@ class EinsumOperation:
                 else:
                     dim_sizes[dim] = size
 
-        # Compute product of all unique dimensions
+        # Compute product of all unique dimensions that appear in input specs
         size = 1
         for dim in set(spec_chars):
-            size *= dim_sizes[dim]
+            if dim in dim_sizes:  # Only consider dimensions that appear in input specs
+                size *= dim_sizes[dim]
         return size
 
     def count_flops(
@@ -879,6 +888,8 @@ class EinsumOperation:
                 * (num_inputs-1)*output_size multiplications
                 * (num_inputs-1)*output_size additions
             - For batched operations, multiply by batch size
+            - For diagonal operations (e.g., "ii->i"):
+                * 0 FLOPs as it's just indexing
         """
         if len(args) < 2:
             return None
@@ -890,8 +901,10 @@ class EinsumOperation:
         # Parse the einsum specification
         full, input_specs, output_spec = self._parse_subscripts(subscripts)
 
-        # Special case for trace-like operations (e.g., "ii->")
+        # Special case for diagonal operations (e.g., "ii->i")
         if len(input_specs) == 1 and len(set(input_specs[0])) < len(input_specs[0]):
+            if len(output_spec) == 1 and output_spec[0] in input_specs[0]:
+                return 0  # Just indexing, no operations needed
             # Just need to sum along diagonal - similar to trace
             n = shapes[0][0]  # Size of the diagonal
             return (n - 1) * self.TRACE_ADDS_PER_DIAG
@@ -905,21 +918,48 @@ class EinsumOperation:
                     contracted_dims.add(dim)
 
         if not contracted_dims:
-            # Element-wise operation
+            # Element-wise operation or full array sum
+            if not output_spec:  # Full array sum case (e.g., "ij->")
+                total_elements = np.size(arrays[0])
+                return total_elements - 1  # Need (n-1) additions to sum n elements
+
+            # Check if this is an outer product operation
+            # For outer product, output should contain all input dimensions
+            if len(output_spec) == len("".join(input_specs)):
+                return np.size(result)  # Just count multiplications for outer product
+
             return (len(arrays) - 1) * 2 * np.size(result)
 
-        # Compute size of the intermediate result (product of all dimensions)
-        intermediate_size = self._compute_intermediate_size(
-            "".join(input_specs), shapes
-        )
+        # For matrix multiplication, we need to count:
+        # 1. Multiplications: M*K*N where:
+        #    - M is the size of the first dimension of first matrix
+        #    - K is the size of the second dimension of second matrix
+        #    - N is the size of the contracted dimension
+        # 2. Additions: M*K*(N-1) for summing the products
 
-        # For each element in intermediate result:
-        # - One multiplication per input array (except first)
-        # - One addition per iteration (except first)
-        mults_per_element = (len(arrays) - 1) * self.MULTS_PER_ELEMENT
-        adds_per_element = (len(arrays) - 2) * self.ADDS_PER_ELEMENT
+        # Get the dimensions from the shapes
+        dim_sizes = {}
+        for shape, spec in zip(shapes, input_specs):
+            for size, dim in zip(shape, spec):
+                if dim in dim_sizes:
+                    assert dim_sizes[dim] == size, (
+                        f"Inconsistent sizes for dimension {dim}"
+                    )
+                else:
+                    dim_sizes[dim] = size
 
-        return intermediate_size * (mults_per_element + adds_per_element)
+        # For matrix multiplication, we need to count all dimensions
+        total_size = 1
+        for dim in set("".join(input_specs)):
+            total_size *= dim_sizes[dim]
+
+        # Count multiplications and additions
+        mults = total_size  # One multiplication per element in intermediate result
+        adds = total_size - np.size(
+            result
+        )  # One less addition than multiplication per output element
+
+        return mults + adds
 
 
 class SolveOperation:

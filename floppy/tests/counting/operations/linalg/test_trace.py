@@ -8,37 +8,42 @@ def test_trace_basic():
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
-        _ = np.trace(a)
+        result = np.trace(a)
         assert counter.flops == 1
+        np.testing.assert_allclose(result, 5)
 
 
 def test_trace_method():
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
-        _ = a.trace()
+        result = a.trace()
         assert counter.flops == 1
+        np.testing.assert_allclose(result, 5)
 
 
 def test_trace_rectangular():
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.trace(a)
+        result = np.trace(a)
         assert counter.flops == 1
+        np.testing.assert_allclose(result, 6)
 
 
 def test_trace_empty():
     counter = FlopCounter()
     with counter:
         a = np.array([[]])  # or np.zeros((0,0))
-        _ = np.trace(a)
+        result = np.trace(a)
         assert counter.flops == 0
+        np.testing.assert_allclose(result, 0)
 
 
 def test_trace_3d():
     counter = FlopCounter()
     with counter:
         a = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
-        _ = np.trace(a)
+        result = np.trace(a)
         assert counter.flops == 2
+        np.testing.assert_allclose(result, np.array([8, 10]))

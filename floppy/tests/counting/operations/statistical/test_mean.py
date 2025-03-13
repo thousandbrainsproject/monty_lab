@@ -9,16 +9,18 @@ def test_mean_scalar():
     counter = FlopCounter()
     with counter:
         x = np.array(5)  # scalar array
-        _ = np.mean(x)
-    assert counter.flops == 1  # scalar mean is just a copy
+        result = np.mean(x)
+        assert counter.flops == 0  # scalar inputs require no computation
+        np.testing.assert_allclose(result, 5.0)
 
 
 def test_mean_scalar_python():
     """Test mean of Python scalar."""
     counter = FlopCounter()
     with counter:
-        _ = np.mean(5)
-    assert counter.flops == 1  # scalar mean is just a copy
+        result = np.mean(5)
+        assert counter.flops == 0  # scalar inputs require no computation
+        np.testing.assert_allclose(result, 5.0)
 
 
 def test_mean_1d():
@@ -26,8 +28,9 @@ def test_mean_1d():
     counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
-        _ = np.mean(x)
-    assert counter.flops == 5  # n elements = 5 FLOPs
+        result = np.mean(x)
+        assert counter.flops == 5  # n elements = 5 FLOPs
+        np.testing.assert_allclose(result, 3.0)
 
 
 def test_mean_2d():
@@ -35,8 +38,9 @@ def test_mean_2d():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.mean(x)
-    assert counter.flops == 6  # 2*3 = 6 elements
+        result = np.mean(x)
+        assert counter.flops == 6  # 2*3 = 6 elements
+        np.testing.assert_allclose(result, 3.5)
 
 
 def test_mean_3d():
@@ -44,8 +48,9 @@ def test_mean_3d():
     counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
-        _ = np.mean(x)
-    assert counter.flops == 24  # 2*3*4 = 24 elements
+        result = np.mean(x)
+        assert counter.flops == 24  # 2*3*4 = 24 elements
+        np.testing.assert_allclose(result, 1.0)
 
 
 def test_mean_empty():
@@ -54,10 +59,10 @@ def test_mean_empty():
     with counter:
         x = np.array([])
         try:
-            _ = np.mean(x)
+            result = np.mean(x)
         except RuntimeWarning:
             pass
-    assert counter.flops == 0
+        assert counter.flops == 0
 
 
 def test_mean_single():
@@ -65,8 +70,9 @@ def test_mean_single():
     counter = FlopCounter()
     with counter:
         x = np.array([1])
-        _ = np.mean(x)
-    assert counter.flops == 1
+        result = np.mean(x)
+        assert counter.flops == 1
+        np.testing.assert_allclose(result, 1.0)
 
 
 def test_mean_axis():
@@ -74,8 +80,9 @@ def test_mean_axis():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.mean(x, axis=0)  # mean of each column
-    assert counter.flops == 6  # 2 elements per column * 3 columns
+        result = np.mean(x, axis=0)  # mean of each column
+        assert counter.flops == 6  # 2 elements per column * 3 columns
+        np.testing.assert_allclose(result, np.array([2.5, 3.5, 4.5]))
 
 
 def test_mean_keepdims():
@@ -83,8 +90,9 @@ def test_mean_keepdims():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.mean(x, keepdims=True)
-    assert counter.flops == 6  # same FLOPs as without keepdims
+        result = np.mean(x, keepdims=True)
+        assert counter.flops == 6  # same FLOPs as without keepdims
+        np.testing.assert_allclose(result, np.array([[3.5]]))
 
 
 def test_mean_dtype():
@@ -92,8 +100,9 @@ def test_mean_dtype():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
-        _ = np.mean(x, dtype=np.float64)
-    assert counter.flops == 6  # dtype doesn't affect FLOP count
+        result = np.mean(x, dtype=np.float64)
+        assert counter.flops == 6  # dtype doesn't affect FLOP count
+        np.testing.assert_allclose(result, 3.5)
 
 
 def test_mean_method():
@@ -101,8 +110,9 @@ def test_mean_method():
     counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4])
-        _ = x.mean()
-    assert counter.flops == 4  # n=4 elements
+        result = x.mean()
+        assert counter.flops == 4  # n=4 elements
+        np.testing.assert_allclose(result, 2.5)
 
 
 def test_mean_broadcast():
@@ -111,8 +121,9 @@ def test_mean_broadcast():
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
-        _ = np.mean(x + y)  # broadcast y to x's shape then mean
-    assert counter.flops == 12  # 6 FLOPs for addition + 6 FLOPs for mean
+        result = np.mean(x + y)  # broadcast y to x's shape then mean
+        assert counter.flops == 12  # 6 FLOPs for addition + 6 FLOPs for mean
+        np.testing.assert_allclose(result, 5.5)
 
 
 def test_mean_multi_axis():
@@ -120,5 +131,6 @@ def test_mean_multi_axis():
     counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
-        _ = np.mean(x, axis=(0, 2))
-    assert counter.flops == 24  # total elements remain same
+        result = np.mean(x, axis=(0, 2))
+        assert counter.flops == 24  # total elements remain same
+        np.testing.assert_allclose(result, np.array([1.0, 1.0, 1.0]))

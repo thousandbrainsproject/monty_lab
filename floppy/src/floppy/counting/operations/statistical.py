@@ -21,6 +21,9 @@ class MeanOperation:
     - (n-1) additions to sum all elements
     - 1 division for the final average
     Total: n FLOPs
+
+    Note:
+        Scalar inputs return 0 FLOPs as they require no computation.
     """
 
     # Constants for the mean operation
@@ -43,6 +46,7 @@ class MeanOperation:
         Returns:
             Optional[int]: Number of floating point operations (FLOPs).
                           Returns None if operation cannot be performed.
+                          Returns 0 for scalar inputs.
 
         Note:
             Mean computation:
@@ -51,13 +55,19 @@ class MeanOperation:
                 * 1 division for final average
             - Total FLOPs per mean = n
             - For batched inputs, multiply by batch size
+            - Scalar inputs return 0 FLOPs
         """
         if not args:
             return None
 
         array = args[0]
+        # Convert Python scalar to numpy array for consistent handling
         if not isinstance(array, np.ndarray):
-            return None
+            array = np.array(array)
+
+        # Return 0 for scalar inputs
+        if array.ndim == 0:
+            return 0
 
         n = np.size(array)
         if n == 0:
@@ -79,7 +89,10 @@ class StdOperation:
     - (n-1) additions for sum of squares
     - 1 division for mean of squares
     - 1 square root (costs 20 FLOPs)
-    Total: 4n + 21 FLOPs
+    Total: 4n + 20 FLOPs
+
+    Note:
+        Scalar inputs return 0 FLOPs as they require no computation.
     """
 
     # Cost of square root operation (other operations cost 1 FLOP each)
@@ -101,6 +114,7 @@ class StdOperation:
         Returns:
             Optional[int]: Number of floating point operations (FLOPs).
                           Returns None if operation cannot be performed.
+                          Returns 0 for scalar inputs.
 
         Note:
             Standard deviation computation:
@@ -111,15 +125,21 @@ class StdOperation:
                 * (n-1) additions for sum
                 * 1 division for mean of squares
                 * 1 square root (costs 20 FLOPs)
-            - Total FLOPs per std = 4n + 21
+            - Total FLOPs per std = 4n + 20
             - For batched inputs, multiply by batch size
+            - Scalar inputs return 0 FLOPs
         """
         if not args:
             return None
 
         array = args[0]
+        # Convert Python scalar to numpy array for consistent handling
         if not isinstance(array, np.ndarray):
-            return None
+            array = np.array(array)
+
+        # Return 0 for scalar inputs
+        if array.ndim == 0:
+            return 0
 
         n = np.size(array)
         if n == 0:
@@ -142,6 +162,9 @@ class VarOperation:
     - n multiplications for squaring
     - (n-1) additions for sum of squares
     - 1 division for final result
+
+    Note:
+        Scalar inputs return 0 FLOPs as they require no computation.
     """
 
     def count_flops(
@@ -160,6 +183,7 @@ class VarOperation:
         Returns:
             Optional[int]: Number of floating point operations (FLOPs).
                           Returns None if operation cannot be performed.
+                          Returns 0 for scalar inputs.
 
         Note:
             Variance computation:
@@ -171,13 +195,18 @@ class VarOperation:
                 * 1 division for final result
             - Total FLOPs per variance = 4n
             - For batched inputs, multiply by batch size
+            - Scalar inputs return 0 FLOPs
         """
         if not args:
             return None
 
         array = args[0]
         if not isinstance(array, np.ndarray):
-            return None
+            array = np.array(array)
+
+        # Return 0 for scalar inputs
+        if array.ndim == 0:
+            return 0
 
         n = np.size(array)
         if n == 0:
@@ -204,6 +233,9 @@ class AverageOperation:
     - n additions for weighted sum
     - 1 division by sum of weights
     Total: 2n + 1 FLOPs
+
+    Note:
+        Scalar inputs return 0 FLOPs as they require no computation.
     """
 
     def count_flops(
@@ -222,6 +254,7 @@ class AverageOperation:
         Returns:
             Optional[int]: Number of floating point operations (FLOPs).
                           Returns None if operation cannot be performed.
+                          Returns 0 for scalar inputs.
 
         Note:
             Average computation:
@@ -234,13 +267,19 @@ class AverageOperation:
                 * 1 division by sum of weights
             - Total FLOPs per average = n + 1 (unweighted) or 2n + 1 (weighted)
             - For batched inputs, multiply by batch size
+            - Scalar inputs return 0 FLOPs
         """
         if not args:
             return None
 
         array = args[0]
+        # Convert Python scalar to numpy array for consistent handling
         if not isinstance(array, np.ndarray):
-            return None
+            array = np.array(array)
+
+        # Return 0 for scalar inputs
+        if array.ndim == 0:
+            return 0
 
         n = np.size(array)
         if n == 0:
@@ -268,6 +307,9 @@ class MedianOperation:
     - For odd-length arrays:
         * No floating-point operations (just selection)
     Total: 2 FLOPs for even-length arrays, 0 for odd-length arrays
+
+    Note:
+        Scalar inputs return 0 FLOPs as they require no computation.
     """
 
     def count_flops(
@@ -286,6 +328,7 @@ class MedianOperation:
         Returns:
             Optional[int]: Number of floating point operations (FLOPs).
                           Returns None if operation cannot be performed.
+                          Returns 0 for scalar inputs.
 
         Note:
             Median computation:
@@ -297,13 +340,18 @@ class MedianOperation:
             - Total FLOPs per median = 2 (even) or 0 (odd)
             - For batched inputs, multiply by batch size
             - Sorting operations are not counted as they are comparisons
+            - Scalar inputs return 0 FLOPs
         """
         if not args:
             return None
 
         array = args[0]
         if not isinstance(array, np.ndarray):
-            return None
+            array = np.array(array)
+
+        # Return 0 for scalar inputs
+        if array.ndim == 0:
+            return 0
 
         n = np.size(array)
         if n <= 1:

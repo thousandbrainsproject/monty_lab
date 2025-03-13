@@ -9,8 +9,9 @@ def test_matmul_np_function():
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
-        _ = np.matmul(a, b)
+        result = np.matmul(a, b)
         assert counter.flops == 12  # 4 * (2 muls + 1 add)
+        np.testing.assert_allclose(result, np.array([[19, 22], [43, 50]]))
 
 
 def test_matmul_operator():
@@ -18,8 +19,9 @@ def test_matmul_operator():
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
-        _ = a @ b
+        result = a @ b
         assert counter.flops == 12
+        np.testing.assert_allclose(result, np.array([[19, 22], [43, 50]]))
 
 
 def test_dot_function():
@@ -27,8 +29,9 @@ def test_dot_function():
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
-        _ = np.dot(a, b)
+        result = np.dot(a, b)
         assert counter.flops == 12
+        np.testing.assert_allclose(result, np.array([[19, 22], [43, 50]]))
 
 
 def test_dot_method():
@@ -36,8 +39,9 @@ def test_dot_method():
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
-        _ = a.dot(b)
+        result = a.dot(b)
         assert counter.flops == 12
+        np.testing.assert_allclose(result, np.array([[19, 22], [43, 50]]))
 
 
 def test_different_sizes():
@@ -46,8 +50,9 @@ def test_different_sizes():
         # (2x3) @ (3x2)
         a = np.array([[1, 2, 3], [4, 5, 6]])
         b = np.array([[7, 8], [9, 10], [11, 12]])
-        _ = a @ b
+        result = a @ b
         assert counter.flops == 20  # 4 * (3 muls + 2 adds)
+        np.testing.assert_allclose(result, np.array([[58, 64], [139, 154]]))
 
 
 def test_vector_matmul():
@@ -56,14 +61,16 @@ def test_vector_matmul():
         # Matrix @ vector
         a = np.array([[1, 2], [3, 4]])
         b = np.array([5, 6])
-        _ = a @ b
+        result = a @ b
         assert counter.flops == 6  # 2 * (2 muls + 1 add)
+        np.testing.assert_allclose(result, np.array([17, 39]))
 
     counter.flops = 0
     with counter:
         # vector @ Matrix
-        _ = b @ a
+        result = b @ a
         assert counter.flops == 6
+        np.testing.assert_allclose(result, np.array([23, 34]))
 
 
 def test_batch_matmul():
@@ -72,8 +79,11 @@ def test_batch_matmul():
         # Batch matrix multiplication (2 batches of 2x2)
         a = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
         b = np.array([[[9, 10], [11, 12]], [[13, 14], [15, 16]]])
-        _ = a @ b
+        result = a @ b
         assert counter.flops == 24  # 2 batches * 12 flops
+        np.testing.assert_allclose(
+            result, np.array([[[31, 34], [71, 78]], [[155, 166], [211, 226]]])
+        )
 
 
 def test_empty():
@@ -81,5 +91,6 @@ def test_empty():
     with counter:
         a = np.array([]).reshape(0, 0)
         b = np.array([]).reshape(0, 0)
-        _ = a @ b
+        result = a @ b
         assert counter.flops == 0
+        np.testing.assert_allclose(result, np.array([]).reshape(0, 0))

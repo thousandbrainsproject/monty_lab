@@ -8,8 +8,9 @@ def test_cross_basic():
     with counter:
         a = np.array([1, 0, 0])
         b = np.array([0, 1, 0])
-        _ = np.cross(a, b)
+        result = np.cross(a, b)
         assert counter.flops == 9
+        np.testing.assert_allclose(result, np.array([0, 0, 1]))
 
 
 def test_cross_multiple():
@@ -18,8 +19,9 @@ def test_cross_multiple():
         # Multiple cross products at once
         a = np.array([[1, 0, 0], [2, 0, 0]])
         b = np.array([[0, 1, 0], [0, 2, 0]])
-        _ = np.cross(a, b)
+        result = np.cross(a, b)
         assert counter.flops == 18  # 9 flops * 2 cross products
+        np.testing.assert_allclose(result, np.array([[0, 0, 1], [0, 0, 4]]))
 
 
 def test_cross_broadcasting():
@@ -28,5 +30,6 @@ def test_cross_broadcasting():
         # Broadcasting a single vector against multiple vectors
         a = np.array([1, 0, 0])
         b = np.array([[0, 1, 0], [0, 2, 0], [0, 3, 0]])
-        _ = np.cross(a, b)
+        result = np.cross(a, b)
         assert counter.flops == 27  # 9 flops * 3 cross products
+        np.testing.assert_allclose(result, np.array([[0, 0, 1], [0, 0, 2], [0, 0, 3]]))

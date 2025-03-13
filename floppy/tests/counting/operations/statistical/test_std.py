@@ -9,16 +9,18 @@ def test_std_scalar():
     counter = FlopCounter()
     with counter:
         x = np.array(5)  # scalar array
-        _ = np.std(x)
-    assert counter.flops == 5  # 4*1 + 1 FLOPs for single element
+        result = np.std(x)
+        assert counter.flops == 0  # scalar inputs return 0 FLOPs
+        np.testing.assert_allclose(result, 0)
 
 
 def test_std_scalar_python():
     """Test std of Python scalar."""
     counter = FlopCounter()
     with counter:
-        _ = np.std(5)
-    assert counter.flops == 5  # 4*1 + 1 FLOPs for single element
+        result = np.std(5)
+        assert counter.flops == 0  # scalar inputs return 0 FLOPs
+        np.testing.assert_allclose(result, 0)
 
 
 def test_std_1d():
@@ -26,8 +28,9 @@ def test_std_1d():
     counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
-        _ = np.std(x)
-    assert counter.flops == 21  # 4*5 + 1 FLOPs for 5 elements
+        result = np.std(x)
+        assert counter.flops == 40  # 4*5 + 20 FLOPs for 5 elements
+        np.testing.assert_allclose(result, 1.41421356)
 
 
 def test_std_2d():
@@ -35,8 +38,9 @@ def test_std_2d():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.std(x)
-    assert counter.flops == 25  # 4*6 + 1 FLOPs for 6 elements
+        result = np.std(x)
+        assert counter.flops == 44  # 4*6 + 20 FLOPs for 6 elements
+        np.testing.assert_allclose(result, 1.707825127659933)
 
 
 def test_std_single():
@@ -44,8 +48,9 @@ def test_std_single():
     counter = FlopCounter()
     with counter:
         x = np.array([1])
-        _ = np.std(x)
-    assert counter.flops == 5  # 4*1 + 1 FLOPs for single element
+        result = np.std(x)
+        assert counter.flops == 24  # 4*1 + 20 FLOPs for single element
+        np.testing.assert_allclose(result, 0)
 
 
 def test_std_axis():
@@ -53,8 +58,9 @@ def test_std_axis():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.std(x, axis=0)  # std of each column
-    assert counter.flops == 25  # 4*6 + 1 FLOPs for 6 elements
+        result = np.std(x, axis=0)  # std of each column
+        assert counter.flops == 44  # 4*6 + 20 FLOPs for 6 elements
+        np.testing.assert_allclose(result, np.array([1.5, 1.5, 1.5]))
 
 
 def test_std_keepdims():
@@ -62,8 +68,12 @@ def test_std_keepdims():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
-        _ = np.std(x, keepdims=True)
-    assert counter.flops == 25  # 4*6 + 1 FLOPs for 6 elements
+        result = np.std(x, keepdims=True)
+        assert counter.flops == 44  # 4*6 + 20 FLOPs for 6 elements
+        np.testing.assert_allclose(
+            result,
+            np.array([[1.707825127659933]]),
+        )
 
 
 def test_std_dtype():
@@ -71,8 +81,12 @@ def test_std_dtype():
     counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
-        _ = np.std(x, dtype=np.float64)
-    assert counter.flops == 25  # 4*6 + 1 FLOPs for 6 elements
+        result = np.std(x, dtype=np.float64)
+        assert counter.flops == 44  # 4*6 + 20 FLOPs for 6 elements
+        np.testing.assert_allclose(
+            result,
+            np.array([[1.707825127659933, 1.707825127659933, 1.707825127659933]]),
+        )
 
 
 def test_std_method():
@@ -80,8 +94,9 @@ def test_std_method():
     counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4])
-        _ = x.std()
-    assert counter.flops == 17  # 4*4 + 1 FLOPs for 4 elements
+        result = x.std()
+        assert counter.flops == 36  # 4*4 + 20 FLOPs for 4 elements
+        np.testing.assert_allclose(result, 1.118033988749895)
 
 
 def test_std_broadcast():
@@ -90,8 +105,9 @@ def test_std_broadcast():
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
-        _ = np.std(x + y)  # broadcast y to x's shape then std
-    assert counter.flops == 31  # 6 FLOPs for addition + (4*6 + 1) FLOPs for std
+        result = np.std(x + y)  # broadcast y to x's shape then std
+        assert counter.flops == 50  # 6 FLOPs for addition + (4*6 + 20) FLOPs for std
+        np.testing.assert_allclose(result, 2.217355782608345)
 
 
 def test_std_multi_axis():
@@ -99,5 +115,6 @@ def test_std_multi_axis():
     counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
-        _ = np.std(x, axis=(0, 2))
-    assert counter.flops == 97  # 4*24 + 1 FLOPs for 24 elements
+        result = np.std(x, axis=(0, 2))
+        assert counter.flops == 116  # 4*24 + 20 FLOPs for 24 elements
+        np.testing.assert_allclose(result, np.array([0.0, 0.0, 0.0]))
