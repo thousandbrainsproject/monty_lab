@@ -6,7 +6,7 @@ from floppy.counting.counter import FlopCounter
 
 def test_average_scalar():
     """Test average of scalar value."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array(5)  # scalar array
         _ = np.average(x)
@@ -15,7 +15,7 @@ def test_average_scalar():
 
 def test_average_scalar_python():
     """Test average of Python scalar."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         _ = np.average(5)
     assert counter.flops == 2  # 1 addition + 1 division
@@ -23,7 +23,7 @@ def test_average_scalar_python():
 
 def test_average_1d():
     """Test average of 1D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
         _ = np.average(x)
@@ -32,7 +32,7 @@ def test_average_1d():
 
 def test_average_2d():
     """Test average of 2D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.average(x)
@@ -41,7 +41,7 @@ def test_average_2d():
 
 def test_average_single():
     """Test average of single element."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1])
         _ = np.average(x)
@@ -50,7 +50,7 @@ def test_average_single():
 
 def test_average_weighted_1d():
     """Test weighted average of 1D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
         weights = np.array([0.1, 0.2, 0.3, 0.2, 0.2])
@@ -60,7 +60,7 @@ def test_average_weighted_1d():
 
 def test_average_weighted_2d():
     """Test weighted average of 2D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         weights = np.array([0.5, 0.5])
@@ -70,7 +70,7 @@ def test_average_weighted_2d():
 
 def test_average_axis():
     """Test average with axis argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.average(x, axis=0)  # average of each column
@@ -79,7 +79,7 @@ def test_average_axis():
 
 def test_average_broadcast():
     """Test average with broadcasting."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
@@ -89,7 +89,7 @@ def test_average_broadcast():
 
 def test_average_weighted_broadcast():
     """Test weighted average with broadcasting."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
@@ -102,7 +102,7 @@ def test_average_weighted_broadcast():
 
 def test_average_multi_axis():
     """Test average with multiple axes."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
         _ = np.average(x, axis=(0, 2))

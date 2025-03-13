@@ -4,7 +4,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_convolve_basic():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         kernel = np.array([1, 2])
@@ -18,7 +18,7 @@ def test_convolve_basic():
 
 
 def test_convolve_full():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         kernel = np.array([1, 2, 3])
@@ -32,7 +32,7 @@ def test_convolve_full():
 
 
 def test_convolve_same():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         kernel = np.array([1, 2, 3])
@@ -46,7 +46,7 @@ def test_convolve_same():
 
 
 def test_convolve_empty_input():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         kernel = np.array([1, 2])
@@ -56,7 +56,7 @@ def test_convolve_empty_input():
 
 
 def test_convolve_empty_kernel():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         kernel = np.array([])
@@ -66,7 +66,7 @@ def test_convolve_empty_kernel():
 
 
 def test_convolve_2d():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         kernel = np.array([[1, 2], [3, 4]])

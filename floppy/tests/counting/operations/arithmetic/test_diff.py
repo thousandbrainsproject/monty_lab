@@ -4,7 +4,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_diff_basic():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
         result = np.diff(a)
@@ -13,7 +13,7 @@ def test_diff_basic():
 
 
 def test_diff_2d():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.diff(a, axis=0)  # Diff along rows
@@ -29,7 +29,7 @@ def test_diff_2d():
 
 
 def test_diff_n():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
         result = np.diff(a, n=2)  # Second difference
@@ -38,7 +38,7 @@ def test_diff_n():
 
 
 def test_diff_prepend():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
         result = np.diff(a, prepend=0)
@@ -47,7 +47,7 @@ def test_diff_prepend():
 
 
 def test_diff_append():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
         result = np.diff(a, append=0)
@@ -56,7 +56,7 @@ def test_diff_append():
 
 
 def test_diff_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.diff(a)
@@ -65,7 +65,7 @@ def test_diff_empty():
 
 
 def test_diff_single_element():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1])
         result = np.diff(a)

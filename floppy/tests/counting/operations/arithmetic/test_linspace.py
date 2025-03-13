@@ -4,7 +4,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_linspace_basic():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 5)
         # For 5 points: 2 + (5-1) = 6 FLOPs
@@ -16,7 +16,7 @@ def test_linspace_basic():
 
 
 def test_linspace_single_point():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 1)
         # For 1 point: 2 + (1-1) = 2 FLOPs
@@ -28,7 +28,7 @@ def test_linspace_single_point():
 
 
 def test_linspace_negative_range():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result = np.linspace(-1, 1, 5)
         # For 5 points: 2 + (5-1) = 6 FLOPs
@@ -37,7 +37,7 @@ def test_linspace_negative_range():
 
 
 def test_linspace_with_endpoint():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 5, endpoint=False)
         # For 5 points: 2 + (5-1) = 6 FLOPs
@@ -46,7 +46,7 @@ def test_linspace_with_endpoint():
 
 
 def test_linspace_with_retstep():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result, step = np.linspace(0, 1, 5, retstep=True)
         # For 5 points: 2 + (5-1) = 6 FLOPs
@@ -56,7 +56,7 @@ def test_linspace_with_retstep():
 
 
 def test_linspace_with_dtype():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 5, dtype=np.float32)
         # For 5 points: 2 + (5-1) = 6 FLOPs
@@ -67,7 +67,7 @@ def test_linspace_with_dtype():
 
 
 def test_linspace_large_array():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         result = np.linspace(0, 1, 1000)
         # For 1000 points: 2 + (1000-1) = 1001 FLOPs

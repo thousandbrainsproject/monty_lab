@@ -6,7 +6,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_arccos_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([-0.5, 0.0, 0.5])  # values within valid domain [-1, 1]
         result = np.arccos(a)
@@ -17,7 +17,7 @@ def test_arccos_ufunc_syntax():
 
 
 def test_arccos_scalar():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = 0.5
         result = np.arccos(a)
@@ -26,7 +26,7 @@ def test_arccos_scalar():
 
 
 def test_arccos_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[0.1, 0.2], [0.3, 0.4]])
         result = np.arccos(a)
@@ -37,7 +37,7 @@ def test_arccos_broadcasting():
 
 
 def test_arccos_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.arccos(a)

@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_divide_operator_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -15,7 +15,7 @@ def test_divide_operator_syntax():
 
 
 def test_divide_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -25,7 +25,7 @@ def test_divide_ufunc_syntax():
 
 
 def test_divide_method_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -35,7 +35,7 @@ def test_divide_method_syntax():
 
 
 def test_divide_augmented_assignment():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         # dtype=np.float64 is required for in-place division since integers can't store decimal results
         a = np.array([1, 2, 3], dtype=np.float64)
@@ -46,7 +46,7 @@ def test_divide_augmented_assignment():
 
 
 def test_divide_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2

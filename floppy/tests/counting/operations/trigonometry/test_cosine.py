@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_cos_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.cos(a)
@@ -16,7 +16,7 @@ def test_cos_ufunc_syntax():
 
 
 def test_cos_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = 2
         result = np.cos(a)
@@ -34,7 +34,7 @@ def test_cos_broadcasting():
 
 
 def test_cos_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.cos(a)

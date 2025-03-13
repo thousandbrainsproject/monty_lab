@@ -14,7 +14,7 @@ from floppy.counting.counter import FlopCounter, TrackedArray
 # - sqrt - for power of 1/2
 
 def test_power_operator_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -24,7 +24,7 @@ def test_power_operator_syntax():
 
 
 def test_power_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -34,7 +34,7 @@ def test_power_ufunc_syntax():
 
 
 def test_power_method_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -44,7 +44,7 @@ def test_power_method_syntax():
 
 
 def test_power_augmented_assignment():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -59,7 +59,7 @@ def test_square():
     This is an optimization in NumPy where a**2 triggers the square ufunc rather than the
     more general power ufunc, resulting in fewer floating point operations.
     """
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2
@@ -69,7 +69,7 @@ def test_square():
 
 def test_square_2():
     # test np.square()
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.square(a)
@@ -78,7 +78,7 @@ def test_square_2():
 
 def test_sqrt():
     """Test square root operation (power of 0.5)."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 4, 9])
         result = np.sqrt(a)
@@ -88,7 +88,7 @@ def test_sqrt():
 
 def test_cbrt():
     """Test cube root operation (power of 1/3)."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 8, 27])
         result = np.cbrt(a)
@@ -98,7 +98,7 @@ def test_cbrt():
 
 def test_reciprocal():
     """Test reciprocal operation (power of -1)."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1.0, 2.0, 4.0])
         result = np.reciprocal(a)
@@ -108,7 +108,7 @@ def test_reciprocal():
 
 def test_negative_integer_power():
     """Test negative integer powers."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1.0, 2.0, 3.0])
         result = a ** (-2)
@@ -118,7 +118,7 @@ def test_negative_integer_power():
 
 def test_fractional_power():
     """Test general fractional power."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = a ** (1.5)  # Neither sqrt nor cbrt
@@ -129,7 +129,7 @@ def test_fractional_power():
 
 
 def test_power_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2

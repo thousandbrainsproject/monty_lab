@@ -4,7 +4,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_median_np_function():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4, 5])
         result = np.median(a)
@@ -13,7 +13,7 @@ def test_median_np_function():
 
 
 def test_median_even_length():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         result = np.median(a)
@@ -22,7 +22,7 @@ def test_median_even_length():
 
 
 def test_median_method():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         result = np.median(a)
@@ -31,7 +31,7 @@ def test_median_method():
 
 
 def test_median_axis():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.median(a, axis=0)  # Median along columns
@@ -49,7 +49,7 @@ def test_median_axis():
 
 
 def test_median_keepdims():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.median(a, keepdims=True)
@@ -58,7 +58,7 @@ def test_median_keepdims():
 
 
 def test_median_where():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         mask = np.array([True, False, True, False])
@@ -68,7 +68,7 @@ def test_median_where():
 
 
 def test_median_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.median(a)
@@ -77,7 +77,7 @@ def test_median_empty():
 
 
 def test_median_single_element():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1])
         result = np.median(a)

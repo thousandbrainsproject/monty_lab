@@ -4,7 +4,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_sum_np_function():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         result = np.sum(a)
@@ -13,7 +13,7 @@ def test_sum_np_function():
 
 
 def test_sum_method():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         result = a.sum()
@@ -22,7 +22,7 @@ def test_sum_method():
 
 
 def test_sum_axis():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.sum(a, axis=0)  # Sum columns
@@ -38,7 +38,7 @@ def test_sum_axis():
 
 
 def test_sum_keepdims():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.sum(a, keepdims=True)
@@ -47,7 +47,7 @@ def test_sum_keepdims():
 
 
 def test_sum_where():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         mask = np.array([True, False, True, False])
@@ -57,7 +57,7 @@ def test_sum_where():
 
 
 def test_sum_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.sum(a)

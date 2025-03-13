@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_matmul_np_function():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
@@ -14,7 +14,7 @@ def test_matmul_np_function():
 
 
 def test_matmul_operator():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
@@ -23,7 +23,7 @@ def test_matmul_operator():
 
 
 def test_dot_function():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
@@ -32,7 +32,7 @@ def test_dot_function():
 
 
 def test_dot_method():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
@@ -41,7 +41,7 @@ def test_dot_method():
 
 
 def test_different_sizes():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         # (2x3) @ (3x2)
         a = np.array([[1, 2, 3], [4, 5, 6]])
@@ -51,7 +51,7 @@ def test_different_sizes():
 
 
 def test_vector_matmul():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         # Matrix @ vector
         a = np.array([[1, 2], [3, 4]])
@@ -67,7 +67,7 @@ def test_vector_matmul():
 
 
 def test_batch_matmul():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         # Batch matrix multiplication (2 batches of 2x2)
         a = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
@@ -77,7 +77,7 @@ def test_batch_matmul():
 
 
 def test_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([]).reshape(0, 0)
         b = np.array([]).reshape(0, 0)

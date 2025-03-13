@@ -6,7 +6,7 @@ from floppy.counting.counter import FlopCounter
 
 def test_mean_scalar():
     """Test mean of scalar value."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array(5)  # scalar array
         _ = np.mean(x)
@@ -15,7 +15,7 @@ def test_mean_scalar():
 
 def test_mean_scalar_python():
     """Test mean of Python scalar."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         _ = np.mean(5)
     assert counter.flops == 1  # scalar mean is just a copy
@@ -23,7 +23,7 @@ def test_mean_scalar_python():
 
 def test_mean_1d():
     """Test mean of 1D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
         _ = np.mean(x)
@@ -32,7 +32,7 @@ def test_mean_1d():
 
 def test_mean_2d():
     """Test mean of 2D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.mean(x)
@@ -41,7 +41,7 @@ def test_mean_2d():
 
 def test_mean_3d():
     """Test mean of 3D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
         _ = np.mean(x)
@@ -50,7 +50,7 @@ def test_mean_3d():
 
 def test_mean_empty():
     """Test mean of empty array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([])
         try:
@@ -62,7 +62,7 @@ def test_mean_empty():
 
 def test_mean_single():
     """Test mean of single element."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1])
         _ = np.mean(x)
@@ -71,7 +71,7 @@ def test_mean_single():
 
 def test_mean_axis():
     """Test mean with axis argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.mean(x, axis=0)  # mean of each column
@@ -80,7 +80,7 @@ def test_mean_axis():
 
 def test_mean_keepdims():
     """Test mean with keepdims=True."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.mean(x, keepdims=True)
@@ -89,7 +89,7 @@ def test_mean_keepdims():
 
 def test_mean_dtype():
     """Test mean with dtype argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
         _ = np.mean(x, dtype=np.float64)
@@ -98,7 +98,7 @@ def test_mean_dtype():
 
 def test_mean_method():
     """Test array.mean() method call."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4])
         _ = x.mean()
@@ -107,7 +107,7 @@ def test_mean_method():
 
 def test_mean_broadcast():
     """Test mean with broadcasting."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
@@ -117,7 +117,7 @@ def test_mean_broadcast():
 
 def test_mean_multi_axis():
     """Test mean with multiple axes."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
         _ = np.mean(x, axis=(0, 2))

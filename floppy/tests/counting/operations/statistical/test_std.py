@@ -6,7 +6,7 @@ from floppy.counting.counter import FlopCounter
 
 def test_std_scalar():
     """Test std of scalar value."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array(5)  # scalar array
         _ = np.std(x)
@@ -15,7 +15,7 @@ def test_std_scalar():
 
 def test_std_scalar_python():
     """Test std of Python scalar."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         _ = np.std(5)
     assert counter.flops == 5  # 4*1 + 1 FLOPs for single element
@@ -23,7 +23,7 @@ def test_std_scalar_python():
 
 def test_std_1d():
     """Test std of 1D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
         _ = np.std(x)
@@ -32,7 +32,7 @@ def test_std_1d():
 
 def test_std_2d():
     """Test std of 2D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.std(x)
@@ -41,7 +41,7 @@ def test_std_2d():
 
 def test_std_single():
     """Test std of single element."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1])
         _ = np.std(x)
@@ -50,7 +50,7 @@ def test_std_single():
 
 def test_std_axis():
     """Test std with axis argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.std(x, axis=0)  # std of each column
@@ -59,7 +59,7 @@ def test_std_axis():
 
 def test_std_keepdims():
     """Test std with keepdims=True."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.std(x, keepdims=True)
@@ -68,7 +68,7 @@ def test_std_keepdims():
 
 def test_std_dtype():
     """Test std with dtype argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
         _ = np.std(x, dtype=np.float64)
@@ -77,7 +77,7 @@ def test_std_dtype():
 
 def test_std_method():
     """Test array.std() method call."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4])
         _ = x.std()
@@ -86,7 +86,7 @@ def test_std_method():
 
 def test_std_broadcast():
     """Test std with broadcasting."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
@@ -96,7 +96,7 @@ def test_std_broadcast():
 
 def test_std_multi_axis():
     """Test std with multiple axes."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
         _ = np.std(x, axis=(0, 2))

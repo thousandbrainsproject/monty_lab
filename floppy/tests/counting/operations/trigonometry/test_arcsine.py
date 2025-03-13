@@ -4,7 +4,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_arcsin_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 0.5, 0.25])
         result = np.arcsin(a)
@@ -15,7 +15,7 @@ def test_arcsin_ufunc_syntax():
 
 
 def test_arcsin_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = -0.5
         result = np.arcsin(a)
@@ -32,7 +32,7 @@ def test_arcsin_broadcasting():
         )
 
 def test_arcsin_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.arcsin(a)

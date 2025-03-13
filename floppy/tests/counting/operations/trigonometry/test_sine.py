@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_sin_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.sin(a)
@@ -16,7 +16,7 @@ def test_sin_ufunc_syntax():
 
 
 def test_sin_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = 2
         result = np.sin(a)
@@ -34,7 +34,7 @@ def test_sin_broadcasting():
 
 
 def test_sin_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.sin(a)
@@ -43,7 +43,7 @@ def test_sin_empty():
 
 
 def test_sine_chaining():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.sin(np.sin(a))

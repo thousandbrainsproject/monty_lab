@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_multiply_operator_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -15,7 +15,7 @@ def test_multiply_operator_syntax():
 
 
 def test_multiply_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -25,7 +25,7 @@ def test_multiply_ufunc_syntax():
 
 
 def test_multiply_method_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -35,7 +35,7 @@ def test_multiply_method_syntax():
 
 
 def test_multiply_augmented_assignment():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -45,7 +45,7 @@ def test_multiply_augmented_assignment():
 
 
 def test_multiply_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2

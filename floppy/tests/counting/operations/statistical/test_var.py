@@ -6,7 +6,7 @@ from floppy.counting.counter import FlopCounter
 
 def test_var_scalar():
     """Test var of scalar value."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array(5)  # scalar array
         _ = np.var(x)
@@ -15,7 +15,7 @@ def test_var_scalar():
 
 def test_var_scalar_python():
     """Test var of Python scalar."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         _ = np.var(5)
     assert counter.flops == 4  # 4*1 FLOPs for single element
@@ -23,7 +23,7 @@ def test_var_scalar_python():
 
 def test_var_1d():
     """Test var of 1D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4, 5])
         _ = np.var(x)
@@ -32,7 +32,7 @@ def test_var_1d():
 
 def test_var_2d():
     """Test var of 2D array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.var(x)
@@ -41,7 +41,7 @@ def test_var_2d():
 
 def test_var_empty():
     """Test var of empty array."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([])
         try:
@@ -53,7 +53,7 @@ def test_var_empty():
 
 def test_var_single():
     """Test var of single element."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1])
         _ = np.var(x)
@@ -62,7 +62,7 @@ def test_var_single():
 
 def test_var_axis():
     """Test var with axis argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.var(x, axis=0)  # var of each column
@@ -71,7 +71,7 @@ def test_var_axis():
 
 def test_var_keepdims():
     """Test var with keepdims=True."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         _ = np.var(x, keepdims=True)
@@ -80,7 +80,7 @@ def test_var_keepdims():
 
 def test_var_dtype():
     """Test var with dtype argument."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
         _ = np.var(x, dtype=np.float64)
@@ -89,7 +89,7 @@ def test_var_dtype():
 
 def test_var_method():
     """Test array.var() method call."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([1, 2, 3, 4])
         _ = x.var()
@@ -98,7 +98,7 @@ def test_var_method():
 
 def test_var_broadcast():
     """Test var with broadcasting."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.array([[1, 2, 3], [4, 5, 6]])
         y = np.array([1, 2, 3])
@@ -108,7 +108,7 @@ def test_var_broadcast():
 
 def test_var_multi_axis():
     """Test var with multiple axes."""
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         x = np.ones((2, 3, 4))
         _ = np.var(x, axis=(0, 2))

@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_log_basic():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.log(a)
@@ -14,7 +14,7 @@ def test_log_basic():
 
 
 def test_log_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = 2
         result = np.log(a)
@@ -32,7 +32,7 @@ def test_log_broadcasting():
 
 
 def test_log_empty():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([])
         result = np.log(a)

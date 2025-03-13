@@ -5,7 +5,7 @@ from floppy.counting.counter import FlopCounter
 
 
 def test_subtract_operator_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -15,7 +15,7 @@ def test_subtract_operator_syntax():
 
 
 def test_subtract_ufunc_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -24,7 +24,7 @@ def test_subtract_ufunc_syntax():
         np.testing.assert_array_equal(result, np.array([-3, -3, -3]))
 
 def test_subtract_method_syntax():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -34,7 +34,7 @@ def test_subtract_method_syntax():
 
 
 def test_subtract_augmented_assignment():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
@@ -43,7 +43,7 @@ def test_subtract_augmented_assignment():
         np.testing.assert_array_equal(a, np.array([-3, -3, -3]))
 
 def test_subtract_broadcasting():
-    counter = FlopCounter(test_mode=True)
+    counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2
