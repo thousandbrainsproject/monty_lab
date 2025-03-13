@@ -8,41 +8,80 @@ __all__ = [
 
 
 class ConvolveOperation:
-    """FLOP count for convolution operation.
+    """Counts floating point operations (FLOPs) for convolution operations.
 
-    This class implements FLOP counting for numpy's convolve operation.
-    For each output element, the convolution requires multiplying corresponding
-    elements from the input array and the flipped kernel, then summing these products.
+    Handles both single array convolutions and batched computations.
+    Each output element requires kernel_size multiplications and (kernel_size - 1) additions.
+
+    Example shapes:
+        Single: (N,) x (K,) -> (N+K-1,)
+        Batched: (B,N) x (K,) -> (B,N+K-1,)
+
+    The convolution computation requires:
+    - kernel_size multiplications per output element
+    - (kernel_size - 1) additions per output element
+    Total: (2 * kernel_size - 1) * output_size FLOPs where:
+    - kernel_size is the length of the kernel array
+    - output_size is the length of the result array
+    - For batched inputs, multiply by batch size
+
+    Reference: Standard convolution algorithm where each output element is computed
+    by multiplying corresponding elements from the input array and the flipped kernel,
+    then summing these products.
     """
 
-    def count_flops(self, *args: Any, result: Any, **kwargs: Any) -> int:
-        """Count FLOPs for convolution operation.
+    # Constants for the convolution operation
+    MULTS_PER_OUTPUT = 1  # Number of multiplications per output element
+    ADDS_PER_OUTPUT = 1  # Number of additions per output element
+
+    def count_flops(
+        self, *args: Any, result: np.ndarray, **kwargs: Any
+    ) -> Optional[int]:
+        """Returns the number of floating point operations for computing convolution.
 
         Args:
-            *args: Input arrays (array and kernel to convolve)
-            result: The result array
-            **kwargs: Additional keyword arguments that match numpy.convolve parameters.
-                     These currently don't affect the FLOP count.
+            *args: Input arrays where the first array contains the input signal
+                  and the second array contains the kernel to convolve with.
+                  Must be compatible shapes for convolution.
+            result: The resulting array from the convolution operation.
+                   Used to determine the number of operations computed.
+            **kwargs: Additional numpy.convolve parameters (e.g., mode).
+                     These do not affect the FLOP count.
 
         Returns:
-            int: Number of floating point operations
+            Optional[int]: Number of floating point operations (FLOPs).
+                          Returns None if operation cannot be performed.
 
         Note:
-            For each output element, convolution requires:
-            - kernel_size multiplications (one per kernel element)
-            - (kernel_size - 1) additions to sum the products
-            Total: (2 * kernel_size - 1) * output_size FLOPs
+            Convolution computation:
+            - Each output element requires:
+                * kernel_size multiplications
+                * (kernel_size - 1) additions
+            - Total FLOPs per output element = 2 * kernel_size - 1
+            - For batched inputs, multiply by batch size
+            - The actual number of operations may vary based on convolution mode
         """
         if len(args) < 2:
-            return 0
+            return None
 
         array, kernel = args[:2]
+        if not isinstance(array, np.ndarray) or not isinstance(kernel, np.ndarray):
+            return None
+
         kernel_size = len(kernel)
+        if kernel_size == 0:
+            return 0  # Empty kernel
+
         output_size = len(result)
+        if output_size == 0:
+            return 0  # Empty result
 
         # For each output element:
         # - kernel_size multiplications
         # - (kernel_size - 1) additions
-        flops_per_output = 2 * kernel_size - 1
+        flops_per_output = (
+            kernel_size * self.MULTS_PER_OUTPUT
+            + (kernel_size - 1) * self.ADDS_PER_OUTPUT
+        )
 
         return flops_per_output * output_size
