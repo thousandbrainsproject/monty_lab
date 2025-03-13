@@ -9,6 +9,8 @@ __all__ = [
     "Division",
     "FloorDivideOperation",
     "ModuloOperation",
+    "LinspaceOperation",
+    "AbsoluteOperation",
 ]
 
 class ArithmeticOperation:
@@ -111,3 +113,25 @@ class ModuloOperation:
         Total: 3 FLOPs per element
         """
         return 3 * np.size(result)
+
+class LinspaceOperation:
+    """FLOP count for linspace operation."""
+
+    def count_flops(self, *args: Any, result: Any) -> int:
+        """Count FLOPs for linspace operation.
+
+        For n points, linspace performs:
+        - 1 subtraction (stop - start)
+        - 1 division ((stop - start) / (num - 1))
+        - n-1 additions to generate the sequence
+        Total: 2 + (n-1) FLOPs where n is the number of points
+        """
+        n = np.size(result)
+        return 2 + (n - 1)  # 1 subtraction, 1 division, and (n-1) additions
+
+
+class AbsoluteOperation(ArithmeticOperation):
+    """Class for absolute value operation."""
+
+    def __init__(self):
+        super().__init__("absolute")
