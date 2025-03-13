@@ -26,6 +26,7 @@ import scipy
 import seaborn as sns
 from data_utils import (
     DMC_ANALYSIS_DIR,
+    DMC_RESULTS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
     ObjectModel,
@@ -35,6 +36,7 @@ from data_utils import (
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.transform import Rotation as R
+from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 from tbp.monty.frameworks.utils.logging_utils import (
     deserialize_json_chunks,
     get_pose_error,
@@ -455,20 +457,67 @@ def plot_symmetry_objects():
         fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
         plt.close()
 
-# path =
-# all_objects = list(detailed_stats["0"]["LM_0"]["evidences_ls"].keys())
-# num_obj = len(all_objects)
-# rel_obj_evidence_matrix = np.zeros((num_obj, num_obj))
-# for episode in list(detailed_stats.keys()):  # [:-1]:
-#     #     target_object = eval_stats['target_object'][int(episode)]
-#     detected_object = detailed_stats[str(episode)]["LM_0"]["current_mlh"][-1][
-#         "graph_id"
-#     ]
-#     detected_evidence = np.max(
-#         detailed_stats[str(episode)]["LM_0"]["evidences_ls"][detected_object]
-#     )
-#     for object_id, object_name in enumerate(all_objects):
-#         rel_obj_evidence_matrix[int(episode), object_id] = (
-#             np.max(detailed_stats[str(episode)]["LM_0"]["evidences_ls"][object_name])
-#             - detected_evidence
-#         )
+def plot_dendrogram_and_confusion_matrix():
+    path = (
+        DMC_RESULTS_DIR
+        / "dist_agent_1lm_randrot_noise_10simobj/detailed_run_stats.json"
+    )
+    out_dir = OUT_DIR / "object_similarity"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    detailed_stats = DetailedJSONStatsInterface(path)
+
+    all_objects = SIMILAR_OBJECTS
+    id_to_object = {i: obj for i, obj in enumerate(all_objects)}
+    object_to_id = {obj: i for i, obj in id_to_object.items()}
+    n_objects = len(all_objects)
+    n_episodes = len(detailed_stats)
+    rel_obj_evidence_matrix = np.zeros((n_objects, n_objects))
+    # for episode, stats in enumerate(detailed_stats):
+    for episode in range(n_objects):
+        stats = detailed_stats[episode]
+        detected_object = stats["LM_0"]["current_mlh"][-1]["graph_id"]
+        detected_evidence = np.max(stats["LM_0"]["evidences_ls"][detected_object])
+        for object_id, object_name in id_to_object.items():
+            rel_obj_evidence_matrix[episode, object_id] = (
+                np.max(stats["LM_0"]["evidences_ls"][object_name]) - detected_evidence
+            )
+
+    sums = rel_obj_evidence_matrix.sum(axis=1, keepdims=1)
+    sums[sums == 0] = 1
+    rel_obj_evidence_matrix_normed = rel_obj_evidence_matrix / sums
+
+    Z = linkage(rel_obj_evidence_matrix_normed, "average")
+    fig, ax = plt.subplots(figsize=(4, 3))
+
+    dn = dendrogram(Z, labels=all_objects)  # ,orientation='top',leaf_font_size=15)
+    plt.xticks(rotation=45, fontsize=8, ha="right")
+    plt.ylabel("Cluster Distance", fontsize=10)
+    sns.despine(left=False, bottom=False, right=True)
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(out_dir / "dendrogram.png", dpi=300)
+    fig.savefig(out_dir / "dendrogram.svg")
+
+    rel_obj_evidence_df = pd.DataFrame(
+        rel_obj_evidence_matrix_normed, columns=all_objects
+    )
+    # %%
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.set_aspect("equal")
+    # sns.heatmap(rel_obj_evidence_df, linewidths=.5, ax=ax,vmin=0,vmax=1,annot=False, linecolor='black', annot_kws={"size": 15})
+    sns.heatmap(rel_obj_evidence_df, ax=ax, cmap="inferno")
+    ax.set_xticks(np.arange(n_objects) + 0.5)
+    ax.set_yticks(np.arange(n_objects) + 0.5)
+    ax.set_yticklabels(all_objects, rotation=0)
+    ax.set_xticklabels(all_objects, rotation=45, ha="right")
+
+    # cbar = ax.collections[0].colorbar
+    # cbar.ax.tick_params(labelsize=15)
+    # cbar.set_label(
+    #     "Evidence rel. Target (Normalized)", rotation=270, labelpad=20, fontsize=18
+    # )
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(out_dir / "confusion_matrix.png", dpi=300)
+    fig.savefig(out_dir / "confusion_matrix.svg")
+    # %%
