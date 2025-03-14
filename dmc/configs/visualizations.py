@@ -49,6 +49,7 @@ from .fig5_rapid_inference_with_voting import (
     dist_agent_1lm_randrot_noise,
     dist_agent_8lm_half_lms_match,
 )
+from .fig6_rapid_inference_with_model_based_policies import surf_agent_1lm
 
 # Main output directory for visualization experiment results.
 VISUALIZATION_RESULTS_DIR = DMC_ROOT_DIR / "visualizations"
@@ -190,9 +191,27 @@ dataset_args = fig5_visualize_8lm_patches["dataset_args"]
 dataset_args.env_init_args["agents"][0].agent_args["resolutions"] = resolutions
 dataset_args.__post_init__()
 
+"""
+Figure 6
+-------------------------------------------------------------------------------
+"""
+fig6_curvature_guided_policy = deepcopy(surf_agent_1lm)
+fig6_curvature_guided_policy["experiment_args"].n_eval_epochs = 1
+fig6_curvature_guided_policy["logging_config"] = SelectiveEvidenceLoggingConfig(
+    output_dir=str(VISUALIZATION_RESULTS_DIR),
+    run_name="fig6_curvature_guided_policy",
+)
+fig6_curvature_guided_policy["eval_dataloader_args"] = (
+    EnvironmentDataloaderPerObjectArgs(
+        object_names=["mug"],
+        object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
+    )
+)
+
 
 CONFIGS = {
     "fig3_evidence_run": fig3_evidence_run,
     "fig4_symmetry_run": fig4_symmetry_run,
     "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
+    "fig6_curvature_guided_policy": fig6_curvature_guided_policy,
 }
