@@ -146,7 +146,6 @@ fig4_symmetry_run.update(
             monty_handlers=[
                 BasicCSVStatsHandler,
                 MLHEvidenceHandler,
-                ReproduceEpisodeHandler,
             ],
             selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
         ),
