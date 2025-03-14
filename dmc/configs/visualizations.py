@@ -200,7 +200,9 @@ fig6_curvature_guided_policy["experiment_args"].n_eval_epochs = 1
 fig6_curvature_guided_policy["logging_config"] = SelectiveEvidenceLoggingConfig(
     output_dir=str(VISUALIZATION_RESULTS_DIR),
     run_name="fig6_curvature_guided_policy",
+    selective_handler_args=dict(last_evidence=True),
 )
+fig6_curvature_guided_policy["monty_config"].monty_args.min_eval_steps = 100
 fig6_curvature_guided_policy["eval_dataloader_args"] = (
     EnvironmentDataloaderPerObjectArgs(
         object_names=["mug"],
