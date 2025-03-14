@@ -2,6 +2,8 @@ from typing import Any, Optional, Union
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "MeanOperation",
     "StdOperation",
@@ -11,7 +13,7 @@ __all__ = [
 ]
 
 
-class MeanOperation:
+class MeanOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for mean operations.
 
     Handles both single array and batched computations of arithmetic means.
@@ -76,7 +78,7 @@ class MeanOperation:
         return n  # (n-1) additions + 1 division
 
 
-class StdOperation:
+class StdOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for standard deviation operations.
 
     Handles both single array and batched computations of standard deviations.
@@ -150,7 +152,7 @@ class StdOperation:
         return 4 * n + self.SQRT_COST
 
 
-class VarOperation:
+class VarOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for variance operations.
 
     Handles both single array and batched computations of variances.
@@ -216,7 +218,7 @@ class VarOperation:
         return 4 * n
 
 
-class AverageOperation:
+class AverageOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for average operations.
 
     Handles both weighted and unweighted average computations.
@@ -294,7 +296,7 @@ class AverageOperation:
             return n + 1
 
 
-class MedianOperation:
+class MedianOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for median operations.
 
     Handles both single array and batched computations of medians.

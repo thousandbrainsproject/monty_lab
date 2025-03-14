@@ -2,12 +2,14 @@ from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "SumOperation",
 ]
 
 
-class SumOperation:
+class SumOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for array sum operations.
 
     Handles various sum computation cases including:

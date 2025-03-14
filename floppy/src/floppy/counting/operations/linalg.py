@@ -2,6 +2,8 @@ from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "CrossOperation",
     "MatmulOperation",
@@ -16,7 +18,8 @@ __all__ = [
     "SolveOperation",
 ]
 
-class CrossOperation:
+
+class CrossOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for vector cross product operations.
 
     Handles both single vector pairs and batched computations of 3D cross products.

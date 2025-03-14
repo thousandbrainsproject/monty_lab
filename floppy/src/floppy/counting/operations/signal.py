@@ -2,12 +2,14 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "ConvolveOperation",
 ]
 
 
-class ConvolveOperation:
+class ConvolveOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for convolution operations.
 
     Handles both single array convolutions and batched computations.

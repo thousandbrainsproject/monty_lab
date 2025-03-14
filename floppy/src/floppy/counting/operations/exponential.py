@@ -3,6 +3,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "ExponentialOperation",
     "LogOperation",
@@ -10,7 +12,7 @@ __all__ = [
 ]
 
 
-class ExponentialOperation:
+class ExponentialOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for exponential operations.
 
     Handles both scalar and array exponential operations. Each exponential operation
@@ -53,7 +55,7 @@ class ExponentialOperation:
         return self.FLOPS_PER_EXP * np.size(result)
 
 
-class LogOperation:
+class LogOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for logarithm operations.
 
     Handles both scalar and array logarithm operations. Each logarithm operation
@@ -95,7 +97,7 @@ class LogOperation:
         return self.FLOPS_PER_LOG * np.size(result)
 
 
-class PowerOperation:
+class PowerOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for power operations.
 
     Handles various types of power operations including integer powers, square roots,

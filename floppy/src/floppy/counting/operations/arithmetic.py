@@ -2,6 +2,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "Addition",
     "Subtraction",
@@ -14,7 +16,7 @@ __all__ = [
 ]
 
 
-class ArithmeticOperation:
+class ArithmeticOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for basic arithmetic operations.
 
     Handles both scalar and array operations. For scalar operations, counts one FLOP

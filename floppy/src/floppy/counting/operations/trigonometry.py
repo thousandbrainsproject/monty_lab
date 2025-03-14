@@ -2,6 +2,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from ..core.protocols import FlopOperation
+
 __all__ = [
     "SineOperation",
     "CosineOperation",
@@ -14,7 +16,7 @@ __all__ = [
     "RadiansOperation",
 ]
 
-class SineOperation:
+class SineOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for element-wise sine operations.
 
     Each element-wise sine operation counts as 20 FLOPs, based on Taylor series
@@ -63,7 +65,7 @@ class SineOperation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class CosineOperation:
+class CosineOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for element-wise cosine operations.
 
     Each element-wise cosine operation counts as 20 FLOPs, based on Taylor series
@@ -112,7 +114,7 @@ class CosineOperation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class TangentOperation:
+class TangentOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for element-wise tangent operations.
 
     Each element-wise tangent operation counts as 20 FLOPs, based on Taylor series
@@ -161,7 +163,7 @@ class TangentOperation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class ArcSineOperation:
+class ArcSineOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for element-wise inverse sine operations.
 
     Each element-wise arcsine operation counts as 33 FLOPs, based on implementation
@@ -212,7 +214,7 @@ class ArcSineOperation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class ArccosOperation:
+class ArccosOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for element-wise inverse cosine operations.
 
     Each element-wise arccos operation counts as 44 FLOPs, based on implementation
@@ -265,7 +267,7 @@ class ArccosOperation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class ArcTangentOperation:
+class ArcTangentOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for element-wise inverse tangent operations.
 
     Each element-wise arctangent operation counts as 20 FLOPs, based on Taylor series
@@ -314,7 +316,7 @@ class ArcTangentOperation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class ArcTangent2Operation:
+class ArcTangent2Operation(FlopOperation):
     """Counts floating point operations (FLOPs) for two-argument inverse tangent operations.
 
     Each element-wise arctan2 operation counts as 40 FLOPs, based on implementation
@@ -361,7 +363,7 @@ class ArcTangent2Operation:
         return self.FLOPS_PER_ELEMENT * num_elements
 
 
-class DegreesOperation:
+class DegreesOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for angle conversion from radians to degrees.
 
     Handles conversion of angles from radians to degrees by multiplying by 180/π.
@@ -407,7 +409,7 @@ class DegreesOperation:
         return self.MULTS_PER_ELEMENT * num_elements
 
 
-class RadiansOperation:
+class RadiansOperation(FlopOperation):
     """Counts floating point operations (FLOPs) for angle conversion from degrees to radians.
 
     Handles conversion of angles from degrees to radians by multiplying by π/180.
