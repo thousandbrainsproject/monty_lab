@@ -202,7 +202,6 @@ fig6_curvature_guided_policy["logging_config"] = SelectiveEvidenceLoggingConfig(
     run_name="fig6_curvature_guided_policy",
     selective_handler_args=dict(exclude=["LM_0"]),
 )
-fig6_curvature_guided_policy["monty_config"].monty_args.min_eval_steps = 100
 fig6_curvature_guided_policy[
     "monty_config"
 ].motor_system_config.motor_system_args.use_goal_state_driven_actions = False
@@ -213,10 +212,22 @@ fig6_curvature_guided_policy["eval_dataloader_args"] = (
     )
 )
 
+fig6_surf_test_point = deepcopy(surf_agent_1lm)
+fig6_surf_test_point["experiment_args"].n_eval_epochs = 1
+fig6_surf_test_point["logging_config"] = SelectiveEvidenceLoggingConfig(
+    output_dir=str(VISUALIZATION_RESULTS_DIR),
+    run_name="fig6_surf_test_point",
+    # selective_handler_args=dict(),
+)
+fig6_surf_test_point["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
+    object_names=["spoon"],
+    object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
+)
 
 CONFIGS = {
     "fig3_evidence_run": fig3_evidence_run,
     "fig4_symmetry_run": fig4_symmetry_run,
     "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
     "fig6_curvature_guided_policy": fig6_curvature_guided_policy,
+    "fig6_surf_test_point": fig6_surf_test_point,
 }
