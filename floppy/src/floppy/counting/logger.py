@@ -15,8 +15,8 @@ class LogLevel(Enum):
 
 
 @dataclass
-class Operation:
-    """Represents a single FLOP operation"""
+class FlopLogEntry:
+    """Represents a single FLOP logging entry with metadata about where and when FLOPs were counted"""
 
     flops: int
     filename: str
@@ -31,9 +31,9 @@ class Operation:
 class BaseLogger:
     def __init__(self, batch_size: int = 1000):
         self.batch_size = batch_size
-        self.buffer: List[Operation] = []
+        self.buffer: List[FlopLogEntry] = []
 
-    def log_operation(self, operation: Operation) -> None:
+    def log_operation(self, operation: FlopLogEntry) -> None:
         """Add operation to buffer and flush if batch size reached"""
         self.buffer.append(operation)
         if len(self.buffer) >= self.batch_size:
@@ -84,7 +84,7 @@ class DetailedLogger(BaseLogger):
         self.current_file_flops = defaultdict(int)
         self.last_file = None
 
-    def log_operation(self, operation: Operation) -> None:
+    def log_operation(self, operation: FlopLogEntry) -> None:
         """Add operation to buffer and aggregate counts based on log level"""
         self.buffer.append(operation)
 
@@ -259,14 +259,14 @@ class LogManager:
         self.detailed_logger = detailed_logger
         self.csv_logger = csv_logger
 
-    def log_operation(self, operation: Operation) -> None:
+    def log_operation(self, operation: FlopLogEntry) -> None:
         """Log a FLOP operation to the configured loggers.
 
         The operation is always sent to the DetailedLogger if one is configured.
         For the CSVLogger, only operations with is_wrapped_method=True are logged.
 
         Args:
-            operation (Operation): The FLOP operation to log, containing details such as
+            operation (FlopLogEntry): The FLOP operation to log, containing details such as
                 flop count, filename, line number, function name, etc.
         """
         if self.detailed_logger:

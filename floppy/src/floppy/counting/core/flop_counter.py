@@ -12,17 +12,31 @@ import threading
 import time
 from contextlib import ContextDecorator
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 
-from ..logger import LogManager, Operation
+from ..logger import FlopLogEntry, LogManager
 from ..registry import OperationRegistry
 from .tracked_array import TrackedArray
 
 
 class FlopCounter(ContextDecorator):
-    """Context manager that tracks FLOP operations."""
+    """Context manager that tracks floating point operations (FLOPs) in numerical computations.
+
+    The FlopCounter tracks FLOPs by monkey-patching NumPy functions and monitoring array
+    operations. It can be used to measure computational complexity and performance
+    characteristics of numerical computations. As a context manager and decorator, it can
+    be used either with a 'with' statement or as a function/method decorator.
+
+    Key Features:
+        - Accurate FLOP counting for NumPy operations
+        - Thread-safe operation tracking
+        - Configurable path filtering for selective monitoring
+        - Optional detailed logging of operations
+        - Support for nested operations without double-counting
+        - Can be used as both context manager and decorator
+    """
 
     def __init__(
         self,
@@ -30,6 +44,26 @@ class FlopCounter(ContextDecorator):
         skip_paths: Optional[List[str]] = None,
         include_paths: Optional[List[str]] = None,
     ):
+        """Initialize a FlopCounter instance.
+
+        Args:
+            log_manager: Optional LogManager instance to record FLOP operations with
+                metadata like file, line number, and timestamp. If None, operations
+                will be counted but not logged.
+            skip_paths: Optional list of path substrings. Any code from files containing
+                these substrings in their paths will be excluded from FLOP counting.
+                This is useful for excluding library code or test files.
+            include_paths: Optional list of path substrings that override skip_paths.
+                Even if a path matches a skip_path pattern, if it also matches an
+                include_path pattern, FLOPs will still be counted. This allows fine-grained
+                control over which code paths are monitored.
+
+        Note:
+            - The counter is not active until used as a context manager with 'with'
+            - Thread-safe FLOP counting is ensured using locks
+            - Nested operations are tracked to avoid double-counting
+            - NumPy operations are temporarily monkey-patched while the counter is active
+        """
         self.flops = 0
         self._is_active = False
         self.log_manager = log_manager
@@ -50,8 +84,26 @@ class FlopCounter(ContextDecorator):
             for name in self.registry.get_all_operations().keys()
         }
 
-    def _tracked_array(self, *args, **kwargs):
-        """Create a tracked array from numpy array creation."""
+    def _tracked_array(self, *args: Any, **kwargs: Any) -> TrackedArray:
+        """Intercept NumPy array creation to return a tracked array.
+
+        This internal method is used to monkey-patch numpy.array() during the FlopCounter
+        context. It ensures that any array created using np.array() within the context
+        is automatically wrapped in a TrackedArray for FLOP counting.
+
+        The method:
+        1. Calls the original np.array function to create the array
+        2. Wraps the result in a TrackedArray linked to this counter
+        3. Preserves all original np.array functionality and arguments
+
+        Args:
+            *args: Variable length argument list passed to np.array()
+            **kwargs: Arbitrary keyword arguments passed to np.array()
+
+        Returns:
+            TrackedArray: A tracked version of the array that would have been created
+                by the original np.array() call.
+        """
         arr = self._original_array_func(*args, **kwargs)
         return TrackedArray(arr, self)
 
@@ -266,12 +318,15 @@ class FlopCounter(ContextDecorator):
             if not str(file_path).startswith(
                 str(Path("~/tbp/monty_lab/floppy/src/floppy/counting").expanduser())
             ):
-                operation = Operation(
+                operation = FlopLogEntry(
                     flops=count,
                     filename=filename,
                     line_no=caller_frame.f_lineno,
                     function_name=caller_frame.f_code.co_name,
                     timestamp=time.time(),
+                    episode=self.episode,
+                    parent_method=self.parent_method,
+                    is_wrapped_method=self.is_wrapped_method,
                 )
                 self.log_manager.log_operation(operation)
                 break

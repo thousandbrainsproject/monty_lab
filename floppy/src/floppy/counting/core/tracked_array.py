@@ -16,7 +16,33 @@ if TYPE_CHECKING:
 
 
 class TrackedArray(np.ndarray):
-    """Array wrapper that tracks floating point operations using the operation registry."""
+    """A NumPy array subclass that tracks floating point operations for FLOP counting.
+
+    TrackedArray wraps standard NumPy arrays to monitor and count floating point operations
+    performed on the array. It integrates with FlopCounter to provide accurate FLOP counts
+    for numerical computations. The class maintains the full functionality of np.ndarray
+    while transparently tracking operations through NumPy's __array_ufunc__ protocol.
+
+    Key Features:
+        - Transparent operation tracking: All NumPy operations are monitored automatically
+        - Zero overhead when not counting: Operations bypass tracking when counter is inactive
+        - Preserves array behavior: Maintains all standard NumPy array functionality
+        - Thread-safe tracking: Safe to use in multi-threaded environments
+        - Nested operation support: Correctly handles operations within operations
+
+    The array automatically tracks operations like:
+        - Basic arithmetic (+, -, *, /, etc.)
+        - Mathematical functions (sqrt, exp, log, etc.)
+        - Linear algebra operations (dot, matmul, etc.)
+        - Reductions (sum, mean, etc.)
+        - Universal functions (ufuncs)
+
+    Note:
+        - Arrays are only tracked when used within a FlopCounter context
+        - Slicing and viewing operations maintain tracking capabilities
+        - Non-floating point operations are not counted
+        - Tracking has minimal performance impact when counter is inactive
+    """
 
     def __new__(
         cls, input_array: np.ndarray, counter: Optional["FlopCounter"]
