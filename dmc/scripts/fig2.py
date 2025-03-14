@@ -10,18 +10,11 @@
 """
 This module defines functions used to generate images for figure 2.
 
-- `plot_potted_meat_can_object_models`: Plots the potted meat can (i.e., Spam)
-object models for the distant and touch agents.
-- `plot_potted_meat_can_views`: Plots the view finder images of the potted meat can
-at 14 training rotations.
-
-
 
 """
 
 import json
 import os
-from pathlib import Path
 from typing import Optional
 
 import matplotlib.pyplot as plt
@@ -33,6 +26,7 @@ from data_utils import (
 from matplotlib.figure import Figure
 from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
 from render_view_finder_images import VIEW_FINDER_DIR
+from scipy.spatial.transform import Rotation as R
 
 plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"
@@ -44,7 +38,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def plot_agent_models_mug():
-    out_dir = OUT_DIR
+    out_dir = OUT_DIR / "agent_models"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(6, 4), subplot_kw={"projection": "3d"})
 
@@ -58,6 +52,7 @@ def plot_agent_models_mug():
     obj = dist_mug
     color = obj.rgba
     ax.scatter(obj.x, obj.y, obj.z, c=color, s=15, alpha=0.5, linewidths=0)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax, grid=False)
     axes3d_set_aspect_equal(ax)
     ax.axis("off")
@@ -74,6 +69,7 @@ def plot_agent_models_mug():
     cmap = plt.cm.gray
     color = cmap(norm(values) * 0.33 + 0.33)
     ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax, grid=False)
     axes3d_set_aspect_equal(ax)
     ax.axis("off")
@@ -83,8 +79,8 @@ def plot_agent_models_mug():
     ax.set_zlim(-0.055, 0.055)
 
     fig.tight_layout()
-    fig.savefig(out_dir / "agent_models.png", bbox_inches="tight", dpi=300)
-    fig.savefig(out_dir / "agent_models.svg", bbox_inches="tight", pad_inches=0)
+    fig.savefig(out_dir / "mug.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "mug.svg", bbox_inches="tight", pad_inches=0)
     plt.show()
 
 
@@ -93,19 +89,22 @@ def plot_agent_models_potted_meat_can():
 
     Plots 2 object models for the potted meat can -- one with color as learned
     by the distant agent, and one without color as learned by the touch agent.
+
+    TODO: Delete me, probably.
     """
 
-    out_dir = OUT_DIR / "object_models"
+    out_dir = OUT_DIR / "agent_models"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Plot the distant agent's object model using stored colors.
     obj = load_object_model("dist_agent_1lm_10distinctobj", "potted_meat_can")
     obj -= np.array([0.0, 1.5, 0.0])
-    obj = obj.rotated(90, 260, 0)
+    obj = obj.rotated(R.from_euler("xyz", [90, 260, 0], degrees=True))
 
     fig = plt.figure(figsize=(2, 2))
     ax = fig.add_subplot(projection="3d")
     ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, marker="o", s=10, alpha=1)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax)
     ax.view_init(elev=10, azim=10, roll=0)
     fig.tight_layout()
@@ -118,7 +117,7 @@ def plot_agent_models_potted_meat_can():
     # Plot the touch agent's object model. Generate colors.
     obj = load_object_model("touch_agent_1lm", "potted_meat_can")
     obj -= np.array([0.0, 1.5, 0.0])
-    obj = obj.rotated(90, 260, 0)
+    obj = obj.rotated(R.from_euler("xyz", [90, 260, 0], degrees=True))
 
     fig = plt.figure(figsize=(2, 2))
     ax = fig.add_subplot(projection="3d")
@@ -129,6 +128,7 @@ def plot_agent_models_potted_meat_can():
     cmap = plt.cm.magma
     rgba = cmap(norm(values) * 0.33 + 0.33)
     ax.scatter(obj.x, obj.y, obj.z, c=rgba, marker="o", s=10, alpha=1)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax)
     ax.view_init(elev=10, azim=10, roll=0)
     fig.tight_layout()
@@ -165,7 +165,6 @@ def plot_object_views(object_name: str, **kw) -> None:
             episodes.append((episode_num, object_name, rotation))
 
     # Plot each image as its own figure.
-    out = []
     for i, episode in enumerate(episodes):
         episode_number = episode[0]
 
@@ -189,7 +188,6 @@ def plot_object_views(object_name: str, **kw) -> None:
         ax.imshow(image)
         ax.axis("off")
         fig.tight_layout(pad=0)
-        # fig.savefig(png_dir / f"{i}.png", dpi=300, pad_inches=0)
         fig.savefig(png_dir / f"{i}.png", dpi=300)
         fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
 
@@ -318,11 +316,12 @@ def plot_pretraining_epochs():
             "dist_agent_1lm_checkpoints", "potted_meat_can", checkpoint=i + 1
         )
         obj -= np.array([0.0, 1.5, 0.0])
-        color = TBP_COLORS["blue"]
-        ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+        # color = TBP_COLORS["blue"]
+        ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, s=5, alpha=0.5)
+        ax.set_proj_type("persp", focal_length=1)
         axes3d_clean(ax, grid=False)
         axes3d_set_aspect_equal(ax)
-        ax.view_init(120, -45, 40)
+        ax.view_init(115, -50, 40)
         ax.set_xlim(-0.055, 0.055)
         ax.set_ylim(-0.055, 0.055)
         ax.set_zlim(-0.055, 0.055)
@@ -335,3 +334,8 @@ def plot_pretraining_epochs():
     output_file = out_dir / "pretraining_epochs.svg"
     remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
 
+
+# plot_agent_models_mug()
+# plot_agent_models_potted_meat_can()
+# plot_object_views("potted_meat_can")
+# plot_pretraining_epochs()

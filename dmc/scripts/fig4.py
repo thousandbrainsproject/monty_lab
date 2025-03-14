@@ -14,9 +14,8 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 `save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
 """
 
-import os
 from types import SimpleNamespace
-from typing import Iterable, List, Mapping, Tuple, Union
+from typing import List, Mapping, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -67,6 +66,8 @@ def get_emd_distance(
 
     Returns:
         float: The EMD distance between the two point clouds.
+
+    TODO: Delete me.
     """
 
     pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
@@ -189,9 +190,7 @@ def get_relative_rotation(
     return theta, axis
 
 
-def get_symmetry_stats(
-    experiment: os.PathLike = "fig4_symmetry_run",
-) -> Mapping:
+def get_symmetry_stats() -> Mapping:
     """Compute pose errors and Chamfer distances for symmetric rotations.
 
     Used to generate data by `plot_symmetry_stats`.
@@ -210,7 +209,7 @@ def get_symmetry_stats(
         which is a dict with "best", "mlh", "other", and "random" (all numpy arrays)
 
     """
-    experiment_dir = VISUALIZATION_RESULTS_DIR / experiment
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_symmetry_run"
     detailed_stats = DetailedJSONStatsInterface(
         experiment_dir / "detailed_run_stats.json"
     )
@@ -354,13 +353,6 @@ def plot_symmetry_objects():
             "elev": 30,
             "azim": -90,
         },
-        # mug - not totally symmetric, mixed messages
-        154: {
-            "other_index": 1,
-            "random_rotation": np.array([172, 68, -25]),
-            "elev": -70,
-            "azim": -80,
-        },
     }
     for episode in episode_params.keys():
         params = episode_params.get(episode, {})
@@ -438,6 +430,7 @@ def plot_symmetry_objects():
                     normalize=True,
                 )
                 getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+            ax.set_proj_type("persp", focal_length=1)
             axes3d_clean(ax)
             axes3d_set_aspect_equal(ax)
             ax.view_init(elev, azim)
@@ -629,9 +622,9 @@ def plot_similar_object_models(modality: str):
             edgecolors="none",
             s=10,
         )
+        ax.set_proj_type("persp", focal_length=1)
         axes3d_clean(ax, grid=False)
         axes3d_set_aspect_equal(ax)
-        ax.set_proj_type("persp", focal_length=1)
         params = plot_params[object_name]
         ax.set_title(object_name)
         ax.view_init(elev=params["elev"], azim=params["azim"], roll=params["roll"])
@@ -640,7 +633,9 @@ def plot_similar_object_models(modality: str):
     fig.savefig(OUT_DIR / f"object_models_{modality}.svg")
 
 
-plot_dendrogram_and_confusion_matrix("dist")
-plot_dendrogram_and_confusion_matrix("surf")
-plot_similar_object_models("dist")
-plot_similar_object_models("surf")
+# plot_dendrogram_and_confusion_matrix("dist")
+# plot_dendrogram_and_confusion_matrix("surf")
+# plot_similar_object_models("dist")
+# plot_similar_object_models("surf")
+# plot_symmetry_stats()
+# plot_symmetry_objects()
