@@ -40,7 +40,7 @@ plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"
 plt.rcParams["svg.fonttype"] = "none"
 
-OUT_DIR = DMC_ANALYSIS_DIR / "fig4"
+OUT_DIR = DMC_ANALYSIS_DIR / "fig5"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 PERFORMANCE_OPTIONS = (
@@ -633,210 +633,6 @@ Figure Functions
 """
 
 
-def plot_1_and_2_lms():
-    lm1 = Experiment(
-        name="dist_agent_1lm_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=1,
-    )
-    lm2_1 = Experiment(
-        name="dist_agent_2lm_half_lms_match_randrot_noise",
-        group="half_lms_match",
-        min_lms_match=1,
-        n_lms=2,
-    )
-    lm2_2 = Experiment(
-        name="dist_agent_2lm_fixed_min_lms_match_randrot_noise",
-        group="fixed_min_lms_match",
-        min_lms_match=2,
-        n_lms=2,
-    )
-
-    group = [lm1, lm2_1, lm2_2]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    labels = ["match: n_lms / 2", "match: 2"]
-    sides = ["left", "right"]
-
-    fig, ax_1 = plt.subplots(1, 1, figsize=(6, 4))
-    ax_2 = ax_1.twinx()
-
-    # amount of white space between violins
-    gap = 0.02
-    item_width = 0.4
-    xticks = np.arange(3)
-    bar_positions = xticks - item_width / 2 - gap / 2
-    violin_positions = xticks + item_width / 2 + gap / 2
-
-    # Plot accuracy.
-    accuracies_correct = [exp.get_accuracy("correct") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_correct,
-        color=colors[0],
-        width=item_width,
-        label="correct",
-    )
-    bottom = np.array(accuracies_correct)
-
-    accuracies_correct_mlh = [exp.get_accuracy("correct_mlh") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_correct_mlh,
-        color=colors[0],
-        width=item_width,
-        bottom=bottom,
-        hatch="///",
-        label="correct_mlh",
-    )
-    bottom += accuracies_correct_mlh
-
-    accuracies_confused = [exp.get_accuracy("confused") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_confused,
-        color="red",
-        width=item_width,
-        bottom=bottom,
-        label="confused",
-    )
-    bottom += accuracies_confused
-
-    accuracies_confused_mlh = [exp.get_accuracy("confused_mlh") for exp in group]
-    ax_1.bar(
-        bar_positions,
-        accuracies_confused_mlh,
-        color="red",
-        width=item_width,
-        bottom=bottom,
-        hatch="///",
-        label="confused_mlh",
-    )
-
-    # Plot num steps.
-    n_steps = [exp.get_n_steps("num_steps") for exp in group]
-    violinplot(
-        n_steps,
-        violin_positions,
-        width=item_width,
-        color=colors[1],
-        alpha=1,
-        showmedians=True,
-        median_style=dict(lw=1, color="lightgray", ls="-"),
-        ax=ax_2,
-    )
-
-    ax_1.set_xlabel("Num. LMs : min_lms_match")
-    ax_1.set_xticks(xticks)
-    ax_1.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
-    ax_1.set_ylabel("% Correct")
-    ax_1.set_ylim(50, 100)
-    ax_2.set_ylabel("Steps")
-    ax_2.set_ylim(0, 500)
-
-    axes = [ax_1, ax_2]
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-        ax.set_xlim([-0.55, 3])
-    ax_1.legend()
-
-    # ------------------------------------------------------------------------------
-    # Plot num steps for confused  vs correct, all cases.
-
-    correct_group = []
-    confused_group = []
-    for exp in group:
-        eval_stats = exp.eval_stats
-        x = eval_stats[eval_stats.primary_performance == "correct"].num_steps
-        correct_group.append(x)
-        x = eval_stats[eval_stats.primary_performance == "confused"].num_steps
-        confused_group.append(x)
-
-    xticks = np.arange(3)
-    item_width = 0.4
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
-    colors = [TBP_COLORS["blue"], "red"]
-    violinplot(
-        correct_group,
-        xticks,
-        width=0.4,
-        color=colors[0],
-        showmedians=True,
-        side="left",
-        gap=0.01,
-        ax=ax,
-    )
-    violinplot(
-        confused_group,
-        xticks,
-        width=0.4,
-        color=colors[1],
-        showmedians=True,
-        side="right",
-        gap=0.01,
-        ax=ax,
-    )
-    ax.set_ylim([0, 500])
-    add_legend(ax, colors, labels=["correct", "confused"])
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
-    ax.set_xlabel("Num. LMs : min_lms_match")
-    ax.set_ylabel("Steps")
-    plt.show()
-
-    # Plot num steps for confused  vs correct, all cases.
-
-    # Let's look at symmetry evidence for confused vs correct.
-    correct_group = []
-    confused_group = []
-    for exp in group:
-        eval_stats = exp.eval_stats
-        x = eval_stats[eval_stats.primary_performance == "correct"].symmetry_evidence
-        correct_group.append(x)
-        x = eval_stats[eval_stats.primary_performance == "confused"].symmetry_evidence
-        confused_group.append(x)
-
-    xticks = np.arange(3)
-    item_width = 0.4
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4))
-    colors = [TBP_COLORS["blue"], "red"]
-    violinplot(
-        correct_group,
-        xticks,
-        width=0.4,
-        color=colors[0],
-        showmedians=True,
-        showextrema=True,
-        side="left",
-        gap=0.01,
-        ax=ax,
-    )
-    violinplot(
-        confused_group,
-        xticks,
-        width=0.4,
-        color=colors[1],
-        showmedians=True,
-        showextrema=True,
-        side="right",
-        gap=0.01,
-        ax=ax,
-    )
-    ax.set_ylim([0, 100])
-    add_legend(ax, colors, labels=["correct", "confused"])
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(["1 : 1", "2 : 1", "2 : 2"])
-    ax.set_xlabel("Num. LMs : min_lms_match")
-    ax.set_ylabel("Steps")
-    plt.show()
-
-    exp = group[2]
-    confused_df = exp.reduced_stats[exp.reduced_stats.primary_performance == "confused"]
-    n_correct = confused_df.n_correct.values
-    confused_eps_with_1_correct = (n_correct == 1).sum() / len(n_correct)
-    print(f"confused eps with 1 correct: {100*confused_eps_with_1_correct:.2f}%")
-
-
 def plot_performance_1lm():
     exp = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
     colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
@@ -858,7 +654,7 @@ def plot_performance_1lm():
     fig.savefig(out_dir / "performance_1lm.svg")
 
 
-def plot_performance_multi_lm_hom():
+def plot_performance_multi_lm():
     """Make figure where accuracies and num_steps are on separate axes."""
     half = get_experiments(group="half_lms_match")[1:]
     fixed = get_experiments(group="fixed_min_lms_match")[1:]
@@ -885,38 +681,9 @@ def plot_performance_multi_lm_hom():
     plt.show()
     out_dir = OUT_DIR / "performance"
     out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_multi_lm_hom.png", dpi=300)
-    fig.savefig(out_dir / "performance_multi_lm_hom.svg")
+    fig.savefig(out_dir / "performance_multi_lm.png", dpi=300)
+    fig.savefig(out_dir / "performance_multi_lm.svg")
 
 
-def plot_performance_multi_lm_het():
-    """Make figure where accuracies and num_steps are on separate axes."""
-    half = get_experiments(group="half_lms_match")[1:]
-    fixed = get_experiments(group="fixed_min_lms_match")[1:]
-
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    fn_kw = {
-        "left_ylim": (50, 100),
-        "right_ylim": (0, 100),
-    }
-
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
-    double_accuracy_and_n_steps_plot(
-        half, colors, title="Half LMs Match", ax=axes[0], **fn_kw
-    )
-    double_accuracy_and_n_steps_plot(
-        fixed, colors, title="2 LMs Match", ax=axes[1], **fn_kw
-    )
-
-    for ax in axes:
-        ax.spines["top"].set_visible(False)
-
-    fig.tight_layout()
-    plt.show()
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    fig.savefig(out_dir / "performance_multi_lm_het.png", dpi=300)
-    fig.savefig(out_dir / "performance_multi_lm_het.svg")
-
-
-
+plot_performance_1lm()
+plot_performance_multi_lm()
