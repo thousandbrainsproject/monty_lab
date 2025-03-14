@@ -39,7 +39,7 @@ from .fig6_rapid_inference_with_model_based_policies import (
 )
 
 
-class SimilarObjectsEvidenceHandler(SelectiveEvidenceHandler):
+class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
     """Logging handler that only saves terminal evidence data for the MLH object.
 
     A lean logger handler for the symmetry experiment (which are full-length runs,
@@ -77,7 +77,7 @@ dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
         run_name="dist_agent_1lm_randrot_noise_10simobj",
         monty_handlers=[
             BasicCSVStatsHandler,
-            SimilarObjectsEvidenceHandler,
+            LastMaxEvidenceHandler,
         ],
     )
 )
@@ -91,7 +91,7 @@ surf_agent_1lm_randrot_noise_10simobj["logging_config"] = (
         run_name="surf_agent_1lm_randrot_noise_10simobj",
         monty_handlers=[
             BasicCSVStatsHandler,
-            SimilarObjectsEvidenceHandler,
+            LastMaxEvidenceHandler,
         ],
     )
 )
