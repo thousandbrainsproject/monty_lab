@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from floppy.counting.counter import FlopCounter
+from floppy.counting.core import FlopCounter
 
 
 def test_std_scalar():

@@ -78,7 +78,7 @@ Intercepts NumPy array operations through the `__array_ufunc__` interface to cou
 Example:
 
 ```python
-from floppy.flop_counting.counter import FlopCounter
+from floppy.counting.core import FlopCounter
 
 with FlopCounter() as counter:
     a = np.array([[1, 2], [3, 4]])  # Automatically wrapped as TrackedArray
@@ -97,7 +97,7 @@ Handles higher-level NumPy/SciPy operations through explicit wrappers:
 Example:
 
 ```python
-from floppy.flop_counting.counter import FlopCounter
+from floppy.counting.core import FlopCounter
 
 with FlopCounter() as counter:
     a = np.array([[1, 2], [3, 4]])
@@ -210,7 +210,7 @@ Results are saved in `~/tbp/monty_lab/floppy/results/flop_traces.csv`.
 To count FLOPs in your own code:
 
 ```python
-from floppy.counting.counter import FlopCounter
+from floppy.counting.core import FlopCounter
 
 # Basic usage
 with FlopCounter() as counter:

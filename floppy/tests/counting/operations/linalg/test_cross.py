@@ -1,6 +1,6 @@
 import numpy as np
 
-from floppy.counting.counter import FlopCounter
+from floppy.counting.core import FlopCounter
 
 
 def test_cross_basic():
