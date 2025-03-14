@@ -1,12 +1,14 @@
 import ast
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any
+from pathlib import Path
+from typing import Any, Dict, List
+
 import pandas as pd
+
+from .exceptions import FileAnalysisError
 from .visitors.numpy_visitor import NumpyCallVisitor
 from .visitors.scipy_visitor import ScipyCallVisitor
 from .visitors.sklearn_visitor import SklearnCallVisitor
-from .exceptions import FileAnalysisError
 
 
 class FlopAnalyzer:

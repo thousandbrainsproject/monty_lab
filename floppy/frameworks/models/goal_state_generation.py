@@ -1,6 +1,7 @@
-from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
-import numpy as np
 import logging
+
+import numpy as np
+from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 
 
 class FlopCountingEvidenceGoalStateGenerator(EvidenceGoalStateGenerator):

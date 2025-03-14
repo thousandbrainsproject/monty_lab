@@ -1,13 +1,12 @@
 import numpy as np
 import torch
 import torch_geometric
-from torch_geometric.data import Data
-
-from tbp.monty.frameworks.models.object_model import GraphObjectModel
 from tbp.monty.frameworks.models.object_model import (
+    GraphObjectModel,
     get_correct_k_n,
     remove_close_points,
 )
+from torch_geometric.data import Data
 
 
 class FlopCountingObjectModel(GraphObjectModel):
