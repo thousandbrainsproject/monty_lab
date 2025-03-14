@@ -14,6 +14,7 @@ Plotting utilities for the Monty capabilities analysis.
 # TBP colors. Violin plots use blue.
 from numbers import Number
 from typing import (
+    Any,
     Container,
     Mapping,
     Optional,
