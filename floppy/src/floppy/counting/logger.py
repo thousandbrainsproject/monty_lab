@@ -44,14 +44,39 @@ class BaseLogger:
 
 
 class DetailedLogger(BaseLogger):
-    """Handles logging of FLOP operations with detailed information to .log file"""
+    """Handles logging of FLOP operations with detailed information to .log file.
+
+    This logger provides three different levels of granularity for logging FLOP operations:
+
+    1. OPERATION (LogLevel.OPERATION):
+       - Logs each individual FLOP operation separately
+       - Includes details: FLOPs count, file, line number, and function name
+       - Most detailed but highest overhead and largest log file size
+
+    2. FUNCTION (LogLevel.FUNCTION):
+       - Aggregates FLOP counts at the function level
+       - Groups operations by filename and function name
+       - Provides a balance between detail and performance
+       - Logs accumulated FLOPs per function when buffer is flushed
+
+    3. FILE (LogLevel.FILE):
+       - Aggregates FLOP counts at the file level
+       - Tracks total FLOPs per file
+       - Most efficient in terms of storage and performance
+       - Logs accumulated FLOPs whenever switching to a different file
+
+    Args:
+        logger (logging.Logger): The logger instance to use for output
+        batch_size (int, optional): Number of operations to buffer before flushing. Defaults to 10,000.
+        log_level (LogLevel, optional): The granularity level for logging. Defaults to LogLevel.FUNCTION.
+    """
 
     def __init__(
         self,
         logger: logging.Logger,
         batch_size: int = 10_000,
         log_level: LogLevel = LogLevel.FUNCTION,
-    ):
+    ) -> None:
         super().__init__(batch_size)
         self.logger = logger
         self.log_level = log_level
@@ -129,6 +154,23 @@ class DetailedLogger(BaseLogger):
 
 
 class CSVLogger(BaseLogger):
+    """Logs FLOP operations to CSV files with automatic file rotation.
+
+    This logger writes operation data to CSV files, creating new files when the maximum
+    number of rows is reached. Each CSV file contains columns for timestamp, episode,
+    method name, FLOP count, filename, line number, and parent method.
+
+    The CSV files are named using the pattern: {base_name}_{file_number}.csv
+
+    Args:
+        filepath (str): Base filepath for the CSV files. The file number will be inserted
+            before the extension (e.g., "flops_0.csv", "flops_1.csv")
+        batch_size (int, optional): Number of operations to buffer before writing to file.
+            Defaults to 10,000.
+        max_rows (int, optional): Maximum number of rows per CSV file before rotating to
+            a new file. Defaults to 10,000.
+    """
+
     def __init__(self, filepath: str, batch_size: int = 10_000, max_rows: int = 10_000):
         self.base_filepath = filepath
         self.max_rows = max_rows
@@ -138,17 +180,39 @@ class CSVLogger(BaseLogger):
         super().__init__(batch_size)
         self._initialize_csv()
 
-    def _get_filepath(self):
+    def _get_filepath(self) -> str:
+        """Generate the current CSV filepath based on the file number.
+
+        Returns:
+            str: The complete filepath including the current file number.
+        """
         path = Path(self.base_filepath)
         return str(path.parent / f"{path.stem}_{self.current_file_number}{path.suffix}")
 
     def _initialize_csv(self) -> None:
+        """Initialize a new CSV file with header row.
+
+        Creates the necessary directory structure if it doesn't exist and writes
+        the column headers to the new CSV file.
+        """
         Path(self.current_filepath).parent.mkdir(parents=True, exist_ok=True)
         with open(self.current_filepath, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["timestamp", "episode", "method", "flops", "filename", "line_no", "parent_method"])
 
     def flush(self) -> None:
+        """Write buffered operations to the current CSV file.
+
+        If the number of rows in the current file exceeds max_rows after writing,
+        a new CSV file will be created for subsequent operations. Each row contains:
+        - timestamp: When the operation occurred
+        - episode: Training episode number (if applicable)
+        - method: Name of the function where FLOPs were counted
+        - flops: Number of floating point operations
+        - filename: Source file containing the operation
+        - line_no: Line number where the operation occurred
+        - parent_method: Name of the parent function (if applicable)
+        """
         if not self.buffer:
             return
 
@@ -165,17 +229,58 @@ class CSVLogger(BaseLogger):
         self.buffer.clear()
 
 class LogManager:
+    """Manages multiple loggers for FLOP operations with different output formats.
+
+    The LogManager coordinates between a DetailedLogger for human-readable logging output
+    and a CSVLogger for machine-readable data collection. It can handle either or both types
+    of loggers simultaneously.
+
+    The DetailedLogger writes to a .log file with configurable granularity levels
+    (operation, function, or file level), while the CSVLogger writes structured data
+    to CSV files with automatic file rotation.
+
+    Note: When using both loggers, only wrapped method operations (is_wrapped_method=True)
+    are written to the CSV logger, while all operations are sent to the DetailedLogger.
+
+    Args:
+        detailed_logger (Optional[DetailedLogger]): Logger for human-readable output with
+            configurable granularity. If None, no detailed logging is performed.
+        csv_logger (Optional[CSVLogger]): Logger for CSV output with automatic file
+            rotation. If None, no CSV logging is performed.
+
+    Example:
+        >>> detailed_logger = DetailedLogger(logger, log_level=LogLevel.FUNCTION)
+        >>> csv_logger = CSVLogger("flops.csv", max_rows=10000)
+        >>> log_manager = LogManager(detailed_logger, csv_logger)
+        >>> log_manager.log_operation(operation)  # Logs to both outputs if appropriate
+    """
+
     def __init__(self, detailed_logger: Optional[DetailedLogger] = None, csv_logger: Optional[CSVLogger] = None):
         self.detailed_logger = detailed_logger
         self.csv_logger = csv_logger
 
     def log_operation(self, operation: Operation) -> None:
+        """Log a FLOP operation to the configured loggers.
+
+        The operation is always sent to the DetailedLogger if one is configured.
+        For the CSVLogger, only operations with is_wrapped_method=True are logged.
+
+        Args:
+            operation (Operation): The FLOP operation to log, containing details such as
+                flop count, filename, line number, function name, etc.
+        """
         if self.detailed_logger:
             self.detailed_logger.log_operation(operation)
         if self.csv_logger and operation.is_wrapped_method:
             self.csv_logger.log_operation(operation)
 
     def flush(self) -> None:
+        """Flush any buffered operations in both loggers.
+
+        This ensures all pending operations are written to their respective outputs.
+        Should be called when you want to ensure all data is persisted, typically
+        at the end of a logging session or before program termination.
+        """
         if self.detailed_logger:
             self.detailed_logger.flush()
         if self.csv_logger:

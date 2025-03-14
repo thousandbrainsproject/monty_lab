@@ -10,7 +10,8 @@
 import logging
 import os
 import time
-from typing import Any, Dict
+from argparse import ArgumentParser, Namespace
+from typing import Any, Dict, List, Optional, Type, Union
 
 from tbp.monty.frameworks.run import (
     config_to_dict,
@@ -28,7 +29,7 @@ from frameworks.models.goal_state_generation import (
 )
 
 
-def wrap_experiment_with_flops(experiment_cls, run_name):
+def wrap_experiment_with_flops(experiment_cls: Type, run_name: str) -> Type:
     """Modifies Monty experiment class to enable FLOP counting.
 
     This function modifies the experiment class's setup_experiment method by:
@@ -43,13 +44,18 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
         run_name (str): Name of the experiment run, used by the MontyFlopTracer
 
     Returns:
-        experiment_cls: The modified experiment class with FLOP counting capabilities
+        Type: The modified experiment class with FLOP counting capabilities
     """
     original_setup = experiment_cls.setup_experiment
 
-    def wrapped_setup(self, config):
+    def wrapped_setup(self, config: Dict[str, Any]) -> None:
+        """Modified setup method that adds FLOP counting capabilities.
+
+        Args:
+            config (Dict[str, Any]): Configuration dictionary containing experiment settings
+        """
         modified_config = config.copy()
-        # Only
+        # Replace standard learning modules with FLOP-counting versions
         for lm_key in modified_config["monty_config"]["learning_module_configs"]:
             lm_config = modified_config["monty_config"]["learning_module_configs"][
                 lm_key
@@ -62,12 +68,12 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
 
         original_setup(self, modified_config)
 
-        # Get Floppy-specific configs
+        # Extract Floppy-specific configurations
         floppy_config = modified_config.get("floppy_config", {})
         results_dir = floppy_config.get("results_dir", "")
         detailed_logging = floppy_config.get("detailed_logging", False)
 
-        # Logger-specific configs
+        # Configure logging parameters
         detailed_logger_kwargs = {
             "batch_size": floppy_config.get("detailed_batch_size", 10000),
             "log_level": LogLevel[(floppy_config.get("log_level", "FUNCTION"))],
@@ -75,6 +81,8 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
         csv_logger_kwargs = {
             "batch_size": floppy_config.get("csv_batch_size", 1000),
         }
+
+        # Initialize FLOP tracer with experiment components
         flop_tracer = MontyFlopTracer(
             experiment_name=run_name,
             monty_instance=self.model,
@@ -87,6 +95,8 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
             detailed_logger_kwargs=detailed_logger_kwargs,
             csv_logger_kwargs=csv_logger_kwargs,
         )
+
+        # Share the same FLOP counter across all learning modules
         one_true_flop_counter = flop_tracer.flop_counter
         for lm in self.model.learning_modules:
             if isinstance(lm, FlopCountingEvidenceGraphLM):
@@ -98,11 +108,22 @@ def wrap_experiment_with_flops(experiment_cls, run_name):
         self.flop_tracer = flop_tracer
 
     experiment_cls.setup_experiment = wrapped_setup
-
     return experiment_cls
 
 
-def run_with_flops(exp_config: Dict[str, Any]):
+def run_with_flops(exp_config: Dict[str, Any]) -> Any:
+    """Runs an experiment with FLOP counting enabled.
+
+    Args:
+        exp_config (Dict[str, Any]): Experiment configuration dictionary containing
+            experiment class and parameters.
+
+    Returns:
+        Any: Result of the experiment execution.
+
+    Raises:
+        ValueError: If no experiment_class is found in exp_config.
+    """
     original_experiment_class = exp_config.get("experiment_class")
 
     if original_experiment_class is None:
@@ -112,15 +133,27 @@ def run_with_flops(exp_config: Dict[str, Any]):
     wrapped_experiment = wrap_experiment_with_flops(original_experiment_class, run_name)
 
     exp_config["experiment_class"] = wrapped_experiment
-
-    result = run(exp_config)
-    return result
+    return run(exp_config)
 
 
-def flop_main(all_configs, experiments=None):
-    """Main function that runs experiments with FLOP counting enabled."""
-    cmd_args = None
+def flop_main(
+    all_configs: Dict[str, Any], experiments: Optional[List[str]] = None
+) -> None:
+    """Main function that runs experiments with FLOP counting enabled.
+
+    This function handles command-line argument parsing, experiment configuration,
+    and execution of experiments with FLOP counting capabilities.
+
+    Args:
+        all_configs (Dict[str, Any]): Dictionary containing all available experiment
+            configurations.
+        experiments (Optional[List[str]], optional): List of experiment names to run.
+            If None, experiments will be selected via command-line arguments.
+            Defaults to None.
+    """
+    cmd_args: Optional[Namespace] = None
     if not experiments:
+        # Set up command-line argument parser with FLOP-specific options
         cmd_parser = create_cmd_parser(experiments=all_configs.keys())
         cmd_parser.add_argument(
             "--detailed_logging",
@@ -148,16 +181,19 @@ def flop_main(all_configs, experiments=None):
         )
         cmd_args = cmd_parser.parse_args()
         experiments = cmd_args.experiments
+
+        # Configure habitat logging based on command-line arguments
         if cmd_args.quiet_habitat_logs:
             os.environ["MAGNUM_LOG"] = "quiet"
             os.environ["HABITAT_SIM_LOG"] = "quiet"
 
+    # Process each experiment in the list
     for experiment in experiments:
         exp = all_configs[experiment]
         exp_config = merge_args(exp, cmd_args)
         exp_config = config_to_dict(exp_config)
 
-        # Update run_name and output dir with experiment name
+        # Update experiment naming and output directory configuration
         if not exp_config["logging_config"]["run_name"]:
             exp_config["logging_config"]["run_name"] = experiment
         exp_config["logging_config"]["output_dir"] = os.path.join(
@@ -165,28 +201,25 @@ def flop_main(all_configs, experiments=None):
             f"{exp_config['logging_config']['run_name']}_floppy",
         )
 
-        # Add Floppy configs to exp_config
+        # Configure Floppy-specific settings
         exp_config["floppy_config"] = {
-            "results_dir": exp_config["logging_config"][
-                "output_dir"
-            ],  # Use same output as Monty
+            "results_dir": exp_config["logging_config"]["output_dir"],
             "detailed_logging": cmd_args.detailed_logging if cmd_args else False,
             "log_level": cmd_args.log_level.upper() if cmd_args else "FUNCTION",
             "detailed_batch_size": cmd_args.detailed_batch_size if cmd_args else 10000,
             "csv_batch_size": cmd_args.csv_batch_size if cmd_args else 100,
         }
-        # If we are not running in parallel, this should always be False
+        # Disable parallel wandb logging for non-parallel execution
         exp_config["logging_config"]["log_parallel_wandb"] = False
 
-        # Print config if requested
+        # Print configuration if requested
         if cmd_args is not None and cmd_args.print_config:
             print_config(exp_config)
             continue
 
-        # Create output directory
+        # Create output directory and run the experiment
         os.makedirs(exp_config["logging_config"]["output_dir"], exist_ok=True)
 
-        # Run the experiment with FLOP tracking
         start_time = time.time()
         run_with_flops(exp_config)
         logging.info(f"Done running {experiment} in {time.time() - start_time} seconds")
