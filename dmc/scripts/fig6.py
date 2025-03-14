@@ -50,7 +50,11 @@ plt.rcParams["svg.fonttype"] = "none"
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-%matplotlib qt
+
+
+# %matplotlib qt
+
+
 def plot_curvature_guided_policy():
     exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_curvature_guided_policy"
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
@@ -101,4 +105,8 @@ def plot_curvature_guided_policy():
     fig.savefig(OUT_DIR / "curvature_guided_policy.png", dpi=300, bbox_inches="tight")
     fig.savefig(OUT_DIR / "curvature_guided_policy.svg", bbox_inches="tight")
 
-plot_curvature_guided_policy()
+
+exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_curvature_guided_policy"
+detailed_stats_path = exp_dir / "detailed_run_stats.json"
+detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+stats = detailed_stats_interface[0]
