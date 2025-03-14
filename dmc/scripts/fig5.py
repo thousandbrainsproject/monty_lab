@@ -34,7 +34,7 @@ from data_utils import (
     load_eval_stats,
 )
 from matplotlib.lines import Line2D
-from plot_utils import TBP_COLORS, add_legend, axes3d_set_aspect_equal, violinplot
+from plot_utils import TBP_COLORS, axes3d_set_aspect_equal, violinplot
 
 plt.rcParams["font.size"] = 8
 plt.rcParams["font.family"] = "Arial"
@@ -70,7 +70,7 @@ def plot_8lm_patches():
     """
 
     # Load the detailed stats.
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_visualize_8lm_patches"
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig5_visualize_8lm_patches"
     detailed_stats_path = experiment_dir / "detailed_run_stats.json"
     detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
     stats = detailed_stats_interface[0]
@@ -476,6 +476,7 @@ def double_accuracy_plot(
         labels = ("a", "b")
 
     for i, g in enumerate(groups):
+        # Plot percent correct.
         accuracies = [exp.get_accuracy() for exp in g]
         ax.bar(
             positions[i],
@@ -484,6 +485,23 @@ def double_accuracy_plot(
             width=width,
             label=labels[i],
         )
+        # Plot percent confused but confused and correct were tied.
+        percent_ties = []
+        for exp in g:
+            df = exp.reduced_stats
+            is_confused = df.primary_performance == "confused"
+            is_tied = is_confused & (df.n_correct == df.n_confused)
+            percent_ties.append(100 * is_tied.sum() / len(is_tied))
+        ax.bar(
+            positions[i],
+            percent_ties,
+            bottom=accuracies,
+            # color="gold",
+            color=colors[i],
+            alpha=0.3,
+            width=width,
+        )
+
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_xticks(xticks)
@@ -522,7 +540,6 @@ def double_n_steps_plot(
         n_steps.append([exp.get_n_steps() for exp in g])
 
     sides = ["left", "right"]
-    alpha = 0.75 if showmeans else 1
     for i, g in enumerate(groups):
         violinplot(
             n_steps[i],
@@ -530,7 +547,6 @@ def double_n_steps_plot(
             width=width,
             gap=gap,
             color=colors[i],
-            alpha=alpha,
             showmedians=True,
             median_style=dict(color="lightgray"),
             side=sides[i],
@@ -541,12 +557,16 @@ def double_n_steps_plot(
     if showmeans:
         for i, g in enumerate(groups):
             means = [np.mean(arr) for arr in n_steps[i]]
-            if sides[i] == "left":
-                x_pos = xticks - width / 2 - gap / 2
-            else:
-                x_pos = xticks + width / 2 + gap / 2
-            ax.scatter(x_pos, means, color=colors[i], marker="o", edgecolor="black")
-            ax.plot(x_pos, means, color=colors[i], linestyle="-", linewidth=2)
+            ax.scatter(
+                xticks,
+                means,
+                color=colors[i],
+                marker="o",
+                edgecolor="black",
+                facecolor="none",
+            )
+            ax.plot(xticks, means, color="k", linestyle="-", linewidth=3)
+            ax.plot(xticks, means, color=colors[i], linestyle="-", linewidth=2)
 
     ax.set_title(title)
     ax.set_xlabel(xlabel)
@@ -561,7 +581,7 @@ def double_n_steps_plot(
         for i in range(len(colors)):
             handle = Line2D([0], [0], color=colors[i], lw=4, label=labels[i])
             legend_handles.append(handle)
-        ax.legend(handles=legend_handles, loc=loc, fontsize=8)
+        ax.legend(handles=legend_handles, loc=loc, fontsize=8, title="LMs")
 
     return ax
 
@@ -633,18 +653,60 @@ Figure Functions
 """
 
 
-def plot_performance_1lm():
+def plot_performance_1lm(n_steps_ylim=(0, 500)):
     exp = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
-    colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
-    fn_kw = {
-        "left_ylim": (50, 100),
-        "right_ylim": (0, 500),
-    }
+    color = TBP_COLORS["green"]
 
-    fig, ax = plt.subplots(1, 1, figsize=(1.5, 3))
-    double_accuracy_and_n_steps_plot([exp], colors, ax=ax, **fn_kw)
+    fig, axes = plt.subplots(1, 2, figsize=(2, 3))
 
-    ax.spines["top"].set_visible(False)
+    # Plot accuracy.
+    ax = axes[0]
+    accuracies = [exp.get_accuracy()]
+    ax.bar(
+        [1],
+        accuracies,
+        color=color,
+        width=0.8,
+    )
+    ax.set_title("Accuracy")
+    ax.set_xlabel("Num. LMs")
+    ax.set_xlim([0.5, 1.5])
+    ax.set_xticks([1])
+    ax.set_xticklabels(["1"])
+    ax.set_ylabel("% Correct")
+    ax.set_ylim([50, 100])
+
+    # Plot num steps.
+    ax = axes[1]
+    n_steps = [exp.get_n_steps()]
+    violinplot(
+        n_steps,
+        [1],
+        width=0.8,
+        color=color,
+        showmedians=True,
+        median_style=dict(color="lightgray"),
+        ax=ax,
+    )
+    ax.scatter(
+        [1],
+        [n_steps[0].mean()],
+        color="black",
+        marker="o",
+        edgecolor="black",
+        facecolor="none",
+    )
+    ax.set_title("Steps")
+    ax.set_xlabel("Num. LMs")
+    ax.set_xlim([0.5, 1.5])
+    ax.set_xticks([1])
+    ax.set_xticklabels(["1"])
+    ax.set_ylabel("Steps")
+    ax.set_ylim(n_steps_ylim)
+
+    for ax in axes:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
 
     fig.tight_layout()
     plt.show()
@@ -654,23 +716,61 @@ def plot_performance_1lm():
     fig.savefig(out_dir / "performance_1lm.svg")
 
 
-def plot_performance_multi_lm():
+def plot_performance_multi_lm(n_steps_ylim=(0, 100)):
     """Make figure where accuracies and num_steps are on separate axes."""
+    exp_1lm = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
     half = get_experiments(group="half_lms_match")[1:]
     fixed = get_experiments(group="fixed_min_lms_match")[1:]
     groups = [half, fixed]
     colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
 
-    fig, axes = plt.subplots(1, 2, figsize=(8, 3))
+    fig, axes = plt.subplots(1, 2, figsize=(6, 3))
 
-    double_accuracy_plot(groups, colors, ylim=(50, 100), ax=axes[0])
+    # Plot accuracy with horizontal line for 1-LM accuracy.
+    ax = axes[0]
+    accuracy_1lm = exp_1lm.get_accuracy()
+    ax.axhline(
+        accuracy_1lm,
+        color=TBP_COLORS["green"],
+        alpha=1,
+        linestyle="--",
+        linewidth=1,
+    )
+    double_accuracy_plot(groups, colors, ylim=(50, 100), ax=ax)
+
+    # Plot num steps with horizontal lines for 1-LM median and mean number of steps.
+    ax = axes[1]
+    n_steps_1lm = exp_1lm.get_n_steps()
+    ax.axhline(
+        n_steps_1lm.mean(),
+        color=TBP_COLORS["green"],
+        alpha=0.75,
+        linestyle="--",
+        linewidth=1,
+    )
+    ax.axhline(
+        np.median(n_steps_1lm),
+        color=TBP_COLORS["green"],
+        alpha=0.75,
+        linestyle=":",
+        linewidth=1,
+    )
     double_n_steps_plot(
         groups,
         colors,
         ylim=(0, 100),
-        legend=True,
-        labels=["n = LMs / 2", "n = 2"],
-        ax=axes[1],
+        ax=ax,
+    )
+    ax.set_ylim(n_steps_ylim)
+
+    # Add a legend.
+    legend_handles = []
+    legend_labels = ["num. LMs / 2", "2"]
+    for i in range(len(colors)):
+        handle = Line2D([0], [0], color=colors[i], lw=4, label=legend_labels[i])
+        legend_handles.append(handle)
+    ax.legend(
+        handles=legend_handles, loc="upper right", fontsize=8, title="Num. LMs Converge"
     )
 
     for ax in axes:
@@ -684,6 +784,6 @@ def plot_performance_multi_lm():
     fig.savefig(out_dir / "performance_multi_lm.png", dpi=300)
     fig.savefig(out_dir / "performance_multi_lm.svg")
 
-
-plot_performance_1lm()
-plot_performance_multi_lm()
+plot_8lm_patches()
+# plot_performance_1lm()
+# plot_performance_multi_lm()
