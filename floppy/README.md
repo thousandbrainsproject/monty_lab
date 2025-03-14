@@ -20,6 +20,74 @@ Multiple approaches are necessary because numerical operations in Python are imp
 
 In addition, it contains code for static code analysis in `floppy.analysis` to automatically identify operations that contribute to potential FLOP operations.
 
+## Core Components
+
+### FlopCounter
+
+The `FlopCounter` is the central component that manages FLOP counting across all operations. It provides:
+
+1. **Context Management**: Used as a context manager or decorator to track FLOPs within a scope:
+
+   ```python
+   with FlopCounter() as counter:
+       result = np.dot(array1, array2)
+       print(f"FLOPs: {counter.flops}")
+   ```
+
+2. **Thread-Safe Operation**: All FLOP counting is thread-safe, allowing use in multi-threaded environments.
+
+3. **Selective Monitoring**:
+   - `skip_paths`: Exclude specific code paths from FLOP counting
+   - `include_paths`: Override skip_paths for specific paths
+   - Useful for focusing on application code vs library code
+
+4. **Operation Registry**:
+   - Maintains a registry of operations and their FLOP counting rules
+   - Each operation (add, multiply, exp, etc.) has its own counting logic
+   - Easily extensible for new operations
+
+5. **Monkey-Patching System**:
+   - Temporarily patches NumPy functions during the counting context
+   - Automatically wraps arrays in TrackedArray
+   - Restores original functionality after context exit
+
+### TrackedArray
+
+`TrackedArray` is a NumPy array subclass that enables transparent FLOP counting. Key features:
+
+1. **Transparent Operation Tracking**:
+   - Inherits from `np.ndarray`
+   - Preserves all NumPy array functionality
+   - Automatically tracks operations without user intervention
+
+   ```python
+   with FlopCounter() as counter:
+       a = np.array([1, 2, 3])  # Automatically wrapped as TrackedArray
+       b = a + 1  # One FLOP per element is counted
+   ```
+
+2. **Operation Interception**:
+   - Implements `__array_ufunc__` for universal function tracking
+   - Handles all NumPy operations (arithmetic, math functions, etc.)
+   - Maintains tracking through array operations (slicing, reshaping)
+
+3. **Smart FLOP Counting**:
+   - Counts FLOPs based on operation type and array size
+   - Handles broadcasting and reduction operations correctly
+   - Supports both scalar and array operations
+
+4. **Zero Overhead When Inactive**:
+   - No performance impact when counter is not active
+   - Efficient unwrapping of nested TrackedArrays
+   - Caches wrapped methods for better performance
+
+5. **Comprehensive Operation Support**:
+   - Basic arithmetic (+, -, *, /)
+   - Mathematical functions (sqrt, exp, log)
+   - Linear algebra operations (dot, matmul)
+   - Reductions (sum, mean)
+   - Universal functions (ufuncs)
+
 ## Static Code Analysis
 
 The static code analysis is implemented in `floppy.analysis.analyzer.py`. It uses Python's `ast` module to parse source code and identify operations that could contribute to FLOP operations. The analyzer tracks:

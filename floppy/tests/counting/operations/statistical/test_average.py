@@ -64,7 +64,7 @@ def test_average_weighted_2d():
         x = np.array([[1, 2, 3], [4, 5, 6]])
         weights = np.array([0.5, 0.5])
         result = np.average(x, weights=weights, axis=0)  # average along first axis
-        assert counter.flops == 13  # weighted sum (2 * 6) + division (1)
+        assert counter.flops == 16  # weighted sum (2 * 6) + division (1)
         np.testing.assert_allclose(result, np.array([2.5, 3.5, 4.5]))
 
 

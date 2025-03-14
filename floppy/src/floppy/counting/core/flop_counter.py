@@ -235,108 +235,121 @@ class FlopCounter(ContextDecorator):
         arr = self._original_array_func(*args, **kwargs)
         return TrackedArray(arr, self)
 
+    def _unwrap_tracked_args(self, args, kwargs):
+        """Unwrap TrackedArray arguments to their base NumPy arrays.
+
+        Args:
+            args: Positional arguments that may contain TrackedArrays
+            kwargs: Keyword arguments that may contain TrackedArrays
+
+        Returns:
+            tuple: (clean_args, clean_kwargs) with unwrapped arrays
+        """
+        clean_args = []
+        for arg in args:
+            if isinstance(arg, TrackedArray):
+                while isinstance(arg, TrackedArray):
+                    arg = arg.view(np.ndarray)
+                clean_args.append(arg)
+            else:
+                clean_args.append(arg)
+
+        clean_kwargs = {}
+        for k, v in kwargs.items():
+            if isinstance(v, TrackedArray):
+                clean_kwargs[k] = v.view(np.ndarray)
+            else:
+                clean_kwargs[k] = v
+
+        return clean_args, clean_kwargs
+
+    def _count_operation_flops(self, func_name, args, result, kwargs):
+        """Count FLOPs for an operation if conditions are met.
+
+        Args:
+            func_name: Name of the function being counted
+            args: Arguments to the function
+            result: Result of the operation
+            kwargs: Keyword arguments to the function
+        """
+        if not (self._is_active and len(self._operation_stack) == 1):
+            return
+
+        operation = self.registry.get_operation(func_name)
+        if operation:
+            frame_locals = inspect.currentframe().f_locals
+            frame_locals["func_name"] = func_name.split(".")[-1]
+            flops = operation.count_flops(*args, result=result, **kwargs)
+            if flops is not None:
+                self.add_flops(flops)
+
     def _create_flop_counting_wrapper(
         self, func_name: str, func: Callable[..., Any]
     ) -> Callable[..., Any]:
         """Create a wrapper function that intercepts and counts FLOPs for NumPy operations.
 
-        This method creates a specialized wrapper function that:
-        1. Intercepts NumPy function calls to track FLOPs
-        2. Manages nested operation tracking to prevent double-counting
-        3. Handles both regular operations and reduction operations
-        4. Unwraps TrackedArrays before passing to original functions
-        5. Maintains the original function's behavior and interface
-
         Args:
-            func_name: Name of the NumPy function being wrapped.
-            func: The original NumPy function to wrap.
+            func_name: Name of the NumPy function being wrapped
+            func: The original NumPy function to wrap
 
         Returns:
-            Callable[..., Any]: A wrapped version of the function that counts FLOPs while
-                maintaining the original function's behavior.
-
-        Note:
-            The wrapper includes a nested reduce_wrapper for handling reduction operations
-            like sum(), mean(), etc.
+            Callable: A wrapped version of the function that counts FLOPs
         """
 
         def wrapper(*args, **kwargs):
-            # Push this operation onto the stack
-            self._operation_stack.append(func_name)
+            # Check if this is a reduction operation
+            is_reduce = kwargs.pop("_is_reduce", False)
+            operation_name = f"{func_name}.reduce" if is_reduce else func_name
+            self._operation_stack.append(operation_name)
 
             try:
-                # Preprocess arguments
-                clean_args = []
-                for arg in args:
-                    if isinstance(arg, TrackedArray):
-                        while isinstance(arg, TrackedArray):
-                            arg = arg.view(np.ndarray)
-                        clean_args.append(arg)
-                    else:
-                        clean_args.append(arg)
+                if is_reduce:
+                    array = args[0]
+                    if isinstance(array, TrackedArray):
+                        array = array.view(np.ndarray)
+                    out = kwargs.get("out")
+                    if out is not None and isinstance(out, TrackedArray):
+                        kwargs["out"] = out.view(np.ndarray)
 
-                # Clean kwargs
-                clean_kwargs = {}
-                for k, v in kwargs.items():
-                    if isinstance(v, TrackedArray):
-                        clean_kwargs[k] = v.view(np.ndarray)
-                    else:
-                        clean_kwargs[k] = v
+                    # Get original ufunc for reduction
+                    original_ufunc = self._original_ufuncs.get(func_name)
+                    if original_ufunc is None:
+                        original_ufunc = getattr(np, func_name)
+                        self._original_ufuncs[func_name] = original_ufunc
 
-                # Call the original function
-                result = func(*clean_args, **clean_kwargs)
+                    result = original_ufunc.reduce(array, *args[1:], **kwargs)
 
-                # Only count FLOPs if this is the outermost operation
-                if self._is_active and len(self._operation_stack) == 1:
-                    operation = self.registry.get_operation(func_name)
-                    if operation:
-                        frame_locals = inspect.currentframe().f_locals
-                        frame_locals["func_name"] = func_name.split(".")[-1]
-                        flops = operation.count_flops(
-                            *clean_args, result=result, **clean_kwargs
-                        )
-                        if flops is not None:
-                            self.add_flops(flops)
+                    # Count reduction-specific FLOPs
+                    if self._is_active and len(self._operation_stack) == 1:
+                        operation = self.registry.get_operation(func_name)
+                        if operation:
+                            size = (
+                                array.size
+                                if kwargs.get("axis") is None
+                                else array.shape[kwargs.get("axis", 0)]
+                            )
+                            if size > 0:
+                                flops = operation.count_flops(array, result=result)
+                                if flops is not None:
+                                    self.add_flops(flops * (size - 1))
+                else:
+                    # Regular operation processing
+                    clean_args, clean_kwargs = self._unwrap_tracked_args(args, kwargs)
+                    result = func(*clean_args, **clean_kwargs)
+                    self._count_operation_flops(
+                        func_name, clean_args, result, clean_kwargs
+                    )
 
                 return result
             finally:
-                # Always pop the operation from stack, even if there's an error
                 self._operation_stack.pop()
 
-        def reduce_wrapper(array, axis=0, dtype=None, out=None, **kwargs):
-            # Push this operation onto the stack
-            self._operation_stack.append(f"{func_name}.reduce")
+        # Create the reduce method that calls the wrapper with is_reduce=True
+        def reduce(array, axis=0, dtype=None, out=None, **kwargs):
+            kwargs["_is_reduce"] = True
+            return wrapper(array, axis=axis, dtype=dtype, out=out, **kwargs)
 
-            try:
-                if isinstance(array, TrackedArray):
-                    array = array.view(np.ndarray)
-                if out is not None and isinstance(out, TrackedArray):
-                    out = out.view(np.ndarray)
-
-                # Use the stored original ufunc for reduction
-                original_ufunc = self._original_ufuncs.get(func_name)
-                if original_ufunc is None:
-                    original_ufunc = getattr(np, func_name)
-                    self._original_ufuncs[func_name] = original_ufunc
-
-                result = original_ufunc.reduce(array, axis, dtype, out, **kwargs)
-
-                # Only count FLOPs if this is the outermost operation
-                if self._is_active and len(self._operation_stack) == 1:
-                    operation = self.registry.get_operation(func_name)
-                    if operation:
-                        size = array.size if axis is None else array.shape[axis]
-                        if size > 0:
-                            flops = operation.count_flops(array, result=result)
-                            if flops is not None:
-                                self.add_flops(flops * (size - 1))
-
-                return result
-            finally:
-                # Always pop the operation from stack
-                self._operation_stack.pop()
-
-        wrapper.reduce = reduce_wrapper
+        wrapper.reduce = reduce
         return wrapper
 
     def _should_exclude_operation(self) -> bool:
@@ -364,35 +377,34 @@ class FlopCounter(ContextDecorator):
         """
         frame = inspect.currentframe()
         try:
-            # First check if we're in a high-level operation
+            # Single pass through the stack to check all conditions
             in_wrapper = False
             temp_frame = frame
             while temp_frame:
-                if temp_frame.f_code.co_name == "wrapper":
+                code_name = temp_frame.f_code.co_name
+                filename = temp_frame.f_code.co_filename
+
+                # Check wrapper and array_ufunc conditions
+                if code_name == "wrapper":
                     in_wrapper = True
-                    break
-                temp_frame = temp_frame.f_back
+                elif in_wrapper and code_name == "__array_ufunc__":
+                    return True
 
-            # If we're in a wrapper and this is an array_ufunc call, skip it
-            if in_wrapper:
-                temp_frame = frame
-                while temp_frame:
-                    if temp_frame.f_code.co_name == "__array_ufunc__":
-                        return True
-                    temp_frame = temp_frame.f_back
-
-            # Path-based skipping logic
-            while frame:
-                filename = frame.f_code.co_filename
+                # Check path-based conditions
                 if any(path in filename for path in self.include_paths):
                     return False
                 if any(path in filename for path in self.skip_paths):
                     return True
-                frame = frame.f_back
-        finally:
-            del frame
 
-        return False
+                # Get next frame and clean up current one
+                next_frame = temp_frame.f_back
+                if temp_frame is not frame:  # Don't delete our main frame yet
+                    del temp_frame
+                temp_frame = next_frame
+
+            return False
+        finally:
+            del frame  # Clean up our main frame reference
 
     def _log_operation(self, count: int) -> None:
         """Log the FLOP operation with details about the calling context.
@@ -403,27 +415,16 @@ class FlopCounter(ContextDecorator):
 
         Args:
             count: The number of FLOPs to log for this operation.
-
-        Note:
-            The method skips frames from the floppy/counting directory to find the
-            actual user code that triggered the FLOP operation. This ensures that
-            the logged location points to the relevant application code rather than
-            the internal tracking machinery.
-
-        Example:
-            >>> counter = FlopCounter(log_manager=LogManager())
-            >>> with counter:
-            ...     # This operation will be logged with the current file and line number
-            ...     result = np.dot(array1, array2)
         """
         caller_frame = inspect.currentframe().f_back.f_back  # Skip add_flops frame
         while caller_frame:
             filename = caller_frame.f_code.co_filename
             file_path = Path(filename)
 
-            # Check if file is within floppy/counting directory
-            if not str(file_path).startswith(
-                str(Path("~/tbp/monty_lab/floppy/src/floppy/counting").expanduser())
+            # Check if file is within floppy/counting directory using package-relative path
+            if not any(
+                str(file_path).endswith(f"floppy/counting/{subdir}")
+                for subdir in ["core", "logger", "operations", "registry", "tracer.py"]
             ):
                 operation = FlopLogEntry(
                     flops=count,

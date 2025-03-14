@@ -4,34 +4,95 @@ import logging
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Generator, Optional, Tuple
 
 from floppy.counting.core import FlopCounter
-from floppy.counting.logger import CSVLogger, DetailedLogger, LogManager, Operation
+from floppy.counting.logger import CSVLogger, DetailedLogger, FlopLogEntry, LogManager
 
 
 class MontyFlopTracer:
-    """Tracks FLOPs for Monty class methods."""
+    """A specialized tracer for monitoring and logging FLOP operations in Monty-based experiments.
+
+    The MontyFlopTracer wraps key methods in Monty-based experiments to track floating point
+    operations (FLOPs) across different components of the system. It provides detailed insights
+    into computational complexity and performance characteristics of various experiment stages.
+
+    Key Features:
+        - Comprehensive method wrapping for Monty, Experiment, DataLoader, and MotorSystem classes
+        - Hierarchical tracking of method calls and their FLOP counts
+        - Detailed CSV and optional debug logging of operations
+        - Episode-based tracking for experiment progression
+        - Thread-safe operation counting
+        - Support for enabling/disabling FLOP monitoring dynamically
+
+    The tracer automatically wraps methods of interest and maintains a stack of active
+    method calls to properly attribute FLOPs to their source. It can generate both
+    high-level CSV summaries and detailed debug logs of FLOP operations.
+
+    Attributes:
+        experiment_name (str): Name of the experiment being traced
+        monty: Instance of the Monty class being monitored
+        experiment: Instance of the Experiment class being monitored
+        results_dir (str): Directory for storing trace results
+        total_flops (int): Total number of FLOPs counted
+        current_episode (int): Current episode number being processed
+        flop_counter (FlopCounter): Counter instance for tracking FLOPs
+        log_manager (LogManager): Manager for logging FLOP operations
+
+    Examples:
+        >>> # Initialize tracer with experiment components
+        >>> tracer = MontyFlopTracer(
+        ...     experiment_name="my_experiment",
+        ...     monty_instance=monty,
+        ...     experiment_instance=experiment,
+        ...     results_dir="~/results",
+        ...     detailed_logging=True
+        ... )
+        >>>
+        >>> # Methods are automatically wrapped and traced
+        >>> experiment.run_episode()  # FLOPs will be counted and logged
+        >>>
+        >>> # Disable monitoring when done
+        >>> tracer.disable_monty_flop_monitoring()
+    """
 
     def __init__(
         self,
-        experiment_name,
-        monty_instance,
-        experiment_instance,
-        train_dataloader_instance,
-        eval_dataloader_instance,
-        motor_system_instance,
-        results_dir: Optional[str] = None,
+        experiment_name: str,
+        monty_instance: Any,
+        experiment_instance: Any,
+        results_dir: str,
         detailed_logging: bool = False,
         detailed_logger_kwargs: Optional[Dict[str, Any]] = None,
         csv_logger_kwargs: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
+        """Initialize a MontyFlopTracer instance.
+
+        This constructor sets up FLOP tracing for a Monty-based experiment by wrapping key methods
+        of the provided component instances. It initializes logging infrastructure and prepares
+        the tracer to monitor computational operations across the experiment lifecycle.
+
+        Args:
+            experiment_name: Unique identifier for the experiment being traced.
+            monty_instance: Instance of the Monty class whose methods will be traced.
+            experiment_instance: Instance of the Experiment class managing the experiment flow.
+            results_dir: Path to directory where trace results will be saved.
+            detailed_logging: Whether to enable detailed debug logging of operations.
+                When True, generates a separate log file with method-level FLOP details.
+            detailed_logger_kwargs: Optional configuration parameters for the detailed logger.
+                See DetailedLogger class for available options.
+            csv_logger_kwargs: Optional configuration parameters for the CSV logger.
+                See CSVLogger class for available options.
+
+        Raises:
+            ValueError: If results_dir is not provided.
+        """
+        if not results_dir:
+            raise ValueError("results_dir must be provided")
+
         self.experiment_name = experiment_name
         self.monty = monty_instance
         self.experiment = experiment_instance
-        self.train_dataloader = train_dataloader_instance
-        self.eval_dataloader = eval_dataloader_instance
-        self.motor_system = motor_system_instance
         self.results_dir = results_dir
 
         self._initialize_log_manager(
@@ -66,21 +127,79 @@ class MontyFlopTracer:
             )
         if self.motor_system is not None:
             self._original_motor_system_methods = self._collect_motor_system_methods()
-        self._wrap_methods()
+        self.enable_monty_flop_monitoring()
+
+    def enable_monty_flop_monitoring(self) -> None:
+        """Enable FLOP counting for key Monty algorithmic components.
+
+        This method wraps specific methods in Monty that are critical for the
+        Demonstrating Monty Capabilities paper.
+        """
+        for method_name, (
+            original_method,
+            full_name,
+        ) in self._original_monty_methods.items():
+            wrapped_method = self._create_wrapper(
+                method_name, original_method, full_name
+            )
+            setattr(self.monty, method_name, wrapped_method)
+
+        for method_name, (
+            original_method,
+            full_name,
+        ) in self._original_experiment_methods.items():
+            wrapped_method = self._create_wrapper(
+                method_name, original_method, full_name
+            )
+            setattr(self.experiment, method_name, wrapped_method)
+
+    def disable_monty_flop_monitoring(self) -> None:
+        """Disable FLOP counting and restore original Monty methods.
+
+        This method unwraps all previously monitored methods, restoring them to their
+        original implementations.
+
+        Returns:
+            None
+        """
+        for method_name, (original_method, _) in self._original_monty_methods.items():
+            setattr(self.monty, method_name, original_method)
+        for method_name, (
+            original_method,
+            _,
+        ) in self._original_experiment_methods.items():
+            setattr(self.experiment, method_name, original_method)
+
+    def reset(self) -> None:
+        """Reset all FLOP counters to their initial state.
+
+        Note:
+            This does not affect any logged data that has already been written to files.
+        """
+        self.total_flops = 0
+        self.flop_counter.flops = 0
 
     def _initialize_log_manager(
         self,
         detailed_logging: bool,
-        detailed_logger_kwargs: Optional[Dict[str, Any]],
-        csv_logger_kwargs: Optional[Dict[str, Any]],
-    ):
-        """Initialize the log manager."""
+        detailed_logger_kwargs: Optional[Dict[str, Any]] = None,
+        csv_logger_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Initialize the logging infrastructure for FLOP counting.
+
+        Sets up both CSV and optional detailed logging for FLOP operations. Creates necessary
+        directories and log files with timestamps for unique identification.
+
+        Args:
+            detailed_logging: If True, enables detailed debug-level logging of operations
+                in addition to CSV logging.
+            detailed_logger_kwargs: Optional configuration dictionary for the DetailedLogger.
+                If None, default settings will be used.
+            csv_logger_kwargs: Optional configuration dictionary for the CSVLogger.
+                If None, default settings will be used.
+        """
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        self.results_dir = (
-            Path(self.results_dir or f"~/tbp/monty_lab/floppy/results/counting")
-            .expanduser()
-            .resolve()
-        )
+        self.results_dir = Path(self.results_dir).expanduser().resolve()
         csv_path = (
             self.results_dir / f"flop_traces_{self.experiment_name}_{timestamp}.csv"
         )
@@ -108,10 +227,26 @@ class MontyFlopTracer:
             detailed_logger=detailed_logger, csv_logger=csv_logger
         )
 
-    def _collect_monty_methods(self):
-        """Collect methods that need to be wrapped."""
+    def _collect_monty_methods(self) -> Dict[str, Tuple[Callable[..., Any], str]]:
+        """Collect Monty methods that need to be wrapped for FLOP counting.
+
+        Each collected method is paired with its fully qualified name for logging purposes
+        as Monty and Experiment can have same method names.
+
+        Returns:
+            Dict[str, Tuple[Callable[..., Any], str]]: A dictionary mapping method names to tuples.
+            Each tuple contains:
+                - The original method (Callable)
+                - The fully qualified method name (str) used for logging
+
+        Example return value:
+            {
+                "_matching_step": (<bound method>, "monty._matching_step"),
+                "_exploratory_step": (<bound method>, "monty._exploratory_step"),
+                ...
+            }
+        """
         return {
-            # "step": (self.monty.step, "monty.step"),
             "_matching_step": (self.monty._matching_step, "monty._matching_step"),
             "_exploratory_step": (
                 self.monty._exploratory_step,
@@ -123,8 +258,22 @@ class MontyFlopTracer:
             ),
         }
 
-    def _collect_experiment_methods(self):
-        """Collect methods that need to be wrapped."""
+    def _collect_experiment_methods(self) -> Dict[str, Tuple[Callable[..., Any], str]]:
+        """Collect Experiment methods that need to be wrapped for FLOP counting.
+
+        Returns:
+            Dict[str, Tuple[Callable[..., Any], str]]: A dictionary mapping method names to tuples.
+            Each tuple contains:
+                - The original method (Callable)
+                - The fully qualified method name (str) used for logging
+
+        Example return value:
+            {
+                "run_episode": (<bound method>, "experiment.run_episode"),
+                "pre_epoch": (<bound method>, "experiment.pre_epoch"),
+                ...
+            }
+        """
         return {
             "run_episode": (self.experiment.run_episode, "experiment.run_episode"),
             "pre_epoch": (self.experiment.pre_epoch, "experiment.pre_epoch"),
@@ -135,45 +284,21 @@ class MontyFlopTracer:
             "run_epoch": (self.experiment.run_epoch, "experiment.run_epoch"),
         }
 
-    def _collect_train_dataloader_methods(self):
-        return {
-            # "pre_episode": (
-            #     self.train_dataloader.pre_episode,
-            #     "train_dataloader.pre_episode",
-            # ),
-        }
-
-    def _collect_eval_dataloader_methods(self):
-        return {
-            # "pre_episode": (
-            #     self.eval_dataloader.pre_episode,
-            #     "eval_dataloader.pre_episode",
-            # ),
-            # "get_good_view_with_patch_refinement": (
-            #     self.eval_dataloader.get_good_view_with_patch_refinement,
-            #     "eval_dataloader.get_good_view_with_patch_refinement",
-            # ),
-            # "get_good_view": (
-            #     self.eval_dataloader.get_good_view,
-            #     "eval_dataloader.get_good_view",
-            # ),
-        }
-
-    def _collect_motor_system_methods(self):
-        return {
-            # "orient_to_object": (
-            #     self.motor_system.orient_to_object,
-            #     "motor_system.orient_to_object",
-            # ),
-            # "move_close_enough": (
-            #     self.motor_system.move_close_enough,
-            #     "motor_system.move_close_enough",
-            # ),
-        }
-
     @contextmanager
-    def _method_context(self, method_name: str):
-        """Context manager for tracking method hierarchy."""
+    def _method_context(self, method_name: str) -> Generator[None, None, None]:
+        """Context manager for tracking the hierarchical call stack of monitored methods.
+
+        This context manager maintains a stack of method names to track the execution hierarchy
+        of monitored methods in the Monty framework. It's used to understand which methods
+        are calling other methods and to properly attribute FLOP counts in nested calls.
+
+        Args:
+            method_name: The fully qualified name of the method (e.g., 'experiment.run_episode')
+                       being added to the method stack.
+
+        Yields:
+            None: Control is yielded back to the wrapped code block.
+        """
         self._method_stack.append(method_name)
         try:
             yield
@@ -181,9 +306,33 @@ class MontyFlopTracer:
             self._method_stack.pop()
 
     def _create_wrapper(
-        self, method_name: str, original_method: Callable, full_name: str
-    ) -> Callable:
-        """Create a wrapper for the given method."""
+        self, method_name: str, original_method: Callable[..., Any], full_name: str
+    ) -> Callable[..., Any]:
+        """Create a wrapper that tracks FLOP counts and method execution hierarchy for Monty framework methods.
+
+        This wrapper provides high-level method tracing by:
+        1. Managing the FLOP counter's activation state for top-level method calls
+        2. Tracking the method call hierarchy using a stack
+        3. Recording method-specific FLOP counts and their attribution
+        4. Logging detailed method execution information including caller context
+        5. Handling episode counting for experiment progression
+
+        Args:
+            method_name: The name of the method being wrapped (e.g., 'run_episode')
+            original_method: The original method implementation to be wrapped
+            full_name: The fully qualified name of the method (e.g., 'experiment.run_episode')
+                      used for accurate logging and method hierarchy tracking
+
+        Returns:
+            A wrapped version of the method that provides FLOP counting and execution tracing
+            while maintaining the original method's functionality and signature.
+
+        Note:
+            This wrapper works in conjunction with FlopCounter but operates at a different level:
+            - FlopCounter tracks individual NumPy operations and their FLOP counts
+            - This wrapper aggregates those FLOP counts and attributes them to specific
+              methods in the Monty framework's execution flow
+        """
 
         def wrapped(*args, **kwargs):
             is_outer_call = not self._active_counter
@@ -216,7 +365,7 @@ class MontyFlopTracer:
             filename = inspect.getfile(original_method)
             line_no = inspect.getsourcelines(original_method)[1]
 
-            operation = Operation(
+            operation = FlopLogEntry(
                 flops=method_flops,
                 filename=filename,
                 line_no=line_no,
@@ -235,86 +384,3 @@ class MontyFlopTracer:
             return result
 
         return wrapped
-
-    def _wrap_methods(self) -> None:
-        """Wrap methods to count FLOPs."""
-        for method_name, (
-            original_method,
-            full_name,
-        ) in self._original_monty_methods.items():
-            wrapped_method = self._create_wrapper(
-                method_name, original_method, full_name
-            )
-            setattr(self.monty, method_name, wrapped_method)
-
-        for method_name, (
-            original_method,
-            full_name,
-        ) in self._original_experiment_methods.items():
-            wrapped_method = self._create_wrapper(
-                method_name, original_method, full_name
-            )
-            setattr(self.experiment, method_name, wrapped_method)
-
-        if self.train_dataloader is not None:
-            for method_name, (
-                original_method,
-                full_name,
-            ) in self._original_train_dataloader_methods.items():
-                wrapped_method = self._create_wrapper(
-                    method_name, original_method, full_name
-                )
-                setattr(self.train_dataloader, method_name, wrapped_method)
-
-        if self.eval_dataloader is not None:
-            for method_name, (
-                original_method,
-                full_name,
-            ) in self._original_eval_dataloader_methods.items():
-                wrapped_method = self._create_wrapper(
-                    method_name, original_method, full_name
-                )
-                setattr(self.eval_dataloader, method_name, wrapped_method)
-
-        if self.motor_system is not None:
-            for method_name, (
-                original_method,
-                full_name,
-            ) in self._original_motor_system_methods.items():
-                wrapped_method = self._create_wrapper(
-                    method_name, original_method, full_name
-                )
-                setattr(self.motor_system, method_name, wrapped_method)
-
-    def unwrap(self):
-        """Restore original methods."""
-        for method_name, original_method in self._original_monty_methods.items():
-            setattr(self.monty, method_name, original_method)
-        for method_name, original_method in self._original_experiment_methods.items():
-            setattr(self.experiment, method_name, original_method)
-
-        if self.train_dataloader is not None:
-            for (
-                method_name,
-                original_method,
-            ) in self._original_train_dataloader_methods.items():
-                setattr(self.train_dataloader, method_name, original_method)
-
-        if self.eval_dataloader is not None:
-            for (
-                method_name,
-                original_method,
-            ) in self._original_eval_dataloader_methods.items():
-                setattr(self.eval_dataloader, method_name, original_method)
-
-        if self.motor_system is not None:
-            for (
-                method_name,
-                original_method,
-            ) in self._original_motor_system_methods.items():
-                setattr(self.motor_system, method_name, original_method)
-
-    def reset(self):
-        """Reset FLOP counters."""
-        self.total_flops = 0
-        self.flop_counter.flops = 0
