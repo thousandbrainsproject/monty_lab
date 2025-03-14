@@ -40,6 +40,7 @@ def axes3d_clean(
     grid: bool = True,
     ticks: bool = False,
     label_axes: bool = False,
+    grid_color: Optional[Any] = None,
 ) -> None:
     """Remove clutter from 3D axes.
 
@@ -77,6 +78,11 @@ def axes3d_clean(
 
     # Turn grid on or off.
     ax.grid(grid)
+    # make the grid lines white
+    if grid and grid_color is not None:
+        ax.xaxis._axinfo["grid"]["color"] = grid_color
+        ax.yaxis._axinfo["grid"]["color"] = grid_color
+        ax.zaxis._axinfo["grid"]["color"] = grid_color
 
 
 def axes3d_set_aspect_equal(ax: Axes3D) -> None:
