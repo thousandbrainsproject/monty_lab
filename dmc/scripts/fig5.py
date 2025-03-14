@@ -787,3 +787,71 @@ def plot_performance_multi_lm(n_steps_ylim=(0, 100)):
 # plot_8lm_patches()
 # plot_performance_1lm()
 # plot_performance_multi_lm()
+
+exp_1lm = get_experiments(name="dist_agent_1lm_randrot_noise")[0]
+half = get_experiments(group="half_lms_match")
+fixed = get_experiments(group="fixed_min_lms_match")
+exp_1lm = half[0]
+half, fixed = half[1:], fixed[1:]
+groups = [half, fixed]
+colors = [TBP_COLORS["blue"], TBP_COLORS["purple"]]
+
+fig, axes = plt.subplots(1, 2, figsize=(6, 3))
+
+# Plot accuracy with horizontal line for 1-LM accuracy.
+ax = axes[0]
+accuracy_1lm = exp_1lm.get_accuracy()
+ax.axhline(
+    accuracy_1lm,
+    color=TBP_COLORS["green"],
+    alpha=1,
+    linestyle="--",
+    linewidth=1,
+)
+double_accuracy_plot(groups, colors, ylim=(50, 100), ax=ax)
+
+# Plot num steps with horizontal lines for 1-LM median and mean number of steps.
+ax = axes[1]
+n_steps_1lm = exp_1lm.get_n_steps()
+ax.axhline(
+    n_steps_1lm.mean(),
+    color=TBP_COLORS["green"],
+    alpha=0.75,
+    linestyle="--",
+    linewidth=1,
+)
+ax.axhline(
+    np.median(n_steps_1lm),
+    color=TBP_COLORS["green"],
+    alpha=0.75,
+    linestyle=":",
+    linewidth=1,
+)
+double_n_steps_plot(
+    groups,
+    colors,
+    ylim=(0, 100),
+    ax=ax,
+)
+ax.set_ylim(n_steps_ylim)
+
+# Add a legend.
+legend_handles = []
+legend_labels = ["num. LMs / 2", "2"]
+for i in range(len(colors)):
+    handle = Line2D([0], [0], color=colors[i], lw=4, label=legend_labels[i])
+    legend_handles.append(handle)
+ax.legend(
+    handles=legend_handles, loc="upper right", fontsize=8, title="Num. LMs Converge"
+)
+
+for ax in axes:
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+fig.tight_layout()
+plt.show()
+out_dir = OUT_DIR / "performance"
+out_dir.mkdir(exist_ok=True, parents=True)
+fig.savefig(out_dir / "performance_multi_lm.png", dpi=300)
+fig.savefig(out_dir / "performance_multi_lm.svg")
