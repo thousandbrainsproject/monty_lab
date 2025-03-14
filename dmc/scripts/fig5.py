@@ -784,6 +784,6 @@ def plot_performance_multi_lm(n_steps_ylim=(0, 100)):
     fig.savefig(out_dir / "performance_multi_lm.png", dpi=300)
     fig.savefig(out_dir / "performance_multi_lm.svg")
 
-plot_8lm_patches()
+# plot_8lm_patches()
 # plot_performance_1lm()
 # plot_performance_multi_lm()
