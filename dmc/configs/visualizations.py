@@ -212,6 +212,50 @@ fig6_curvature_guided_policy["eval_dataloader_args"] = (
     )
 )
 
+class TestPointHandler(SelectiveEvidenceHandler):
+    """Logging handler that only saves terminal evidence data for the MLH object.
+
+    A lean logger handler for the symmetry experiment (which are full-length runs,
+    and so we need to be very selective about which data to log).
+
+    """
+
+    def report_episode(
+        self,
+        data: Mapping,
+        output_dir: str,
+        episode: int,
+        mode: str = "train",
+        **kwargs,
+    ) -> None:
+        """Store only final evidence data and no sensor data."""
+
+        # Initialize output data.
+        self.handler_args["last_evidence"] = True  # Required for this handler.
+        episode_total, buffer_data = self.init_buffer_data(
+            data, episode, mode, **kwargs
+        )
+
+        # Only store evidence data for the MLH object.
+        lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
+        for lm_id in lm_ids:
+            mlh_object = buffer_data[lm_id]["current_mlh"][-1]["graph_id"]
+            lm_dict = buffer_data[lm_id]
+            evidences_ls = lm_dict["evidences_ls"]
+            possible_locations_ls = lm_dict["possible_locations_ls"]
+            possible_rotations_ls = lm_dict["possible_rotations_ls"]
+            lm_dict["evidences_ls"] = {mlh_object: evidences_ls[mlh_object]}
+            lm_dict["possible_locations_ls"] = {
+                mlh_object: possible_locations_ls[mlh_object]
+            }
+            lm_dict["possible_rotations_ls"] = {
+                mlh_object: possible_rotations_ls[mlh_object]
+            }
+
+        # Store data.
+        self.save(episode_total, buffer_data, output_dir)
+
+
 fig6_surf_test_point = deepcopy(surf_agent_1lm)
 fig6_surf_test_point["experiment_args"].n_eval_epochs = 1
 fig6_surf_test_point["logging_config"] = SelectiveEvidenceLoggingConfig(
