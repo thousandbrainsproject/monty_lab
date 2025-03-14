@@ -50,7 +50,7 @@ plt.rcParams["svg.fonttype"] = "none"
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-
+%matplotlib qt
 def plot_curvature_guided_policy():
     exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_curvature_guided_policy"
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
@@ -69,8 +69,8 @@ def plot_curvature_guided_policy():
         model.y,
         model.z,
         color=model.rgba,
-        alpha=0.25,
-        s=5,
+        alpha=0.35,
+        s=3,
         edgecolor="none",
     )
 
@@ -96,8 +96,9 @@ def plot_curvature_guided_policy():
     ax.set_proj_type("persp", focal_length=0.5)
     axes3d_clean(ax, grid_color=(1, 1, 1, 1))
     axes3d_set_aspect_equal(ax)
-    ax.view_init(elev=52, azim=-37, roll=60)
+    ax.view_init(elev=54, azim=-36, roll=60)
     plt.show()
     fig.savefig(OUT_DIR / "curvature_guided_policy.png", dpi=300, bbox_inches="tight")
     fig.savefig(OUT_DIR / "curvature_guided_policy.svg", bbox_inches="tight")
 
+plot_curvature_guided_policy()
