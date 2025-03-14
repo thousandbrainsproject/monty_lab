@@ -516,7 +516,7 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
             avg_value = (upper + lower) / 2
             rel_evidence_matrix_normed[i, j] = avg_value
             rel_evidence_matrix_normed[j, i] = avg_value
-
+    rel_evidence_matrix_normed = 1 - rel_evidence_matrix_normed
     # Plot dendrogram.
     if modality == "dist":
         permuted_names = [
@@ -584,7 +584,10 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
     cbar = ax.collections[0].colorbar
     cbar.ax.tick_params(labelsize=8)
     cbar.set_label(
-        "Evidence rel. Target (Normalized)", rotation=270, labelpad=20, fontsize=10
+        "Evidence Similarity (1 - cluster dist.)",
+        rotation=270,
+        labelpad=20,
+        fontsize=10,
     )
     plt.tight_layout()
     plt.show()
