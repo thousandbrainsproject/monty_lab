@@ -2,7 +2,49 @@
 
 Floppy is a framework for analyzing and counting floating-point operations (FLOPs) in Python code, with special focus on numerical computations using NumPy, SciPy, and scikit-learn.
 
-This repository was developed in part during for the Demonstrating Monty Capabilities project.
+## Features
+
+- **Runtime FLOP Counting**: Track FLOPs in your code as it executes
+  - Transparent array operation tracking
+  - Support for high-level NumPy/SciPy operations
+  - Thread-safe operation
+  - Selective monitoring of code paths
+
+- **Static Analysis**: Analyze potential FLOP operations in your codebase
+  - Identify FLOP-heavy code regions
+  - Track numerical computing dependencies
+  - Get insights before execution
+
+## Quick Start
+
+```python
+from floppy.counting.core import FlopCounter
+
+with FlopCounter() as counter:
+    result = np.matmul(a, b)
+    print(f"FLOPs: {counter.flops}")
+```
+
+## Documentation
+
+For detailed documentation, see the `docs/` directory:
+
+- [Getting Started](docs/user_guide/getting_started.md)
+- [FLOP Counting Guide](docs/user_guide/flop_counting.md)
+- [Static Analysis](docs/user_guide/static_analysis.md)
+- [API Reference](docs/api/index.md)
+
+## Dependencies
+
+Floppy requires the same dependencies as Monty because it is running Monty code. There are no additional dependencies for counting.
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](docs/contributing.md) for details.
+
+## License
+
+[Add your chosen license here]
 
 ## Overview
 
@@ -258,13 +300,7 @@ Note: These are theoretical approximations. Actual FLOP counts may vary based on
 - Search radius/nearest neighbor parameters
 - Optimizations in the underlying SciPy implementation
 
-## Dependencies
-
-Floppy requires the same dependencies as Monty because it is running Monty code. There are no additional dependencies for counting.
-
 ## Usage
-
-### FLOP Counting
 
 To count FLOPs in Monty:
 
@@ -272,8 +308,6 @@ To count FLOPs in Monty:
 cd ~/tbp/monty_labs/floppy
 python run_flop_counter.py -e <experiment_name>
 ```
-
-Results are saved in `~/tbp/monty_lab/floppy/results/flop_traces.csv`.
 
 To count FLOPs in your own code:
 
@@ -294,34 +328,8 @@ with FlopCounter(logger=logger) as counter:
     print(f"FLOPs: {counter.flops}")
 ```
 
-### Static Code Analysis
-
 To analyze FLOP operations in source code:
 
 ```bash
 python run_static_analysis.py --dir path/to/analyze
 ```
-
-Results are saved in `~/tbp/monty_lab/floppy/results/static_analysis/flop_analysis.csv`.
-
-## Running Tests
-
-Add the directory to the Python path:
-
-```bash
-export PYTHONPATH=$PYTHONPATH:~/tbp/monty_labs/floppy
-```
-
-To run the tests, use:
-
-```bash
-python tests/test_add.py
-```
-
-**Note:** The tests fail when using `pytest`. I think it is because pytest handles imports and module state differently from running the script directly, and cannot interfere with FlopCounter's monkey-patching.
-
-## Operations Not Yet Supported
-
-- [1/2] Method calls, e.g. `a.sum()` (partially supported for ufuncs like `arr.add(arr2)`, but not for methods)
-- einsum
-- linalg.solve

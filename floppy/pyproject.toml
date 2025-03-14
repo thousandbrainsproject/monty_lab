@@ -3,6 +3,12 @@ name = "floppy"
 version = "0.0.1"
 description = "FLOP counting framework"
 requires-python = ">=3.8"
+readme = "README.md"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+]
 
 [build-system]
 requires = ["setuptools>=42", "wheel"]
