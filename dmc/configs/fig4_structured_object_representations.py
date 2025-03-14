@@ -25,6 +25,7 @@ This module defines the following experiments:
 from copy import deepcopy
 from typing import Mapping
 
+import numpy as np
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
 
@@ -64,8 +65,8 @@ class SimilarObjectsEvidenceHandler(SelectiveEvidenceHandler):
         # Only store last evidence, and only for the 10 similar objects.
         evidences_ls = buffer_data["LM_0"]["evidences_ls"]
         output_data = {"LM_0": {}}
-        output_data["LM_0"]["evidence_ls"] = {
-            obj: evidences_ls[obj] for obj in SIMILAR_OBJECTS
+        output_data["LM_0"]["max_evidences_ls"] = {
+            obj: np.max(arr) for obj, arr in evidences_ls.items()
         }
         self.save(episode_total, output_data, output_dir)
 
