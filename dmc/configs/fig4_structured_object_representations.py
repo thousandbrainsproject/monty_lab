@@ -29,20 +29,20 @@ from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 from .common import SelectiveEvidenceLoggingConfig
 from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 
-object_names = [
-    "mug",
-    "e_cups",
-    "knife",
-    "fork",
-    "spoon",
-    "c_cups",
-    "d_cups",
-    "cracker_box",
-    "sugar_box",
-    "pudding_box",
-    "banana",
-    "b_marbles",
-]
+# object_names = [
+#     "mug",
+#     "e_cups",
+#     "knife",
+#     "fork",
+#     "spoon",
+#     "c_cups",
+#     "d_cups",
+#     "cracker_box",
+#     "sugar_box",
+#     "pudding_box",
+#     "banana",
+#     "b_marbles",
+# ]
 
 dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
@@ -53,7 +53,7 @@ dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
 )
 dist_agent_1lm_randrot_noise_10simobj[
     "eval_dataloader_args"
-].object_names = object_names
+].object_names = SIMILAR_OBJECTS
 
 CONFIGS = {
     "dist_agent_1lm_randrot_noise_10simobj": dist_agent_1lm_randrot_noise_10simobj,
