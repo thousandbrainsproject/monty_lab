@@ -23,20 +23,61 @@ This module defines the following experiments:
 """
 
 from copy import deepcopy
+from typing import Mapping
 
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
+from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
 
-from .common import SelectiveEvidenceLoggingConfig
+from .common import (
+    SelectiveEvidenceHandler,
+    SelectiveEvidenceLoggingConfig,
+)
 from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 from .fig6_rapid_inference_with_model_based_policies import (
     surf_agent_1lm_randrot_noise,
 )
 
+
+class SimilarObjectsEvidenceHandler(SelectiveEvidenceHandler):
+    """Logging handler that only saves terminal evidence data for the MLH object.
+
+    A lean logger handler for the symmetry experiment (which are full-length runs,
+    and so we need to be very selective about which data to log).
+
+    """
+
+    def report_episode(
+        self,
+        data: Mapping,
+        output_dir: str,
+        episode: int,
+        mode: str = "train",
+        **kwargs,
+    ) -> None:
+        """Store only final evidence data and no sensor data."""
+
+        # Initialize output data.
+        self.handler_args["last_evidence"] = True  # Required for this handler.
+        episode_total, buffer_data = self.init_buffer_data(
+            data, episode, mode, **kwargs
+        )
+        # Only store last evidence, and only for the 10 similar objects.
+        evidences_ls = buffer_data["LM_0"]["evidences_ls"]
+        output_data = {"LM_0": {}}
+        output_data["LM_0"]["evidence_ls"] = {
+            obj: evidences_ls[obj] for obj in SIMILAR_OBJECTS
+        }
+        self.save(episode_total, output_data, output_dir)
+
+
 dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
     SelectiveEvidenceLoggingConfig(
         run_name="dist_agent_1lm_randrot_noise_10simobj",
-        selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
+        monty_handlers=[
+            BasicCSVStatsHandler,
+            SimilarObjectsEvidenceHandler,
+        ],
     )
 )
 dist_agent_1lm_randrot_noise_10simobj[
@@ -47,7 +88,10 @@ surf_agent_1lm_randrot_noise_10simobj = deepcopy(surf_agent_1lm_randrot_noise)
 surf_agent_1lm_randrot_noise_10simobj["logging_config"] = (
     SelectiveEvidenceLoggingConfig(
         run_name="surf_agent_1lm_randrot_noise_10simobj",
-        selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
+        monty_handlers=[
+            BasicCSVStatsHandler,
+            SimilarObjectsEvidenceHandler,
+        ],
     )
 )
 surf_agent_1lm_randrot_noise_10simobj[
