@@ -239,12 +239,11 @@ def violinplot(
             p.vertices[:, 0] = np.clip(p.vertices[:, 0], limit, np.inf)
             half_curve = p.vertices[p.vertices[:, 0] > limit]
 
-        # compensation for line width. depends on points-to-data coordinate ratio.
         line_info = [(percentiles, percentile_style)]
         if showmedians:
             line_info.append(([50], median_style))
 
-        lw_factor = 0.01
+        lw_factor = 0.01  # compensation for line width.
         for ptiles, style in line_info:
             for q in ptiles:
                 y = np.percentile(dataset[i], q)
