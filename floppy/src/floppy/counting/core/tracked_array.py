@@ -195,7 +195,7 @@ class TrackedArray(np.ndarray):
             result: The result of the operation
             **kwargs: Additional keyword arguments passed to the operation
         """
-        if not (self.counter and not self.counter.should_skip_counting()):
+        if not (self.counter and not self.counter._should_exclude_operation()):
             return
 
         op_name = ufunc.__name__

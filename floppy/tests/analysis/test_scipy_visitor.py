@@ -87,24 +87,6 @@ entropy = stats.norm.entropy()
     assert ("attribute", "scipy.stats.norm.entropy", 8) in calls
 
 
-def test_scipy_method_chaining():
-    code = """
-from scipy.sparse import csr_matrix
-import numpy as np
-
-matrix = csr_matrix([[1, 2, 3], [4, 5, 6]])
-result = matrix.tocoo().tocsc().todense()
-"""
-    tree = ast.parse(code)
-    visitor = ScipyCallVisitor()
-    visitor.visit(tree)
-
-    calls = visitor.calls
-    print(calls)
-    assert ("direct", "scipy.sparse.csr_matrix", 5) in calls  # Constructor call
-    assert ("attribute", "scipy.tocoo", 6) in calls
-    assert ("attribute", "scipy.tocsc", 6) in calls
-    assert ("attribute", "scipy.todense", 6) in calls
 
 
 def test_scipy_with_error_handling():

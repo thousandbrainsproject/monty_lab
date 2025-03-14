@@ -12,7 +12,7 @@ import threading
 import time
 from contextlib import ContextDecorator
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 
@@ -20,6 +20,7 @@ from ..logger import FlopLogEntry, LogManager
 from ..registry import OperationRegistry
 from .tracked_array import TrackedArray
 
+T = TypeVar("T")
 
 class FlopCounter(ContextDecorator):
     """Context manager that tracks floating point operations (FLOPs) in numerical computations.
@@ -36,6 +37,25 @@ class FlopCounter(ContextDecorator):
         - Optional detailed logging of operations
         - Support for nested operations without double-counting
         - Can be used as both context manager and decorator
+
+    Attributes:
+        flops (int): Total number of floating point operations counted.
+        log_manager (Optional[LogManager]): Manager for logging FLOP operations.
+        skip_paths (List[str]): Paths to exclude from FLOP counting.
+        include_paths (List[str]): Paths to include in FLOP counting (overrides skip_paths).
+        registry (OperationRegistry): Registry of operations and their FLOP counting rules.
+        patch_targets (Dict[str, Tuple[Any, str]]): Mapping of function names to their module locations.
+
+    Examples:
+        >>> # Use as a context manager
+        >>> with FlopCounter() as fc:
+        ...     result = np.dot(array1, array2)
+        ...     print(f"FLOPs: {fc.flops}")
+
+        >>> # Use as a decorator
+        >>> @FlopCounter()
+        ... def compute_matrix_product(a, b):
+        ...     return np.dot(a, b)
     """
 
     def __init__(
@@ -43,7 +63,7 @@ class FlopCounter(ContextDecorator):
         log_manager: Optional[LogManager] = None,
         skip_paths: Optional[List[str]] = None,
         include_paths: Optional[List[str]] = None,
-    ):
+    ) -> None:
         """Initialize a FlopCounter instance.
 
         Args:
@@ -64,25 +84,130 @@ class FlopCounter(ContextDecorator):
             - Nested operations are tracked to avoid double-counting
             - NumPy operations are temporarily monkey-patched while the counter is active
         """
-        self.flops = 0
-        self._is_active = False
-        self.log_manager = log_manager
-        self.skip_paths = skip_paths if skip_paths is not None else []
-        self.include_paths = include_paths if include_paths is not None else []
-        self._original_array_func = None
-        self._original_funcs = {}
-        self._original_ufuncs = {}
-        self._flops_lock = threading.Lock()
-        self._operation_stack = []  # Track nested operations
+        self.flops: int = 0
+        self._is_active: bool = False
+        self.log_manager: Optional[LogManager] = log_manager
+        self.skip_paths: List[str] = skip_paths if skip_paths is not None else []
+        self.include_paths: List[str] = (
+            include_paths if include_paths is not None else []
+        )
+        self._original_array: Optional[Type[np.ndarray]] = None
+        self._original_array_func: Optional[Callable[..., np.ndarray]] = None
+        self._original_funcs: Dict[str, Callable] = {}
+        self._original_ufuncs: Dict[str, Callable] = {}
+        self._flops_lock: threading.Lock = threading.Lock()
+        self._operation_stack: List[str] = []  # Track nested operations
 
         # Initialize the operation registry
-        self.registry = OperationRegistry.create_default_registry()
+        self.registry: OperationRegistry = OperationRegistry.create_default_registry()
 
         # Create patch targets from registry using module locations
-        self.patch_targets = {
+        self.patch_targets: Dict[str, Tuple[Any, str]] = {
             name: self.registry.get_module_location(name)
             for name in self.registry.get_all_operations().keys()
         }
+
+    def __enter__(self) -> "FlopCounter":
+        """Enter the context and activate FLOP counting.
+
+        Returns:
+            FlopCounter: The FlopCounter instance with activated FLOP counting.
+        """
+        # Store original numpy array class and array functions
+        self._original_array = np.ndarray
+        self._original_array_func = np.array
+
+        # Store original ufuncs before patching
+        for name in self.patch_targets:
+            if hasattr(np, name):
+                self._original_ufuncs[name] = getattr(np, name)
+
+        # Override numpy array creation to return tracked arrays
+        np.array = self._tracked_array
+
+        # Monkey-patch the functions in _patch_targets
+        for name, (mod, attr) in self.patch_targets.items():
+            original_func = getattr(mod, attr)
+            self._original_funcs[name] = original_func
+            wrapped_func = self._create_flop_counting_wrapper(name, original_func)
+            setattr(mod, attr, wrapped_func)
+
+        # Enable the flop counter after patching is complete
+        self._is_active = True
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> bool:
+        """Deactivate the FLOP counter and restore original functionality.
+
+        This method handles cleanup when exiting the context manager, including:
+        1. Deactivating the FLOP counter
+        2. Restoring original numpy array functions
+        3. Restoring all monkey-patched functions
+        4. Flushing any pending log entries
+        5. Handling any exceptions that occurred during the context
+
+        Args:
+            exc_type: The type of the exception that occurred, if any.
+            exc_val: The instance of the exception that occurred, if any.
+            exc_tb: The traceback of the exception that occurred, if any.
+
+        Returns:
+            bool: False to indicate that any exceptions should be re-raised.
+        """
+        try:
+            self._is_active = False
+
+            # Restore original array functions
+            np.array = self._original_array_func
+
+            # Restore original monkey-patched functions
+            for name, original_func in self._original_funcs.items():
+                mod, attr = self.patch_targets[name]
+                setattr(mod, attr, original_func)
+
+            # Log any exceptions that occurred
+            if exc_type is not None and self.log_manager:
+                self.log_manager.logger.error(
+                    f"Exception occurred in FlopCounter context: {exc_type.__name__}: {exc_val}"
+                )
+
+            # Always flush logs, even if an exception occurred
+            if self.log_manager:
+                self.log_manager.flush()
+
+        except Exception as e:
+            # Log any errors during cleanup
+            if self.log_manager:
+                self.log_manager.logger.error(
+                    f"Error during FlopCounter cleanup: {type(e).__name__}: {e}"
+                )
+            raise  # Re-raise the cleanup exception
+
+        return False  # Re-raise the original exception if any
+
+    def add_flops(self, count: int) -> None:
+        """Add to the FLOP count if counter is active and not in library code.
+
+        This method increments the total FLOP count and logs the operation if a log manager
+        is configured. The count is only incremented if the counter is active and the
+        calling code is not in a skipped library path.
+
+        Args:
+            count: The number of FLOPs to add to the total count.
+
+        Returns:
+            None
+        """
+        if not self._should_exclude_operation():
+            with self._flops_lock:
+                self.flops += count
+            if self.log_manager:
+                self._log_operation(count)
 
     def _tracked_array(self, *args: Any, **kwargs: Any) -> TrackedArray:
         """Intercept NumPy array creation to return a tracked array.
@@ -91,24 +216,49 @@ class FlopCounter(ContextDecorator):
         context. It ensures that any array created using np.array() within the context
         is automatically wrapped in a TrackedArray for FLOP counting.
 
-        The method:
-        1. Calls the original np.array function to create the array
-        2. Wraps the result in a TrackedArray linked to this counter
-        3. Preserves all original np.array functionality and arguments
-
         Args:
-            *args: Variable length argument list passed to np.array()
-            **kwargs: Arbitrary keyword arguments passed to np.array()
+            *args: Variable length argument list passed to np.array().
+                Common args include data (array_like), dtype (numpy.dtype), copy (bool).
+            **kwargs: Arbitrary keyword arguments passed to np.array().
+                Common kwargs include order ('C', 'F'), subok (bool), ndmin (int).
 
         Returns:
             TrackedArray: A tracked version of the array that would have been created
                 by the original np.array() call.
+
+        Example:
+            >>> counter = FlopCounter()
+            >>> with counter:
+            ...     arr = np.array([1, 2, 3])  # Returns TrackedArray
+            ...     result = arr + arr  # FLOPs are counted
         """
         arr = self._original_array_func(*args, **kwargs)
         return TrackedArray(arr, self)
 
-    def _make_wrapper(self, func_name, func):
-        """Create a closure that intercepts the high-level call and counts FLOPs."""
+    def _create_flop_counting_wrapper(
+        self, func_name: str, func: Callable[..., Any]
+    ) -> Callable[..., Any]:
+        """Create a wrapper function that intercepts and counts FLOPs for NumPy operations.
+
+        This method creates a specialized wrapper function that:
+        1. Intercepts NumPy function calls to track FLOPs
+        2. Manages nested operation tracking to prevent double-counting
+        3. Handles both regular operations and reduction operations
+        4. Unwraps TrackedArrays before passing to original functions
+        5. Maintains the original function's behavior and interface
+
+        Args:
+            func_name: Name of the NumPy function being wrapped.
+            func: The original NumPy function to wrap.
+
+        Returns:
+            Callable[..., Any]: A wrapped version of the function that counts FLOPs while
+                maintaining the original function's behavior.
+
+        Note:
+            The wrapper includes a nested reduce_wrapper for handling reduction operations
+            like sum(), mean(), etc.
+        """
 
         def wrapper(*args, **kwargs):
             # Push this operation onto the stack
@@ -189,64 +339,28 @@ class FlopCounter(ContextDecorator):
         wrapper.reduce = reduce_wrapper
         return wrapper
 
-    def __enter__(self):
-        # Store original numpy array class and array functions
-        self._original_array = np.ndarray
-        self._original_array_func = np.array
+    def _should_exclude_operation(self) -> bool:
+        """Determine if the current operation should be excluded from FLOP counting.
 
-        # Store original ufuncs before patching
-        for name in self.patch_targets:
-            if hasattr(np, name):
-                self._original_ufuncs[name] = getattr(np, name)
-
-        # Override numpy array creation to return tracked arrays
-        np.array = self._tracked_array
-
-        # Monkey-patch the functions in _patch_targets
-        for name, (mod, attr) in self.patch_targets.items():
-            original_func = getattr(mod, attr)
-            self._original_funcs[name] = original_func
-            wrapped_func = self._make_wrapper(name, original_func)
-            setattr(mod, attr, wrapped_func)
-
-        # Enable the flop counter after patching is complete
-        self._is_active = True
-        return self
-
-    def __exit__(self, *exc):
-        """Deactivate the FLOP counter, restore original functionality."""
-        self._is_active = False
-
-        # Restore original array functions
-        np.array = self._original_array_func
-
-        # Restore original monkey-patched functions
-        for name, original_func in self._original_funcs.items():
-            mod, attr = self.patch_targets[name]
-            setattr(mod, attr, original_func)
-
-        if self.log_manager:
-            self.log_manager.flush()
-
-        return False
-
-    def should_skip_counting(self) -> bool:
-        """Determine if FLOP counting should be skipped based on the call stack.
-
-        This method analyzes the current call stack to determine whether FLOP counting
-        should be skipped. It checks two conditions:
-        1. If we're in a high-level operation wrapper and it's an array_ufunc call
-        2. If the calling code is in a path that should be skipped based on skip_paths
-           and include_paths configuration
+        This method analyzes the current call stack to determine whether the operation
+        should be excluded from FLOP counting based on two criteria:
+        1. If it's a nested array operation (to avoid double counting)
+        2. If the calling code path matches exclusion/inclusion rules
 
         Returns:
-            bool: True if FLOP counting should be skipped, False otherwise.
-                 Returns True if:
-                 - The call is from a wrapper's array_ufunc
-                 - The call originates from a path in skip_paths (unless overridden by include_paths)
-                 Returns False if:
-                 - The call originates from a path in include_paths
-                 - None of the above conditions are met
+            bool: True if the operation should be excluded from counting, False otherwise.
+                Returns True if:
+                - The call is a nested array operation (to prevent double counting)
+                - The call originates from an excluded path (unless overridden by include_paths)
+                Returns False if:
+                - The call originates from an explicitly included path
+                - None of the exclusion conditions are met
+
+        Note:
+            This method uses introspection to examine the call stack and determine
+            the context of the operation. It's designed to prevent double-counting
+            in nested operations while still allowing fine-grained control over
+            which code paths are monitored.
         """
         frame = inspect.currentframe()
         try:
@@ -280,25 +394,6 @@ class FlopCounter(ContextDecorator):
 
         return False
 
-    def add_flops(self, count: int) -> None:
-        """Add to the FLOP count if counter is active and not in library code.
-
-        This method increments the total FLOP count and logs the operation if a log manager
-        is configured. The count is only incremented if the counter is active and the
-        calling code is not in a skipped library path.
-
-        Args:
-            count: The number of FLOPs to add to the total count.
-
-        Returns:
-            None
-        """
-        if not self.should_skip_counting():
-            with self._flops_lock:
-                self.flops += count
-            if self.log_manager:
-                self._log_operation(count)
-
     def _log_operation(self, count: int) -> None:
         """Log the FLOP operation with details about the calling context.
 
@@ -308,6 +403,18 @@ class FlopCounter(ContextDecorator):
 
         Args:
             count: The number of FLOPs to log for this operation.
+
+        Note:
+            The method skips frames from the floppy/counting directory to find the
+            actual user code that triggered the FLOP operation. This ensures that
+            the logged location points to the relevant application code rather than
+            the internal tracking machinery.
+
+        Example:
+            >>> counter = FlopCounter(log_manager=LogManager())
+            >>> with counter:
+            ...     # This operation will be logged with the current file and line number
+            ...     result = np.dot(array1, array2)
         """
         caller_frame = inspect.currentframe().f_back.f_back  # Skip add_flops frame
         while caller_frame:
