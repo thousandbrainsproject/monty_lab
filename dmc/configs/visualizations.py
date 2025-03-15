@@ -234,23 +234,66 @@ class GoalStateHandler(SelectiveEvidenceHandler):
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
+
+        output_data = {}
+
+        detailed = data["DETAILED"][episode_total]
         evidence_objects = self.handler_args["evidence_objects"]
+
         # Only store evidence data for...
         # Add goal states.
+        to_remove = (
+            "symmetry_evidence",
+            "symmetric_locations",
+            "symmetric_rotations",
+        )
+        to_filter_by_object = (
+            "evidences",
+            "possible_locations",
+            "possible_rotations",
+        )
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
         for lm_id in lm_ids:
             lm_dict = buffer_data[lm_id]
-            lm_dict["goal_states"] = {}
+
+            # Drop unneeded data.
+            for name in to_remove:
+                lm_dict.pop(name, None)
+
+            # Only keep evidence for a few objects of interest.
+            for name in to_filter_by_object:
+                lst = lm_dict.get(name)
+                if lst is None:
+                    continue
+                new_lst = []
+                for dct in lst:
+                    new_dct = {}
+                    for object_name in evidence_objects:
+                        new_dct[object_name] = dct[object_name]
+                    new_lst.append(new_dct)
+                lm_dict[name] = new_lst
+
+            # Add goal states.
+            goal_states = detailed[lm_id]["goal_states"]
+            lm_dict["goal_states"] = goal_states
+            output_data[lm_id] = lm_dict
+
+        # Store only processed observations from sensor module 0.
+        to_keep = ["processed_observations", "sm_properties"]
+        sm_dict = buffer_data["SM_0"]
+        output_data["SM_0"] = {}
+        for name in to_keep:
+            output_data["SM_0"][name] = sm_dict[name]
 
         # Store data.
-        self.save(episode_total, buffer_data, output_dir)
+        self.save(episode_total, output_data, output_dir)
 
 
 fig6_surf_mismatch = deepcopy(surf_agent_1lm)
 fig6_surf_mismatch["experiment_args"].n_eval_epochs = 1
 fig6_surf_mismatch["logging_config"] = SelectiveEvidenceLoggingConfig(
     output_dir=str(VISUALIZATION_RESULTS_DIR),
-    run_name="fig6_surf_test_point",
+    run_name="fig6_surf_mismatch",
     monty_handlers=[
         BasicCSVStatsHandler,
         GoalStateHandler,
@@ -267,5 +310,5 @@ CONFIGS = {
     "fig4_symmetry_run": fig4_symmetry_run,
     "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
     "fig6_curvature_guided_policy": fig6_curvature_guided_policy,
-    "fig6_surf_test_point": fig6_surf_mismatch,
+    "fig6_surf_mismatch": fig6_surf_mismatch,
 }
