@@ -2,7 +2,7 @@ from typing import Any, Optional, Union
 
 import numpy as np
 
-from ..core.protocols import FlopOperation
+from ..base.protocols import FlopOperation
 
 __all__ = [
     "MeanOperation",
