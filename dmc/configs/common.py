@@ -668,7 +668,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
             detailed (Mapping): Detailed stats.
 
         Returns:
-            np.ndarray: Integer array of indices where at least one LM processed data.
+            np.ndarray: Array of indices indicating which steps were matching steps.
         """
         lm_ids = [key for key in detailed if key.startswith("LM")]
         if len(lm_ids) == 1:
