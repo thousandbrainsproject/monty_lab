@@ -11,7 +11,7 @@ Floppy requires the same dependencies as Monty because it is running Monty code.
 To count FLOPs in your code:
 
 ```python
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 # Basic usage
 with FlopCounter() as counter:

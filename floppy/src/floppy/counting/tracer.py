@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, Optional, Tuple
 
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 from floppy.counting.logger import CSVLogger, DetailedLogger, FlopLogEntry, LogManager
 
 

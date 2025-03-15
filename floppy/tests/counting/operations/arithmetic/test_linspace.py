@@ -1,6 +1,6 @@
 import numpy as np
 
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 
 def test_linspace_basic():

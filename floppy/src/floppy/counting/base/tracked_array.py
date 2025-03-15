@@ -62,7 +62,7 @@ class TrackedArray(np.ndarray):
             A new TrackedArray instance wrapping the input array.
 
         Example:
-            >>> from floppy.counting.core import FlopCounter
+            >>> from floppy.counting.base import FlopCounter
             >>> with FlopCounter() as counter:
             ...     a = TrackedArray(np.array([1, 2, 3]), counter)
             ...     b = a + 1  # This operation will be tracked
@@ -203,7 +203,7 @@ class TrackedArray(np.ndarray):
         if operation:
             flops = operation.count_flops(*inputs, result=result, **kwargs)
             if flops is not None:
-                    self.counter.add_flops(flops)
+                self.counter.add_flops(flops)
 
     def __array_ufunc__(
         self, ufunc: np.ufunc, method: str, *inputs: Any, **kwargs: Any
@@ -275,7 +275,7 @@ class TrackedArray(np.ndarray):
 
         Example:
             >>> import numpy as np
-            >>> from floppy.counting.core import FlopCounter
+            >>> from floppy.counting.base import FlopCounter
             >>> with FlopCounter() as counter:
             ...     arr = TrackedArray(np.array([1, 2, 3]), counter)
             ...     # Direct ufunc access is tracked
@@ -383,4 +383,3 @@ class TrackedArray(np.ndarray):
             'TrackedArray(array=array([1, 2, 3]), counter=140712834927872)'
         """
         return f"TrackedArray(array={super().__repr__()}, counter={id(self.counter)})"
-

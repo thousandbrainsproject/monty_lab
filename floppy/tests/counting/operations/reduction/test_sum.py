@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.ma as ma
 
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 
 def test_sum_np_function():

@@ -18,7 +18,7 @@ Floppy is a framework for analyzing and counting floating-point operations (FLOP
 ## Quick Start
 
 ```python
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 with FlopCounter() as counter:
     result = np.matmul(a, b)
@@ -188,7 +188,7 @@ Intercepts NumPy array operations through the `__array_ufunc__` interface to cou
 Example:
 
 ```python
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 with FlopCounter() as counter:
     a = np.array([[1, 2], [3, 4]])  # Automatically wrapped as TrackedArray
@@ -207,7 +207,7 @@ Handles higher-level NumPy/SciPy operations through explicit wrappers:
 Example:
 
 ```python
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 with FlopCounter() as counter:
     a = np.array([[1, 2], [3, 4]])
@@ -312,7 +312,7 @@ python run_flop_counter.py -e <experiment_name>
 To count FLOPs in your own code:
 
 ```python
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 # Basic usage
 with FlopCounter() as counter:

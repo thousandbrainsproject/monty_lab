@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 
 def test_norm_basic():

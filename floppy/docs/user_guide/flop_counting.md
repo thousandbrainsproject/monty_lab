@@ -16,7 +16,7 @@ Intercepts NumPy array operations through the `__array_ufunc__` interface to cou
 Example:
 
 ```python
-from floppy.counting.core import FlopCounter
+from floppy.counting.base import FlopCounter
 
 with FlopCounter() as counter:
     a = np.array([[1, 2], [3, 4]])  # Automatically wrapped as TrackedArray
