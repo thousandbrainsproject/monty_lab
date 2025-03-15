@@ -35,7 +35,7 @@ from tbp.monty.frameworks.config_utils.make_dataset_configs import (
 )
 from tbp.monty.frameworks.loggers.monty_handlers import (
     BasicCSVStatsHandler,
-    ReproduceEpisodeHandler,
+    DetailedJSONHandler,
 )
 
 from .common import (
@@ -212,7 +212,7 @@ fig6_curvature_guided_policy["eval_dataloader_args"] = (
     )
 )
 
-class TestPointHandler(SelectiveEvidenceHandler):
+class GoalStateHandler(SelectiveEvidenceHandler):
     """Logging handler that only saves terminal evidence data for the MLH object.
 
     A lean logger handler for the symmetry experiment (which are full-length runs,
@@ -236,7 +236,7 @@ class TestPointHandler(SelectiveEvidenceHandler):
             data, episode, mode, **kwargs
         )
 
-        # Only store evidence data for the MLH object.
+        # Only store evidence data for...
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
         for lm_id in lm_ids:
             mlh_object = buffer_data[lm_id]["current_mlh"][-1]["graph_id"]
