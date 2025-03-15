@@ -117,16 +117,6 @@ class MontyFlopTracer:
 
         self._original_monty_methods = self._collect_monty_methods()
         self._original_experiment_methods = self._collect_experiment_methods()
-        if self.train_dataloader is not None:
-            self._original_train_dataloader_methods = (
-                self._collect_train_dataloader_methods()
-            )
-        if self.eval_dataloader is not None:
-            self._original_eval_dataloader_methods = (
-                self._collect_eval_dataloader_methods()
-            )
-        if self.motor_system is not None:
-            self._original_motor_system_methods = self._collect_motor_system_methods()
         self.enable_monty_flop_monitoring()
 
     def enable_monty_flop_monitoring(self) -> None:

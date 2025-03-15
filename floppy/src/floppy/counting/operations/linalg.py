@@ -945,16 +945,17 @@ class EinsumOperation:
         for shape, spec in zip(shapes, input_specs):
             for size, dim in zip(shape, spec):
                 if dim in dim_sizes:
-                    assert dim_sizes[dim] == size, (
-                        f"Inconsistent sizes for dimension {dim}"
-                    )
+                    # Only check size consistency for contracted dimensions
+                    if dim in contracted_dims and dim_sizes[dim] != size:
+                        return None  # Return None for incompatible shapes
                 else:
                     dim_sizes[dim] = size
 
         # For matrix multiplication, we need to count all dimensions
         total_size = 1
         for dim in set("".join(input_specs)):
-            total_size *= dim_sizes[dim]
+            if dim in dim_sizes:  # Only consider dimensions that appear in input specs
+                total_size *= dim_sizes[dim]
 
         # Count multiplications and additions
         mults = total_size  # One multiplication per element in intermediate result

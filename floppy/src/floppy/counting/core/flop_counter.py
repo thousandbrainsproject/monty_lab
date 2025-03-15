@@ -170,22 +170,11 @@ class FlopCounter(ContextDecorator):
                 mod, attr = self.patch_targets[name]
                 setattr(mod, attr, original_func)
 
-            # Log any exceptions that occurred
-            if exc_type is not None and self.log_manager:
-                self.log_manager.logger.error(
-                    f"Exception occurred in FlopCounter context: {exc_type.__name__}: {exc_val}"
-                )
-
             # Always flush logs, even if an exception occurred
             if self.log_manager:
                 self.log_manager.flush()
 
         except Exception as e:
-            # Log any errors during cleanup
-            if self.log_manager:
-                self.log_manager.logger.error(
-                    f"Error during FlopCounter cleanup: {type(e).__name__}: {e}"
-                )
             raise  # Re-raise the cleanup exception
 
         return False  # Re-raise the original exception if any
@@ -317,6 +306,10 @@ class FlopCounter(ContextDecorator):
                         original_ufunc = getattr(np, func_name)
                         self._original_ufuncs[func_name] = original_ufunc
 
+                    # Convert tuple to numpy array if needed
+                    if isinstance(array, tuple):
+                        array = np.array(array)
+
                     result = original_ufunc.reduce(array, *args[1:], **kwargs)
 
                     # Count reduction-specific FLOPs
@@ -432,9 +425,6 @@ class FlopCounter(ContextDecorator):
                     line_no=caller_frame.f_lineno,
                     function_name=caller_frame.f_code.co_name,
                     timestamp=time.time(),
-                    episode=self.episode,
-                    parent_method=self.parent_method,
-                    is_wrapped_method=self.is_wrapped_method,
                 )
                 self.log_manager.log_operation(operation)
                 break

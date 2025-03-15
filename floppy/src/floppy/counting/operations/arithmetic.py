@@ -68,6 +68,9 @@ class ArithmeticOperation(FlopOperation):
 
         # Handle scalar operations
         if np.isscalar(args[0]) or np.isscalar(args[1]):
+            # If both arguments are scalars, return 1 FLOP
+            if np.isscalar(args[0]) and np.isscalar(args[1]):
+                return 1
             # Find the non-scalar array
             array = next(arg for arg in args if not np.isscalar(arg))
             return np.size(array)
