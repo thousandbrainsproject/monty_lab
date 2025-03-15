@@ -518,6 +518,28 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
             rel_evidence_matrix_normed[j, i] = avg_value
     rel_evidence_matrix_normed = 1 - rel_evidence_matrix_normed
     # Plot dendrogram.
+    fig, ax = plt.subplots(figsize=(6, 4))
+    Z = linkage(rel_evidence_matrix_normed, optimal_ordering=True)
+    link_color_palette = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["purple"]]
+    set_link_color_palette(link_color_palette)
+    dendrogram(
+        Z,
+        labels=all_objects,
+        color_threshold=0.150,
+        above_threshold_color="black",
+        ax=ax,
+    )
+    xticklabels = ax.get_xticklabels()
+    ax.set_xticklabels(xticklabels, rotation=45, fontsize=8, ha="right")
+    ax.set_ylabel("Cluster Distance", fontsize=10)
+    sns.despine(left=False, bottom=False, right=True)
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(out_dir / f"dendrogram_{modality}.png", dpi=300)
+    fig.savefig(out_dir / f"dendrogram_{modality}.svg")
+
+    # Plot confusion matrix.
+    fig, ax = plt.subplots(figsize=(6, 4))
     if modality == "dist":
         permuted_names = [
             "fork",
@@ -544,30 +566,6 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
             "d_cups",
             "c_cups",
         ]
-
-    fig, ax = plt.subplots(figsize=(6, 4))
-    Z = linkage(rel_evidence_matrix_normed, optimal_ordering=True)
-    link_color_palette = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["purple"]]
-    set_link_color_palette(link_color_palette)
-    dendrogram(
-        Z,
-        labels=all_objects,
-        color_threshold=0.150,
-        above_threshold_color="black",
-        ax=ax,
-    )
-    xticklabels = ax.get_xticklabels()
-    ax.set_xticklabels(xticklabels, rotation=45, fontsize=8, ha="right")
-    ax.set_ylabel("Cluster Distance", fontsize=10)
-    sns.despine(left=False, bottom=False, right=True)
-    plt.tight_layout()
-    plt.show()
-    fig.savefig(out_dir / f"dendrogram_{modality}.png", dpi=300)
-    fig.savefig(out_dir / f"dendrogram_{modality}.svg")
-
-    # Plot confusion matrix.
-    fig, ax = plt.subplots(figsize=(6, 4))
-
     # Rearrange the evidence matrix to match the dendrogram. We want to
     # keep clustered objects close to each other.
     permuted_inds = [object_to_id[obj] for obj in permuted_names]
