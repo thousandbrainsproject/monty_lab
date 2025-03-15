@@ -231,39 +231,33 @@ class GoalStateHandler(SelectiveEvidenceHandler):
         """Store only final evidence data and no sensor data."""
 
         # Initialize output data.
-        self.handler_args["last_evidence"] = True  # Required for this handler.
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
-
+        evidence_objects = self.handler_args["evidence_objects"]
         # Only store evidence data for...
+        # Add goal states.
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
         for lm_id in lm_ids:
-            mlh_object = buffer_data[lm_id]["current_mlh"][-1]["graph_id"]
             lm_dict = buffer_data[lm_id]
-            evidences_ls = lm_dict["evidences_ls"]
-            possible_locations_ls = lm_dict["possible_locations_ls"]
-            possible_rotations_ls = lm_dict["possible_rotations_ls"]
-            lm_dict["evidences_ls"] = {mlh_object: evidences_ls[mlh_object]}
-            lm_dict["possible_locations_ls"] = {
-                mlh_object: possible_locations_ls[mlh_object]
-            }
-            lm_dict["possible_rotations_ls"] = {
-                mlh_object: possible_rotations_ls[mlh_object]
-            }
+            lm_dict["goal_states"] = {}
 
         # Store data.
         self.save(episode_total, buffer_data, output_dir)
 
 
-fig6_surf_test_point = deepcopy(surf_agent_1lm)
-fig6_surf_test_point["experiment_args"].n_eval_epochs = 1
-fig6_surf_test_point["logging_config"] = SelectiveEvidenceLoggingConfig(
+fig6_surf_mismatch = deepcopy(surf_agent_1lm)
+fig6_surf_mismatch["experiment_args"].n_eval_epochs = 1
+fig6_surf_mismatch["logging_config"] = SelectiveEvidenceLoggingConfig(
     output_dir=str(VISUALIZATION_RESULTS_DIR),
     run_name="fig6_surf_test_point",
-    # selective_handler_args=dict(),
+    monty_handlers=[
+        BasicCSVStatsHandler,
+        GoalStateHandler,
+    ],
+    selective_handler_args=dict(evidence_objects=["fork", "knife", "spoon"]),
 )
-fig6_surf_test_point["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
+fig6_surf_mismatch["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
     object_names=["spoon"],
     object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
 )
@@ -273,5 +267,5 @@ CONFIGS = {
     "fig4_symmetry_run": fig4_symmetry_run,
     "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
     "fig6_curvature_guided_policy": fig6_curvature_guided_policy,
-    "fig6_surf_test_point": fig6_surf_test_point,
+    "fig6_surf_test_point": fig6_surf_mismatch,
 }
