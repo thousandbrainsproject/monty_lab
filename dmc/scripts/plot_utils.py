@@ -41,7 +41,7 @@ def axes3d_clean(
     grid: bool = True,
     ticks: bool = False,
     label_axes: bool = False,
-    grid_color: Optional[Any] = None,
+    grid_color: Optional[Any] = "white",
 ) -> None:
     """Remove clutter from 3D axes.
 
@@ -52,16 +52,18 @@ def axes3d_clean(
         label_axes (bool): Whether to show the x, y, z axis labels. Default is False.
     """
 
-    # # Turn grid on or off.
-    # ax.grid(grid)
+    # Turn grid on or off.
+    if not grid:
+        ax.grid(False)
+        return
 
     # Remove dark spines that outline the plot.
-    ax.w_xaxis.line.set_color((1, 1, 1, 0))  # Hide X-axis line
-    ax.w_yaxis.line.set_color((1, 1, 1, 0))  # Hide Y-axis line
-    ax.w_zaxis.line.set_color((1, 1, 1, 0))  # Hide Z-axis line
+    for fn in (ax.w_xaxis, ax.w_yaxis, ax.w_zaxis):
+        fn.line.set_color((1, 1, 1, 0))
 
-    # Optionally remove ticks. This method keeps the grid lines visible while
-    # making the stubs that stick out of the plot invisible.
+    # Optionally remove tick marks. This method keeps the grid lines visible while
+    # making the little nubs that stick out invisible. (Setting xticks=[] removes
+    # grid lines).
     if not ticks:
         ax.tick_params(axis="x", colors=(0, 0, 0, 0))  # Make X-axis ticks invisible
         ax.tick_params(axis="y", colors=(0, 0, 0, 0))  # Make Y-axis ticks invisible
@@ -73,14 +75,13 @@ def axes3d_clean(
         ax.set_ylabel("y")
         ax.set_zlabel("z")
     else:
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-        ax.set_zlabel("")
+        pass
+        # ax.set_xlabel("")
+        # ax.set_ylabel("")
+        # ax.set_zlabel("")
 
-    # Turn grid on or off.
-    ax.grid(grid)
-    # make the grid lines white
-    if grid and grid_color is not None:
+    # Stylize grid lines.
+    if grid_color is not None:
         ax.xaxis._axinfo["grid"]["color"] = grid_color
         ax.yaxis._axinfo["grid"]["color"] = grid_color
         ax.zaxis._axinfo["grid"]["color"] = grid_color
