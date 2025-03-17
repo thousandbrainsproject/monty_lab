@@ -630,13 +630,52 @@ second_mlh_object = "fork"
 
 # %matplotlib qt
 
-# target_graph = learned_graph.rotated(mlh["rotation"].inv())
-# current_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
-# target_graph = target_graph - current_mlh_location
-# target_graph += target_position
+def plot_ground_truth(
+    ax,
+    color: str = "black",
+    alpha: float = 0.1,
+    s: float = 2,
+):
+    learned_graph = load_object_model("surf_agent_1lm", target_object)
+    target_graph = learned_graph - learned_position
+    target_graph = target_graph.rotated(target_rotation)  # ground-truth location
+    target_graph = target_graph + target_position  # ground-truth location
+    ax.scatter(
+        target_graph.x,
+        target_graph.y,
+        target_graph.z,
+        color=color,
+        alpha=alpha,
+        s=s,
+        edgecolor="none",
+    )
 
-mlh_locs = [get_mlh_dict(stats, top_mlh_object, i)["location"] for i in range(n_steps)]
-mlh_locs = np.array(mlh_locs)
+
+def plot_sensor_path(
+    ax,
+    step: int,
+    color: str = "red",
+    alpha: float = 1,
+    last: bool = True,
+    s: int = 20,
+):
+    if last:
+        x, y, z = sensor_locations[step]
+    else:
+        x = sensor_locations[: step + 1, 0]
+        y = sensor_locations[: step + 1, 1]
+        z = sensor_locations[: step + 1, 2]
+
+    ax.scatter(
+        x,
+        y,
+        z,
+        color=color,
+        alpha=alpha,
+        s=s,
+        marker="v",
+        zorder=10,
+    )
 
 for step in range(9, 12):
     fig, axes = plt.subplots(1, 2, figsize=(8, 4), subplot_kw={"projection": "3d"})
@@ -647,92 +686,41 @@ for step in range(9, 12):
     mlh_rot: mlh_rot.inv() ~= target_rotation
 
     """
-    _mlh = get_mlh_dict(stats, top_mlh_object, step)
-    _mlh_loc = _mlh["location"]  # where we are
-    _mlh_rot = _mlh["rotation"]  # object's rotation
-
-    def learned_to_target(pos):
-        _current_mlh_loc = _mlh_rot.inv().apply(_mlh_loc)
-        p = _mlh_rot.inv().apply(pos) - _current_mlh_loc + sensor_locations[step]
-        return p
-
-    learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
-    target_graph = learned_graph.rotated(mlh["rotation"].inv())
-    current_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
-    target_graph -= current_mlh_location
-    target_graph += sensor_locations[step]
 
     ax = axes[0]
 
     # Plot ground truth object.
-    learned_graph = load_object_model("surf_agent_1lm", target_object)
-    target_graph = learned_graph - learned_position
-    target_graph = target_graph.rotated(target_rotation)  # ground-truth location
-    target_graph = target_graph + target_position  # ground-truth location
-    ax.scatter(
-        target_graph.x,
-        target_graph.y,
-        target_graph.z,
-        color="black",
-        alpha=0.1,
-        s=2,
-        edgecolor="none",
-    )
+    plot_ground_truth(ax)
 
     # Plot sensor path.
-    sensor_locs = sensor_locations[: step + 1]
-    alphas = np.exp(-np.arange(len(sensor_locs)) / 1)[::-1]
-    ax.scatter(
-        sensor_locs[:, 0][-1],
-        sensor_locs[:, 1][-1],
-        sensor_locs[:, 2][-1],
-        color="red",
-        alpha=alphas[-1],
-        s=20,
-        marker="v",
-        zorder=10,
-    )
-    # ax.scatter(
-    #     mlh_locs[: step + 1, 0][-1],
-    #     mlh_locs[: step + 1, 1][-1],
-    #     mlh_locs[: step + 1, 2][-1],
-    #     color=TBP_COLORS["purple"],
-    #     alpha=alphas[-1],
-    #     s=20,
-    #     marker="s",
-    # )
+    plot_sensor_path(ax, step)
 
-    # Overlay top MLH object.
+    # Get first and second MLHs.
     mlh = get_mlh_dict(stats, top_mlh_object, step)
-    learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
-    target_graph = learned_graph.rotated(mlh["rotation"].inv())
-    current_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
-    target_graph -= current_mlh_location
-    target_graph += sensor_locations[step]
+    mlh_learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
+    mlh_location = mlh["rotation"].inv().apply(mlh["location"])
+    mlh_graph = mlh_learned_graph.rotated(mlh["rotation"].inv())
+    mlh_graph -= mlh_location
+    mlh_graph += sensor_locations[step]
+
+    mlh_2 = get_mlh_dict(stats, second_mlh_object, step)
+    mlh_2_learned_graph = load_object_model("surf_agent_1lm", second_mlh_object)
+    mlh_2_location = mlh_2["rotation"].inv().apply(mlh_2["location"])
+    mlh_2_graph = mlh_2_learned_graph.rotated(mlh_2["rotation"].inv())
+    mlh_2_graph -= mlh_2_location
+    mlh_2_graph += sensor_locations[step]
+
     ax.scatter(
-        target_graph.x,
-        target_graph.y,
-        target_graph.z,
+        mlh_graph.x,
+        mlh_graph.y,
+        mlh_graph.z,
         color=TBP_COLORS["blue"],
         alpha=0.10,
         s=2,
         edgecolor="none",
     )
 
-    # Overlay learned graph.
-    mlh = get_mlh_dict(stats, top_mlh_object, step)
-    learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
-    ax.scatter(
-        learned_graph.x,
-        learned_graph.y,
-        learned_graph.z,
-        color="red",
-        alpha=0.10,
-        s=2,
-        edgecolor="none",
-    )
-
-    # mlh_location = mlh["location"]
+    # loc = mlh_location
     # ax.scatter(
     #     mlh_location[0],
     #     mlh_location[1],
@@ -743,57 +731,42 @@ for step in range(9, 12):
     #     marker="s",
     # )
 
-    ax.set_proj_type("persp", focal_length=0.8)
-    ax.set_title("Sensor Path")
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_zlabel("z")
-    # ax.set_xlim(xlim)
-    # ax.set_ylim(ylim)
-    # ax.set_zlim(zlim)
+    # Overlay learned graph.
+    # mlh = get_mlh_dict(stats, top_mlh_object, step)
+    # learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
+    # ax.scatter(
+    #     learned_graph.x,
+    #     learned_graph.y,
+    #     learned_graph.z,
+    #     color="red",
+    #     alpha=0.10,
+    #     s=2,
+    #     edgecolor="none",
+    # )
 
     """
     Plot first and second MLHs
     """
 
     ax = axes[1]
-
     # Plot second MLH object.
     colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
-    for i, mlh_object in enumerate([top_mlh_object, second_mlh_object]):
-        mlh = get_mlh_dict(stats, mlh_object, step)
-        learned_graph = load_object_model("surf_agent_1lm", mlh_object)
-        target_model = learned_graph.rotated(mlh["rotation"].inv())
-        current_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
-        target_model -= current_mlh_location
+    for i, graph in enumerate([mlh_graph, mlh_2_graph]):
         ax.scatter(
-            target_model.x,
-            target_model.y,
-            target_model.z,
+            graph.x,
+            graph.y,
+            graph.z,
             color=colors[i],
             alpha=0.10,
             s=2,
             edgecolor="none",
         )
 
-    ax.set_title("First/Second MLH")
-    # axes3d_clean(ax)
-
-    # ax.set_xlim(xlim)
-    # ax.set_ylim(ylim)
-    # ax.set_zlim(zlim)
-
     # Plot goal state, if there is one.
     gs = goal_states[step]
     if gs:
-        mlh = get_mlh_dict(stats, top_mlh_object, step)
-        loc_0 = gs["location"]
-
-        # Same transformation as MLH object.
-        loc_a = mlh["rotation"].inv().apply(loc_0)
-        loc -= current_mlh_location
-        loc += sensor_locations[step]
-
+        info = gs["info"]
+        loc = info["proposed_surface_loc"]
         for ax in axes:
             ax.scatter(
                 loc[0],
@@ -806,10 +779,20 @@ for step in range(9, 12):
                 zorder=10,
             )
 
+    # Decoration
+    axes[0].set_title("Ground Truth + MLH")
+    axes[1].set_title("First/Second MLH")
     for ax in axes:
         ax.set_proj_type("persp", focal_length=0.8)
         axes3d_set_aspect_equal(ax)
+        axes3d_clean(ax)
         ax.view_init(*view_init)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax.set_zlim(zlim)
 
     fig.suptitle(f"Step {step}")
     plt.show()
