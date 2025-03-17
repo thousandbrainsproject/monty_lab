@@ -28,6 +28,7 @@ All experiments save their results to subdirectories of `DMC_ROOT` / `visualizat
 from copy import deepcopy
 from typing import Mapping
 
+import numpy as np
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
@@ -74,10 +75,10 @@ class MLHEvidenceHandler(SelectiveEvidenceHandler):
         """Store only final evidence data and no sensor data."""
 
         # Initialize output data.
-        self.handler_args["last_evidence"] = True  # Required for this handler.
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
+        self.take_last_evidences(buffer_data)
 
         # Only store evidence data for the MLH object.
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
@@ -148,7 +149,7 @@ fig4_symmetry_run.update(
                 BasicCSVStatsHandler,
                 MLHEvidenceHandler,
             ],
-            selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
+            selective_handler_args=dict(exclude=["SM_0", "SM_1"]),
         ),
     )
 )
@@ -235,58 +236,43 @@ class GoalStateHandler(SelectiveEvidenceHandler):
             data, episode, mode, **kwargs
         )
 
-        output_data = {}
-
-        detailed = data["DETAILED"][episode_total]
-        evidence_objects = self.handler_args["evidence_objects"]
-
-        # Only store evidence data for...
-        # Add goal states.
-        to_remove = (
-            "symmetry_evidence",
-            "symmetric_locations",
-            "symmetric_rotations",
-        )
-        to_filter_by_object = (
-            "evidences",
-            "possible_locations",
-            "possible_rotations",
-        )
+        # Store max evidence values for all objects for every step.
         lm_ids = [key for key in buffer_data.keys() if key.startswith("LM")]
         for lm_id in lm_ids:
             lm_dict = buffer_data[lm_id]
+            evidences = lm_dict["evidences"]
+            evidence_max = []
+            for dct in evidences:
+                evidence_max.append(
+                    {graph_id: np.max(arr) for graph_id, arr in dct.items()}
+                )
+            lm_dict["evidences_max"] = evidence_max
 
-            # Drop unneeded data.
-            for name in to_remove:
-                lm_dict.pop(name, None)
-
-            # Only keep evidence for a few objects of interest.
-            for name in to_filter_by_object:
-                lst = lm_dict.get(name)
-                if lst is None:
-                    continue
-                new_lst = []
-                for dct in lst:
-                    new_dct = {}
-                    for object_name in evidence_objects:
-                        new_dct[object_name] = dct[object_name]
-                    new_lst.append(new_dct)
-                lm_dict[name] = new_lst
-
-            # Add goal states.
-            goal_states = detailed[lm_id]["goal_states"]
-            lm_dict["goal_states"] = goal_states
-            output_data[lm_id] = lm_dict
+        # Only store complete evidence data for select objects.
+        detailed_evidence_objects = self.handler_args.get(
+            "detailed_evidence_objects", []
+        )
+        for lm_id in lm_ids:
+            lm_dict = buffer_data[lm_id]
+            to_filter = ("evidences", "possible_locations", "possible_rotations")
+            for key in to_filter:
+                dicts_in = lm_dict[key]
+                dicts_out = []
+                for dct_in in dicts_in:
+                    dct_out = {
+                        graph_id: arr
+                        for graph_id, arr in dct_in.items()
+                        if graph_id in detailed_evidence_objects
+                    }
+                    dicts_out.append(dct_out)
+                lm_dict[key] = dicts_out
 
         # Store only processed observations from sensor module 0.
-        to_keep = ["processed_observations", "sm_properties"]
-        sm_dict = buffer_data["SM_0"]
-        output_data["SM_0"] = {}
-        for name in to_keep:
-            output_data["SM_0"][name] = sm_dict[name]
+        buffer_data["SM_0"].pop("raw_observations")
+        buffer_data.pop("SM_1")
 
         # Store data.
-        self.save(episode_total, output_data, output_dir)
+        self.save(episode_total, buffer_data, output_dir)
 
 
 fig6_surf_mismatch = deepcopy(surf_agent_1lm)
@@ -298,7 +284,7 @@ fig6_surf_mismatch["logging_config"] = SelectiveEvidenceLoggingConfig(
         BasicCSVStatsHandler,
         GoalStateHandler,
     ],
-    selective_handler_args=dict(evidence_objects=["fork", "knife", "spoon"]),
+    selective_handler_args=dict(detailed_evidence_objects=["fork", "knife", "spoon"]),
 )
 fig6_surf_mismatch["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
     object_names=["spoon"],
