@@ -17,6 +17,7 @@ from numbers import Number
 from pathlib import Path
 from typing import (
     Container,
+    Iterable,
     List,
     Mapping,
     Optional,
@@ -37,6 +38,7 @@ from data_utils import (
     load_eval_stats,
     load_object_model,
 )
+from matplotlib.lines import Line2D
 from plot_utils import (
     TBP_COLORS,
     add_legend,
@@ -54,7 +56,46 @@ OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# %matplotlib qt
+def euler(r):
+    return r.as_euler("xyz", degrees=True)
+
+
+def get_relative_rotation(
+    rot_a: R,
+    rot_b: R,
+    degrees: bool = True,
+) -> Tuple[float, np.ndarray]:
+    """Computes the angle and axis of rotation between two rotation matrices.
+
+    Args:
+        rot_a (scipy.spatial.transform.Rotation): The first rotation.
+        rot_b (scipy.spatial.transform.Rotation): The second rotation.
+
+    Returns:
+        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
+    """
+    # Compute rotation angle
+    rel = rot_a * rot_b.inv()
+    mat = rel.as_matrix()
+    trace = np.trace(mat)
+    theta = np.arccos((trace - 1) / 2)
+
+    if np.isclose(theta, 0):  # No rotation
+        return 0.0, np.array([0.0, 0.0, 0.0])
+
+    # Compute rotation axis
+    axis = np.array(
+        [
+            mat[2, 1] - mat[1, 2],
+            mat[0, 2] - mat[2, 0],
+            mat[1, 0] - mat[0, 1],
+        ]
+    )
+    axis = axis / (2 * np.sin(theta))  # Normalize
+    if degrees:
+        theta, axis = np.degrees(theta), np.degrees(axis)
+
+    return theta, axis
 
 
 def plot_curvature_guided_policy():
@@ -193,11 +234,11 @@ def plot_evidence_over_time():
     fig.savefig(OUT_DIR / "evidence_over_time.svg", bbox_inches="tight")
 
 
-def get_mlh_dict(episode_stats: Mapping, object_name: str, step: int) -> dict:
+def get_mlh_dict(object_name: str, stats: Mapping, step: int) -> dict:
     """Get the most likely hypothesis for a given graph id."""
-    evidences = episode_stats["LM_0"]["evidences"]
-    locations = episode_stats["LM_0"]["possible_locations"]
-    rotations = episode_stats["LM_0"]["possible_rotations"][0]
+    evidences = stats["LM_0"]["evidences"]
+    locations = stats["LM_0"]["possible_locations"]
+    rotations = stats["LM_0"]["possible_rotations"][0]
     mlh_id = np.argmax(evidences[step][object_name])
     evidence = evidences[step][object_name][mlh_id]
     location = np.array(locations[step][object_name][mlh_id])
@@ -209,289 +250,6 @@ def get_mlh_dict(episode_stats: Mapping, object_name: str, step: int) -> dict:
         "rotation": rotation,
         "evidence": evidence,
     }
-
-
-def plot_goal_state_points():
-    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
-    detailed_stats_path = exp_dir / "detailed_run_stats.json"
-    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[0]
-
-    # Get ground-truth object and its pose.
-    target_object = stats["target"]["primary_target_object"]
-    target_position = np.array(stats["target"]["primary_target_position"])
-    target_rotation = R.from_euler(
-        "xyz", stats["target"]["primary_target_rotation_euler"], degrees=True
-    )
-
-    goal_states = stats["LM_0"]["goal_states"]
-    goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
-    sensor_locations = [
-        obs["location"] for obs in stats["SM_0"]["processed_observations"]
-    ]
-    sensor_locations = np.array(sensor_locations)
-    n_steps = len(sensor_locations)
-
-    out_dir = OUT_DIR / "steps"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    xlim = [-0.10, 0.10]
-    ylim = [1.40, 1.60]
-    zlim = [-0.10, 0.10]
-    view_init = (-50, -180, 0)
-
-    top_mlh_object = "spoon"
-    second_mlh_object = "fork"
-
-    for step in range(n_steps):
-        fig, axes = plt.subplots(1, 2, figsize=(8, 4), subplot_kw={"projection": "3d"})
-
-        # Plot ground truth object and sensor path locations.
-        ax = axes[0]
-        model = load_object_model("surf_agent_1lm", target_object)
-        model -= target_position
-        model = model.rotated(target_rotation)
-        model += target_position
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color="black",
-            alpha=0.1,
-            s=2,
-            edgecolor="none",
-        )
-
-        sensor_locs = sensor_locations[: step + 1]
-        ax.scatter(
-            sensor_locs[:, 0],
-            sensor_locs[:, 1],
-            sensor_locs[:, 2],
-            color="red",
-            alpha=1,
-            s=20,
-            marker="v",
-            zorder=10,
-        )
-        ax.set_proj_type("persp", focal_length=0.8)
-        ax.set_title("Sensor Path")
-        axes3d_clean(ax)
-        axes3d_set_aspect_equal(ax)
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        ax.set_zlim(zlim)
-
-        # Plot top MLH object.
-        ax = axes[1]
-        top_mlh = get_mlh_dict(stats, top_mlh_object, step)
-
-        model = load_object_model("surf_agent_1lm", top_mlh_object)
-        model = model.rotated(top_mlh["rotation"].inv())
-        current_mlh_location = top_mlh["rotation"].inv().apply(top_mlh["location"])
-        model -= current_mlh_location
-        # model -= top_mlh_loc
-        # model -= mlh["location"]
-        # model = model.rotated(mlh["rotation"].inv())
-        # model += target_position
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color=TBP_COLORS["blue"],
-            alpha=0.10,
-            s=2,
-            edgecolor="none",
-        )
-
-        # Plot second MLH object.
-        # mlh = get_mlh_dict(stats, second_mlh_object, step)
-        # model = load_object_model("surf_agent_1lm", second_mlh_object)
-        # model -= mlh["location"]
-        # model = model.rotated(mlh["rotation"].inv())
-        # model += target_position
-        # ax.scatter(
-        #     model.x,
-        #     model.y,
-        #     model.z,
-        #     color=TBP_COLORS["green"],
-        #     alpha=0.10,
-        #     s=2,
-        #     edgecolor="none",
-        # )
-
-        ax.set_proj_type("persp", focal_length=0.8)
-        ax.set_title("First/Second MLH")
-        # axes3d_clean(ax)
-        axes3d_set_aspect_equal(ax)
-        # ax.set_xlim(xlim)
-        # ax.set_ylim(ylim)
-        # ax.set_zlim(zlim)
-
-        # Plot goal state, if there is one.
-        gs = goal_states[step]
-        if gs:
-            for ax in axes:
-                ax.scatter(
-                    gs["location"][0],
-                    gs["location"][1],
-                    gs["location"][2],
-                    color=TBP_COLORS["yellow"],
-                    alpha=1,
-                    s=20,
-                    marker="s",
-                    zorder=10,
-                )
-        for ax in axes:
-            ax.view_init(*view_init)
-
-        fig.suptitle(f"Step {step}")
-        plt.show()
-        fig.savefig(out_dir / f"step_{step}.png", dpi=300, bbox_inches="tight")
-
-
-def plot_overlay():
-    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
-    detailed_stats_path = exp_dir / "detailed_run_stats.json"
-    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[0]
-
-    # Get ground-truth object and its pose.
-    target_object = stats["target"]["primary_target_object"]
-    target_position = np.array(stats["target"]["primary_target_position"])
-    target_rotation = R.from_euler(
-        "xyz", stats["target"]["primary_target_rotation_euler"], degrees=True
-    )
-
-    goal_states = stats["LM_0"]["goal_states"]
-    goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
-    sensor_locations = [
-        obs["location"] for obs in stats["SM_0"]["processed_observations"]
-    ]
-    sensor_locations = np.array(sensor_locations)
-    n_steps = len(sensor_locations)
-
-    out_dir = OUT_DIR / "overlay"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    xlim = [-0.10, 0.10]
-    ylim = [1.40, 1.60]
-    zlim = [-0.10, 0.10]
-    view_init = (-50, -180, 0)
-
-    top_mlh_object = "spoon"
-    second_mlh_object = "fork"
-
-    for step in range(n_steps):
-        fig, axes = plt.subplots(1, 2, figsize=(8, 4), subplot_kw={"projection": "3d"})
-
-        # Plot ground truth object, sensor path, and mlh object together.
-        """
-        Plot ground truth object, sensor path, and mlh object together.
-        """
-        ax = axes[0]
-
-        # Plot ground truth object.
-        model = load_object_model("surf_agent_1lm", target_object)
-        model -= target_position
-        model = model.rotated(target_rotation)
-        model += target_position
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color="black",
-            alpha=0.1,
-            s=2,
-            edgecolor="none",
-        )
-
-        # Plot sensor path.
-        sensor_locs = sensor_locations[: step + 1]
-        alphas = np.exp(-np.arange(len(sensor_locs)) / 10)[::-1]
-        ax.scatter(
-            sensor_locs[:, 0],
-            sensor_locs[:, 1],
-            sensor_locs[:, 2],
-            color="red",
-            alpha=alphas,
-            s=20,
-            marker="v",
-            zorder=10,
-        )
-
-        # Plot top MLH object.
-        top_mlh = get_mlh_dict(stats, top_mlh_object, step)
-        model = load_object_model("surf_agent_1lm", top_mlh_object)
-        model = model.rotated(top_mlh["rotation"].inv())
-        current_mlh_location = top_mlh["rotation"].inv().apply(top_mlh["location"])
-        model -= current_mlh_location
-        model += target_position
-        ax.scatter(
-            model.x,
-            model.y,
-            model.z,
-            color=TBP_COLORS["blue"],
-            alpha=0.10,
-            s=2,
-            edgecolor="none",
-        )
-
-        ax.set_proj_type("persp", focal_length=0.8)
-        ax.set_title("Sensor Path")
-        axes3d_clean(ax)
-        # ax.set_xlim(xlim)
-        # ax.set_ylim(ylim)
-        # ax.set_zlim(zlim)
-
-        # Plot top MLH objects.
-        ax = axes[1]
-
-        # Plot second MLH object.
-        colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
-        for i, mlh_object in enumerate([top_mlh_object, second_mlh_object]):
-            mlh = get_mlh_dict(stats, mlh_object, step)
-            model = load_object_model("surf_agent_1lm", mlh_object)
-            model = model.rotated(mlh["rotation"].inv())
-            current_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
-            model -= current_mlh_location
-            ax.scatter(
-                model.x,
-                model.y,
-                model.z,
-                color=colors[i],
-                alpha=0.10,
-                s=2,
-                edgecolor="none",
-            )
-
-        ax.set_title("First/Second MLH")
-        axes3d_clean(ax)
-
-        # ax.set_xlim(xlim)
-        # ax.set_ylim(ylim)
-        # ax.set_zlim(zlim)
-
-        # Plot goal state, if there is one.
-        gs = goal_states[step]
-        if gs:
-            for ax in axes:
-                ax.scatter(
-                    gs["location"][0],
-                    gs["location"][1],
-                    gs["location"][2],
-                    color=TBP_COLORS["yellow"],
-                    alpha=1,
-                    s=20,
-                    marker="s",
-                    zorder=10,
-                )
-
-        for ax in axes:
-            ax.set_proj_type("persp", focal_length=0.8)
-            axes3d_set_aspect_equal(ax)
-            ax.view_init(*view_init)
-
-        fig.suptitle(f"Step {step}")
-        plt.show()
-        fig.savefig(out_dir / f"step_{step}.png", dpi=300, bbox_inches="tight")
 
 
 def plot_performance():
@@ -557,243 +315,251 @@ def plot_performance():
     fig.savefig(OUT_DIR / "performance.svg", bbox_inches="tight")
 
 
-def euler(r):
-    return r.as_euler("xyz", degrees=True)
-
-
-def get_relative_rotation(
-    rot_a: R,
-    rot_b: R,
-    degrees: bool = True,
-) -> Tuple[float, np.ndarray]:
-    """Computes the angle and axis of rotation between two rotation matrices.
-
-    Args:
-        rot_a (scipy.spatial.transform.Rotation): The first rotation.
-        rot_b (scipy.spatial.transform.Rotation): The second rotation.
-
-    Returns:
-        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
-    """
-    # Compute rotation angle
-    rel = rot_a * rot_b.inv()
-    mat = rel.as_matrix()
-    trace = np.trace(mat)
-    theta = np.arccos((trace - 1) / 2)
-
-    if np.isclose(theta, 0):  # No rotation
-        return 0.0, np.array([0.0, 0.0, 0.0])
-
-    # Compute rotation axis
-    axis = np.array(
-        [
-            mat[2, 1] - mat[1, 2],
-            mat[0, 2] - mat[2, 0],
-            mat[1, 0] - mat[0, 1],
-        ]
-    )
-    axis = axis / (2 * np.sin(theta))  # Normalize
-    if degrees:
-        theta, axis = np.degrees(theta), np.degrees(axis)
-
-    return theta, axis
-
-
-exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
-detailed_stats_path = exp_dir / "detailed_run_stats.json"
-detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-stats = detailed_stats_interface[0]
-
-# Get ground-truth object and its pose.
-target_object = stats["target"]["primary_target_object"]
-target_position = np.array(stats["target"]["primary_target_position"])
-target_rotation = R.from_euler(
-    "xyz", stats["target"]["primary_target_rotation_euler"], degrees=True
-)
-learned_position = np.array([0, 1.5, 0])
-
-goal_states = stats["LM_0"]["goal_states"]
-goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
-sensor_locations = [obs["location"] for obs in stats["SM_0"]["processed_observations"]]
-sensor_locations = np.array(sensor_locations)
-n_steps = len(sensor_locations)
-
-out_dir = OUT_DIR / "overlay"
-out_dir.mkdir(parents=True, exist_ok=True)
-xlim = [-0.10, 0.10]
-ylim = [1.40, 1.60]
-zlim = [-0.10, 0.10]
-view_init = (-50, -180, 0)
-
-top_mlh_object = "spoon"
-second_mlh_object = "fork"
-
-# %matplotlib qt
-
-def plot_ground_truth(
+def plot_sensor_path(
     ax,
-    color: str = "black",
-    alpha: float = 0.1,
-    s: float = 2,
+    sensor_locations: np.ndarray,
+    markerstyle: Optional[Mapping] = None,
+    linestyle: Optional[Mapping] = None,
 ):
-    learned_graph = load_object_model("surf_agent_1lm", target_object)
-    target_graph = learned_graph - learned_position
-    target_graph = target_graph.rotated(target_rotation)  # ground-truth location
-    target_graph = target_graph + target_position  # ground-truth location
+    if markerstyle is None:
+        markerstyle = dict(
+            color=TBP_COLORS["blue"],
+            alpha=1,
+            s=20,
+            marker="v",
+            zorder=5,
+        )
+    if linestyle is None:
+        linestyle = dict(
+            color=TBP_COLORS["blue"],
+            alpha=1,
+        )
     ax.scatter(
-        target_graph.x,
-        target_graph.y,
-        target_graph.z,
-        color=color,
-        alpha=alpha,
-        s=s,
+        sensor_locations[:, 0],
+        sensor_locations[:, 1],
+        sensor_locations[:, 2],
+        color=TBP_COLORS["blue"],
+        alpha=1,
+        s=20,
+        marker="v",
+        zorder=5,
+    )
+    ax.plot(
+        sensor_locations[:, 0],
+        sensor_locations[:, 1],
+        sensor_locations[:, 2],
+        color=TBP_COLORS["blue"],
+        alpha=1,
+        zorder=10,
+        lw=2,
+    )
+
+
+def get_mlh_graph(
+    object_name: str,
+    stats: Mapping,
+    step: int,
+    pretrained_model: str = "surf_agent_1lm",
+) -> Tuple[np.ndarray, R]:
+    """
+    Get the graph of the MLH object at the given step.
+    """
+    mlh = get_mlh_dict(object_name, stats, step)
+    rotated_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
+    sensor_location = np.array(
+        stats["SM_0"]["processed_observations"][step]["location"]
+    )
+    learned_graph = load_object_model(pretrained_model, object_name)
+    graph = learned_graph.rotated(mlh["rotation"].inv())
+    graph -= rotated_mlh_location
+    graph += sensor_location
+    return graph
+
+
+def plot_mismatch_at_step(
+    stats: Mapping,
+    step: int,
+    mlh_objects: Iterable[str],
+    colors: Mapping,
+    pretrained_model: str = "surf_agent_1lm",
+):
+    """ """
+
+    # Get ground-truth object and its pose.
+    target_object = stats["target"]["primary_target_object"]
+    target_position = np.array(stats["target"]["primary_target_position"])
+    target_rotation = R.from_euler(
+        "xyz", stats["target"]["primary_target_rotation_euler"], degrees=True
+    )
+    learned_position = np.array([0, 1.5, 0])
+
+    # Load sensor locations.
+    sensor_locations = np.array(
+        [obs["location"] for obs in stats["SM_0"]["processed_observations"]]
+    )
+    sensor_locations = sensor_locations[: step + 1]
+
+    # Load MLH objects.
+    top_mlh_object = mlh_objects[0]
+    second_mlh_object = mlh_objects[1]
+
+    # Load goal state.
+    goal_state = stats["LM_0"]["goal_states"][step]
+
+    fig, axes = plt.subplots(1, 2, figsize=(6, 4), subplot_kw={"projection": "3d"})
+
+    """
+    First plot has ground-truth object and sensor path.
+    """
+    ax = axes[0]
+
+    # Plot ground-truth object.
+    learned_graph = load_object_model(pretrained_model, target_object)
+    graph = learned_graph - learned_position
+    graph = graph.rotated(target_rotation)  # ground-truth location
+    graph += target_position  # ground-truth location
+    ax.scatter(
+        graph.x,
+        graph.y,
+        graph.z,
+        color=graph.rgba,
+        alpha=0.5,
+        s=5,
         edgecolor="none",
     )
 
-
-def plot_sensor_path(
-    ax,
-    step: int,
-    color: str = "red",
-    alpha: float = 1,
-    last: bool = True,
-    s: int = 20,
-):
-    if last:
-        x, y, z = sensor_locations[step]
-    else:
-        x = sensor_locations[: step + 1, 0]
-        y = sensor_locations[: step + 1, 1]
-        z = sensor_locations[: step + 1, 2]
-
+    # Plot sensor path.
+    c = colors.get("sensor_path", TBP_COLORS["purple"])
     ax.scatter(
-        x,
-        y,
-        z,
-        color=color,
-        alpha=alpha,
-        s=s,
+        sensor_locations[:, 0],
+        sensor_locations[:, 1],
+        sensor_locations[:, 2],
+        color=c,
+        alpha=1,
+        s=10,
         marker="v",
         zorder=10,
     )
-
-for step in range(9, 12):
-    fig, axes = plt.subplots(1, 2, figsize=(8, 4), subplot_kw={"projection": "3d"})
-
-    """
-    Plot ground truth object, sensor path, and mlh object together.
-    
-    mlh_rot: mlh_rot.inv() ~= target_rotation
-
-    """
-
-    ax = axes[0]
-
-    # Plot ground truth object.
-    plot_ground_truth(ax)
-
-    # Plot sensor path.
-    plot_sensor_path(ax, step)
-
-    # Get first and second MLHs.
-    mlh = get_mlh_dict(stats, top_mlh_object, step)
-    mlh_learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
-    mlh_location = mlh["rotation"].inv().apply(mlh["location"])
-    mlh_graph = mlh_learned_graph.rotated(mlh["rotation"].inv())
-    mlh_graph -= mlh_location
-    mlh_graph += sensor_locations[step]
-
-    mlh_2 = get_mlh_dict(stats, second_mlh_object, step)
-    mlh_2_learned_graph = load_object_model("surf_agent_1lm", second_mlh_object)
-    mlh_2_location = mlh_2["rotation"].inv().apply(mlh_2["location"])
-    mlh_2_graph = mlh_2_learned_graph.rotated(mlh_2["rotation"].inv())
-    mlh_2_graph -= mlh_2_location
-    mlh_2_graph += sensor_locations[step]
-
-    ax.scatter(
-        mlh_graph.x,
-        mlh_graph.y,
-        mlh_graph.z,
-        color=TBP_COLORS["blue"],
-        alpha=0.10,
-        s=2,
-        edgecolor="none",
+    ax.plot(
+        sensor_locations[:, 0],
+        sensor_locations[:, 1],
+        sensor_locations[:, 2],
+        color=c,
+        alpha=1,
+        zorder=5,
+        lw=1,
     )
 
-    # loc = mlh_location
-    # ax.scatter(
-    #     mlh_location[0],
-    #     mlh_location[1],
-    #     mlh_location[2],
-    #     color=TBP_COLORS["purple"],
-    #     alpha=1,
-    #     s=20,
-    #     marker="s",
-    # )
-
-    # Overlay learned graph.
-    # mlh = get_mlh_dict(stats, top_mlh_object, step)
-    # learned_graph = load_object_model("surf_agent_1lm", top_mlh_object)
-    # ax.scatter(
-    #     learned_graph.x,
-    #     learned_graph.y,
-    #     learned_graph.z,
-    #     color="red",
-    #     alpha=0.10,
-    #     s=2,
-    #     edgecolor="none",
-    # )
-
     """
-    Plot first and second MLHs
+    Second plot has first and second MLHs.
     """
-
     ax = axes[1]
-    # Plot second MLH object.
-    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
-    for i, graph in enumerate([mlh_graph, mlh_2_graph]):
+
+    # Plot first and second MLHs.
+    top_mlh_graph = get_mlh_graph(
+        top_mlh_object, stats, step, pretrained_model=pretrained_model
+    )
+    second_mlh_graph = get_mlh_graph(
+        second_mlh_object, stats, step, pretrained_model=pretrained_model
+    )
+    colors = {} if colors is None else colors
+    mlh_colors = [
+        colors.get("top_mlh", TBP_COLORS["blue"]),
+        colors.get("second_mlh", TBP_COLORS["green"]),
+    ]
+    for i, graph in enumerate([top_mlh_graph, second_mlh_graph]):
         ax.scatter(
             graph.x,
             graph.y,
             graph.z,
-            color=colors[i],
-            alpha=0.10,
+            color=mlh_colors[i],
+            alpha=0.20,
             s=2,
             edgecolor="none",
+            label=mlh_objects[i],
         )
 
-    # Plot goal state, if there is one.
-    gs = goal_states[step]
-    if gs:
-        info = gs["info"]
-        loc = info["proposed_surface_loc"]
+    # Plot the goal state's target if possible.
+    if goal_state:
+        proposed_surface_loc = goal_state["info"]["proposed_surface_loc"]
+        c = colors.get("proposed_point", TBP_COLORS["yellow"])
         for ax in axes:
             ax.scatter(
-                loc[0],
-                loc[1],
-                loc[2],
-                color=TBP_COLORS["yellow"],
+                proposed_surface_loc[0],
+                proposed_surface_loc[1],
+                proposed_surface_loc[2],
+                color=c,
                 alpha=1,
                 s=20,
-                marker="s",
+                marker="o",
                 zorder=10,
+                label="Proposed Point",
             )
 
-    # Decoration
-    axes[0].set_title("Ground Truth + MLH")
-    axes[1].set_title("First/Second MLH")
-    for ax in axes:
+    return fig, axes
+
+
+def plot_object_mismatch():
+    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
+    detailed_stats_path = exp_dir / "detailed_run_stats.json"
+    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+    stats = detailed_stats_interface[0]
+
+    mlh_objects = ["spoon", "fork"]
+    colors = {
+        "sensor_path": TBP_COLORS["blue"],
+        "top_mlh": TBP_COLORS["blue"],
+        "second_mlh": TBP_COLORS["green"],
+        "proposed_point": TBP_COLORS["yellow"],
+    }
+
+    step = 10
+    fig, axes = plot_mismatch_at_step(
+        stats, step, mlh_objects, colors=colors, pretrained_model="surf_agent_1lm"
+    )
+    width = 0.08
+    axis_limits = [[-width, width], [1.5 - width, 1.5 + width], [-width, width]]
+    view_angles = [(-50, -180, 0), (-80, 180, 0)]
+
+    axes[0].set_title("Ground Truth + Sensor Path")
+    axes[1].set_title("First + Second MLHs")
+    for i, ax in enumerate(axes):
         ax.set_proj_type("persp", focal_length=0.8)
         axes3d_set_aspect_equal(ax)
         axes3d_clean(ax)
-        ax.view_init(*view_init)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
-        ax.set_zlim(zlim)
+        ax.view_init(*view_angles[i])
+        ax.set_xlim(axis_limits[0])
+        ax.set_ylim(axis_limits[1])
+        ax.set_zlim(axis_limits[2])
 
-    fig.suptitle(f"Step {step}")
+    # Add legend to the second plot.
+    colors = list(colors.values())
+    labels = ["Sensor Path", "MLH 1 (spoon)", "MLH 2 (fork)", "Proposed Point"]
+    legend_handles = []
+    for i in range(1, 4):
+        h = Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=colors[i],
+            markersize=8,
+            label=labels[i],
+        )
+        legend_handles.append(h)
+    axes[1].legend(
+        handles=legend_handles,
+        bbox_to_anchor=(0.2, 0.8),
+        framealpha=1,
+        fontsize=8,
+    )
+
     plt.show()
-    fig.savefig(out_dir / f"step_{step}.png", dpi=300, bbox_inches="tight")
+
+    out_dir = OUT_DIR / "mismatch"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_dir / f"object_mismatch.png", dpi=300, bbox_inches="tight")
+    fig.savefig(out_dir / f"object_mismatch.svg", bbox_inches="tight")
+
+
+plot_object_mismatch()
