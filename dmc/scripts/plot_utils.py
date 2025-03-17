@@ -40,8 +40,6 @@ def axes3d_clean(
     ax: Axes3D,
     grid: bool = True,
     grid_color: Optional[Any] = "white",
-    despine: bool = True,
-    delabel: bool = True,
 ) -> None:
     """Remove clutter from 3D axes.
 
@@ -53,14 +51,12 @@ def axes3d_clean(
     """
 
     # Remove dark spines that outline the plot.
-    if despine:
-        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
-            axis.line.set_color((1, 1, 1, 0))
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis.line.set_color((1, 1, 1, 0))
 
     # Remove axis labels.
-    if delabel:
-        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
-            axis.set_label(None)
+    for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+        axis.set_label(None)
 
     if grid:
         # Remove tick marks. This method keeps the grid lines visible while
