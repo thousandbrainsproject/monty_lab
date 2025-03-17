@@ -39,9 +39,9 @@ TBP_COLORS = {
 def axes3d_clean(
     ax: Axes3D,
     grid: bool = True,
-    ticks: bool = False,
-    label_axes: bool = False,
     grid_color: Optional[Any] = "white",
+    despine: bool = True,
+    delabel: bool = True,
 ) -> None:
     """Remove clutter from 3D axes.
 
@@ -52,39 +52,35 @@ def axes3d_clean(
         label_axes (bool): Whether to show the x, y, z axis labels. Default is False.
     """
 
-    # Turn grid on or off.
-    if not grid:
-        ax.grid(False)
-        return
-
     # Remove dark spines that outline the plot.
-    for fn in (ax.w_xaxis, ax.w_yaxis, ax.w_zaxis):
-        fn.line.set_color((1, 1, 1, 0))
+    if despine:
+        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+            axis.line.set_color((1, 1, 1, 0))
 
-    # Optionally remove tick marks. This method keeps the grid lines visible while
-    # making the little nubs that stick out invisible. (Setting xticks=[] removes
-    # grid lines).
-    if not ticks:
-        ax.tick_params(axis="x", colors=(0, 0, 0, 0))  # Make X-axis ticks invisible
-        ax.tick_params(axis="y", colors=(0, 0, 0, 0))  # Make Y-axis ticks invisible
-        ax.tick_params(axis="z", colors=(0, 0, 0, 0))  # Make Z-axis ticks invisible
+    # Remove axis labels.
+    if delabel:
+        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+            axis.set_label(None)
 
-    # Optionally remove or add axis labels.
-    if label_axes:
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
+    if grid:
+        # Remove tick marks. This method keeps the grid lines visible while
+        # making the little nubs that stick out invisible. (Setting xticks=[] removes
+        # grid lines).
+        for axis in ("x", "y", "z"):
+            ax.tick_params(axis=axis, colors=(0, 0, 0, 0))
+
+        # Stylize grid lines.
+        if grid_color is not None:
+            ax.xaxis._axinfo["grid"]["color"] = grid_color
+            ax.yaxis._axinfo["grid"]["color"] = grid_color
+            ax.zaxis._axinfo["grid"]["color"] = grid_color
+
     else:
-        pass
-        # ax.set_xlabel("")
-        # ax.set_ylabel("")
-        # ax.set_zlabel("")
+        # Remove tick marks.
+        for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
+            axis.set_ticks([])
 
-    # Stylize grid lines.
-    if grid_color is not None:
-        ax.xaxis._axinfo["grid"]["color"] = grid_color
-        ax.yaxis._axinfo["grid"]["color"] = grid_color
-        ax.zaxis._axinfo["grid"]["color"] = grid_color
+        ax.grid(False)
 
 
 def axes3d_set_aspect_equal(ax: Axes3D) -> None:
