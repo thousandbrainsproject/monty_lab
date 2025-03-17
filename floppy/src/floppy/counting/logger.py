@@ -9,12 +9,11 @@
 
 import csv
 import logging
-import time
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 
 class LogLevel(Enum):
@@ -135,7 +134,7 @@ class DetailedLogger(BaseLogger):
         self.buffer.clear()
 
     def _log_operations(self) -> None:
-        """ Log individual operations.
+        """Log individual operations.
         Note: This induces a lot of overhead and large file size but will give us the most detailed logs.
         """
         for op in self.buffer:

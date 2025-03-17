@@ -10,8 +10,8 @@
 import logging
 import os
 import time
-from argparse import ArgumentParser, Namespace
-from typing import Any, Dict, List, Optional, Type, Union
+from argparse import Namespace
+from typing import Any, Dict, List, Optional, Type
 
 from tbp.monty.frameworks.run import (
     config_to_dict,

@@ -8,7 +8,6 @@
 # https://opensource.org/licenses/MIT.
 
 import numpy as np
-import pytest
 
 from floppy.counting.base import FlopCounter
 

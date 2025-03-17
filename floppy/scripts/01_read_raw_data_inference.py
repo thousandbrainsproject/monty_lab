@@ -1,5 +1,4 @@
-"""
-This script reads the raw data for experiments related to Floppy on Monty.
+"""This script reads the raw data for experiments related to Floppy on Monty.
 
 Results are stored in `~/tbp/results/dmc/results`
 """
@@ -12,8 +11,7 @@ import pandas as pd
 
 
 def read_flop_traces(df: pd.DataFrame) -> float:
-    """
-    Read the flop traces from a file.
+    """Read the flop traces from a file.
     """
     # Get average of flops for experiment.run_episode in method column
     run_episode_df = df[df["method"] == "experiment.run_episode"]
@@ -22,8 +20,7 @@ def read_flop_traces(df: pd.DataFrame) -> float:
 
 
 def compute_accuracy(df: pd.DataFrame) -> float:
-    """
-    Compute the accuracy from the eval_stats.csv file.
+    """Compute the accuracy from the eval_stats.csv file.
 
     It is considered accurate if primary_performance is correct or correct_mlh
     """
@@ -32,16 +29,14 @@ def compute_accuracy(df: pd.DataFrame) -> float:
 
 
 def compute_quaternion_error(df: pd.DataFrame) -> float:
-    """
-    Compute the quaternion error from the eval_stats.csv file.
+    """Compute the quaternion error from the eval_stats.csv file.
     average the rotation_error column
     """
     return df["rotation_error"].mean()
 
 
 def read_total_flops(df: pd.DataFrame, method: str) -> float:
-    """
-    Read the total flops from a file for a specific method.
+    """Read the total flops from a file for a specific method.
     """
     method_df = df[df["method"] == method]
     return method_df["flops"].sum()

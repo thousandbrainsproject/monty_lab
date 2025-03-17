@@ -7,18 +7,18 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import numpy as np
 
 from ..base.protocols import FlopOperation
 
 __all__ = [
+    "AverageOperation",
     "MeanOperation",
+    "MedianOperation",
     "StdOperation",
     "VarOperation",
-    "AverageOperation",
-    "MedianOperation",
 ]
 
 
@@ -296,13 +296,12 @@ class AverageOperation(FlopOperation):
         if n == 0:
             return 0  # Empty array
 
-        weights = kwargs.get("weights", None)
+        weights = kwargs.get("weights")
         if weights is not None:
             # Weighted sum (2n) + division (1)
             return 2 * n + 1
-        else:
-            # Sum (n) + division (1)
-            return n + 1
+        # Sum (n) + division (1)
+        return n + 1
 
 
 class MedianOperation(FlopOperation):

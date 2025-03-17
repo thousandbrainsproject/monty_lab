@@ -8,7 +8,7 @@
 # https://opensource.org/licenses/MIT.
 
 import numpy as np
-import numpy.ma as ma
+from numpy import ma
 
 from floppy.counting.base import FlopCounter
 

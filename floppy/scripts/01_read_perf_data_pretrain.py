@@ -1,5 +1,4 @@
-"""
-This script reads the raw results from FLOPs measurements for pretraining.
+"""This script reads the raw results from FLOPs measurements for pretraining.
 FLOPs results are stored in `/Users/hlee/tbp/results/dmc/results/floppy/pretrain/pretrain_dist_agent_1lm_parallel_perf.csv`
 """
 
@@ -9,8 +8,7 @@ import pandas as pd
 
 
 def compute_flops(flops_df: pd.DataFrame) -> float:
-    """
-    Compute total flops from flops dataframe from perf stat
+    """Compute total flops from flops dataframe from perf stat
     """
     flops_per_operation = {
         "fp_arith_inst_retired.128b_packed_double": 2,
@@ -45,7 +43,7 @@ def main():
         total_flops = compute_flops(flops_df)
         print(f"Total training FLOPs: {total_flops:,}")
     except Exception as e:
-        print(f"Error processing file: {str(e)}")
+        print(f"Error processing file: {e!s}")
 
 
 if __name__ == "__main__":

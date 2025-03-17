@@ -9,12 +9,11 @@
 
 import ast
 
-import pytest
-
 from floppy.analysis.visitors.scipy_visitor import ScipyCallVisitor
 
 
-def test_basic_scipy_imports():
+def test_basic_scipy_imports() -> None:
+    """Test basic scipy imports."""
     code = """
 import scipy as sp
 from scipy import stats
@@ -35,7 +34,8 @@ from scipy import *
     assert "scipy.sparse.csr_matrix" in imports
 
 
-def test_scipy_optimization():
+def test_scipy_optimization() -> None:
+    """Test scipy optimization."""
     code = """
 from scipy.optimize import minimize, fmin
 import numpy as np
@@ -56,7 +56,8 @@ res2 = fmin(objective, x0)
     assert ("direct", "scipy.optimize.fmin", 10) in calls
 
 
-def test_scipy_stats():
+def test_scipy_stats() -> None:
+    """Test scipy stats."""
     code = """
 from scipy import stats
 import numpy as np
@@ -76,7 +77,8 @@ norm_test = stats.normaltest(data)
     assert ("attribute", "scipy.stats.normaltest", 8) in calls
 
 
-def test_scipy_attribute_access():
+def test_scipy_attribute_access() -> None:
+    """Test scipy attribute access."""
     code = """
 from scipy import stats
 import numpy as np
@@ -96,9 +98,8 @@ entropy = stats.norm.entropy()
     assert ("attribute", "scipy.stats.norm.entropy", 8) in calls
 
 
-
-
-def test_scipy_with_error_handling():
+def test_scipy_with_error_handling() -> None:
+    """Test scipy with error handling."""
     code = """
 try:
     from scipy import special
@@ -116,7 +117,8 @@ except AttributeError:
     assert ("attribute", "scipy.special.invalid_function", 5) in calls
 
 
-def test_scipy_linalg():
+def test_scipy_linalg() -> None:
+    """Test scipy linalg."""
     code = """
 import scipy.linalg as la
 import numpy as np
@@ -140,7 +142,8 @@ inv = la.inv(A)
     assert ("attribute", "scipy.linalg.inv", 11) in calls
 
 
-def test_scipy_sparse():
+def test_scipy_sparse() -> None:
+    """Test scipy sparse."""
     code = """
 from scipy.sparse import csr_matrix, lil_matrix
 import numpy as np
@@ -160,7 +163,8 @@ lil = lil_matrix((4, 4))
     assert ("direct", "scipy.sparse.lil_matrix", 9) in calls
 
 
-def test_scipy_signal():
+def test_scipy_signal() -> None:
+    """Test scipy signal."""
     code = """
 from scipy import signal
 import numpy as np
@@ -181,7 +185,8 @@ peaks = signal.find_peaks(sig)
     assert ("attribute", "scipy.signal.find_peaks", 9) in calls
 
 
-def test_scipy_interpolate():
+def test_scipy_interpolate() -> None:
+    """Test scipy interpolate."""
     code = """
 from scipy.interpolate import interp1d, UnivariateSpline
 import numpy as np
@@ -200,7 +205,8 @@ spline = UnivariateSpline(x, y)
     assert ("direct", "scipy.interpolate.UnivariateSpline", 8) in calls
 
 
-def test_scipy_rotation():
+def test_scipy_rotation() -> None:
+    """Test scipy rotation."""
     code = """
 from scipy.spatial.transform import Rotation as R
 import numpy as np
@@ -241,7 +247,8 @@ rotated = rot1.apply(vec)
     assert ("attribute", "scipy.apply", 21) in calls
 
 
-def test_scipy_rotation_interpolation():
+def test_scipy_rotation_interpolation() -> None:
+    """Test scipy rotation interpolation."""
     code = """
 from scipy.spatial.transform import Rotation as R
 import numpy as np

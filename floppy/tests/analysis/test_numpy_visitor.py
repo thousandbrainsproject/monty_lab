@@ -9,12 +9,11 @@
 
 import ast
 
-import pytest
-
 from floppy.analysis.visitors.numpy_visitor import NumpyCallVisitor
 
 
-def test_basic_numpy_imports():
+def test_basic_numpy_imports() -> None:
+    """Test basic numpy imports."""
     code = """
 import numpy as np
 from numpy import array, zeros
@@ -35,7 +34,8 @@ from numpy import *
     assert any("zeros" in imp for imp in imports)
 
 
-def test_basic_numpy_calls():
+def test_basic_numpy_calls() -> None:
+    """Test basic numpy calls."""
     code = """
 import numpy as np
 x = np.array([1, 2, 3])
@@ -53,7 +53,8 @@ y = np.zeros((2, 2))
     assert "y" in visitor.variables
 
 
-def test_variable_tracking():
+def test_variable_tracking() -> None:
+    """Test variable tracking."""
     code = """
 import numpy as np
 x = np.array([1, 2, 3])
@@ -73,7 +74,8 @@ w, v = np.zeros(2), np.ones(2)  # Multiple assignment
     assert ("attribute", "numpy.ones", 6) in visitor.calls
 
 
-def test_complex_numpy_usage():
+def test_complex_numpy_usage() -> None:
+    """Test complex numpy usage."""
     code = """
 import numpy as np
 from numpy import array, zeros
@@ -85,7 +87,7 @@ from numpy import *
 class MyClass: # line 9
     def __init__(self):
         self.data = np.array([1,2,3])
-    
+
     def process(self):
         return self.data.mean()
 
@@ -120,7 +122,6 @@ c, d = np.array([1,2]), np.array([3,4])
 
     # Check calls
     calls = visitor.calls
-    print("\nActual calls recorded:", calls)  # Debug print
     # Check specific attribute calls
     assert ("attribute", "numpy.array", 11) in calls  # in __init__
     assert ("attribute", "numpy.array", 17) in calls  # in chained calls
@@ -145,7 +146,8 @@ c, d = np.array([1,2]), np.array([3,4])
     assert all(var in visitor.variables for var in ["a", "b", "c", "d"])
 
 
-def test_numpy_attribute_access():
+def test_numpy_attribute_access() -> None:
+    """Test numpy attribute access."""
     code = """
 import numpy as np
 x = np.array([1,2,3])
@@ -168,7 +170,8 @@ shape = x.shape
     assert "std" in visitor.variables
 
 
-def test_numpy_subscript_and_slice():
+def test_numpy_subscript_and_slice() -> None:
+    """Test numpy subscript and slice."""
     code = """
 import numpy as np
 arr = np.array([[1,2,3], [4,5,6]])
@@ -179,7 +182,6 @@ slice3 = arr[0:2, 1:3]
     tree = ast.parse(code)
     visitor = NumpyCallVisitor()
     visitor.visit(tree)
-    print(visitor.variables)
     calls = visitor.calls
     assert ("attribute", "numpy.array", 3) in calls
     assert (
@@ -203,7 +205,8 @@ slice3 = arr[0:2, 1:3]
     )
 
 
-def test_numpy_math_operations():
+def test_numpy_math_operations() -> None:
+    """Test numpy math operations."""
     code = """
 import numpy as np
 a = np.array([1,2,3])
@@ -229,16 +232,16 @@ matmul = a @ b
         for call in calls
         if call[0] == "attribute" and "binary_operation" in call[1]
     ]
-    assert len(binary_ops) == 5  # +, -, *, /, @
+    assert len(binary_ops) == 5  # +, -, *, /, @ # noqa: PLR2004
     # Check variable tracking
-    print(visitor.variables)
     assert all(
         var in visitor.variables
         for var in ["a", "b", "add", "sub", "mul", "div", "dot", "matmul"]
     )
 
 
-def test_numpy_with_error_handling():
+def test_numpy_with_error_handling() -> None:
+    """Test numpy with error handling."""
     code = """
 try:
     import numpy as np
@@ -258,7 +261,8 @@ except AttributeError:
     assert "x" in visitor.variables
 
 
-def test_numpy_submodule_assignment():
+def test_numpy_submodule_assignment() -> None:
+    """Test numpy submodule assignment."""
     code = """
 import numpy as np
 linalg = np.linalg

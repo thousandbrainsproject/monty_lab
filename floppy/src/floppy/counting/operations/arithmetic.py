@@ -14,14 +14,14 @@ import numpy as np
 from ..base.protocols import FlopOperation
 
 __all__ = [
-    "Addition",
-    "Subtraction",
-    "Multiplication",
-    "Division",
-    "ModuloOperation",
-    "LinspaceOperation",
     "AbsoluteOperation",
+    "Addition",
     "DiffOperation",
+    "Division",
+    "LinspaceOperation",
+    "ModuloOperation",
+    "Multiplication",
+    "Subtraction",
 ]
 
 

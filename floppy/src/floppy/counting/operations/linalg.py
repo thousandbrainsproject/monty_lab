@@ -14,17 +14,17 @@ import numpy as np
 from ..base.protocols import FlopOperation
 
 __all__ = [
-    "CrossOperation",
-    "MatmulOperation",
-    "TraceOperation",
-    "NormOperation",
     "CondOperation",
-    "InvOperation",
+    "CrossOperation",
     "EigOperation",
-    "OuterOperation",
-    "InnerOperation",
     "EinsumOperation",
+    "InnerOperation",
+    "InvOperation",
+    "MatmulOperation",
+    "NormOperation",
+    "OuterOperation",
     "SolveOperation",
+    "TraceOperation",
 ]
 
 
@@ -185,7 +185,7 @@ class MatmulOperation:
             return batch_size * M * P * (2 * N - 1)
 
         except Exception as e:
-            raise ValueError(f"Error counting matmul FLOPs: {str(e)}")
+            raise ValueError(f"Error counting matmul FLOPs: {e!s}")
 
 
 class TraceOperation:
@@ -306,20 +306,19 @@ class NormOperation:
             - Nuclear: ~14k³ + k FLOPs (SVD + sum of singular values)
         """
         x = args[0]
-        ord = kwargs.get("ord", None)
-        axis = kwargs.get("axis", None)
+        ord = kwargs.get("ord")
+        axis = kwargs.get("axis")
 
         if axis is None:
             # If no axis specified, compute norm over entire array
             if x.ndim <= 1:
                 return self._count_vector_norm_flops(x, ord)
-            elif x.ndim == 2:
+            if x.ndim == 2:
                 return self._count_matrix_norm_flops(x, ord)
-            else:
-                # For higher dimensions, treat as vector norm over flattened array
-                return self._count_vector_norm_flops(x.reshape(-1), ord)
+            # For higher dimensions, treat as vector norm over flattened array
+            return self._count_vector_norm_flops(x.reshape(-1), ord)
 
-        elif isinstance(axis, tuple) and len(axis) == 2:
+        if isinstance(axis, tuple) and len(axis) == 2:
             # Matrix norm along specified axes
             # Count FLOPs for each matrix in the remaining dimensions
             matrices_count = np.prod(
@@ -333,7 +332,7 @@ class NormOperation:
             )
             return matrices_count * single_matrix_flops
 
-        elif isinstance(axis, (int, tuple)):
+        if isinstance(axis, (int, tuple)):
             # Vector norm along specified axis/axes
             # Count FLOPs for each vector
             vectors_count = np.prod(
@@ -350,8 +349,7 @@ class NormOperation:
                 np.ones(vector_size), ord
             )
 
-        else:
-            raise ValueError(f"Invalid axis parameter: {axis}")
+        raise ValueError(f"Invalid axis parameter: {axis}")
 
     def _count_vector_norm_flops(
         self, x: np.ndarray, ord: Optional[Union[int, float, str]]
@@ -363,17 +361,16 @@ class NormOperation:
 
         if ord is None or ord == 2:
             return 2 * n + self.L2_SQRT_COST  # n mults, n adds, sqrt cost
-        elif ord == 1:
+        if ord == 1:
             return 2 * n - 1  # n absolute values, n-1 additions
-        elif ord in (np.inf, float("inf"), -np.inf, float("-inf")):
+        if ord in (np.inf, float("inf"), -np.inf, float("-inf")):
             return 2 * n - 1  # n absolute values, n-1 comparisons
-        else:
-            # For general p-norm
-            # 1. n absolute values
-            # 2. n power operations
-            # 3. (n-1) additions
-            # 4. 1 final power (1/p)
-            return n + self.POWER_COST * n + (n - 1) + self.POWER_COST
+        # For general p-norm
+        # 1. n absolute values
+        # 2. n power operations
+        # 3. (n-1) additions
+        # 4. 1 final power (1/p)
+        return n + self.POWER_COST * n + (n - 1) + self.POWER_COST
 
     def _count_matrix_norm_flops(
         self, x: np.ndarray, ord: Optional[Union[int, float, str]]
@@ -385,24 +382,23 @@ class NormOperation:
 
         if ord is None or ord == "fro":
             return m * n * 2 - 1 + self.L2_SQRT_COST  # mn mults, mn-1 adds, sqrt cost
-        elif ord == 1:
+        if ord == 1:
             return m * n + m - 1  # mn abs, m(n-1) adds, m-1 comparisons
-        elif ord in (np.inf, float("inf")):
+        if ord in (np.inf, float("inf")):
             return m * n + n - 1  # mn abs, n(m-1) adds, n-1 comparisons
-        elif ord == 2:
+        if ord == 2:
             # Spectral norm (largest singular value)
             # Using estimate from Trefethen and Bau (see CondOperation)
             k = min(m, n)
             return 14 * k**3  # SVD complexity
-        elif ord == "nuc":
+        if ord == "nuc":
             # Nuclear norm (sum of singular values)
             # SVD + sum of singular values
             k = min(m, n)
             return 14 * k**3 + k  # SVD + k-1 additions
-        else:
-            raise ValueError(
-                f"FLOP count for norm order '{ord}' for matrix norm not implemented"
-            )
+        raise ValueError(
+            f"FLOP count for norm order '{ord}' for matrix norm not implemented"
+        )
 
 
 class CondOperation:
@@ -760,7 +756,7 @@ class InnerOperation:
 
             # Get the last axis size (N) which is the dimension over which inner product is computed
             N = a.shape[-1]
-            if N != b.shape[-1]:
+            if b.shape[-1] != N:
                 return None  # Shapes must match on last axis
 
             # Calculate number of inner products from result shape
@@ -777,7 +773,7 @@ class InnerOperation:
             return flops_per_inner * batch_size
 
         except Exception as e:
-            raise ValueError(f"Error counting inner product FLOPs: {str(e)}")
+            raise ValueError(f"Error counting inner product FLOPs: {e!s}")
 
 
 class EinsumOperation:

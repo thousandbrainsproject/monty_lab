@@ -8,8 +8,6 @@
 # https://opensource.org/licenses/MIT.
 
 import logging
-from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.spatial import KDTree
@@ -17,17 +15,10 @@ from tbp.monty.frameworks.models.evidence_matching import (
     EvidenceGraphLM,
 )
 from tbp.monty.frameworks.utils.graph_matching_utils import (
-    add_pose_features_to_tolerances,
     get_custom_distances,
-    get_initial_possible_poses,
     get_relevant_curvature,
-    get_scaled_evidences,
 )
 from tbp.monty.frameworks.utils.spatial_arithmetics import (
-    align_multiple_orthonormal_vectors,
-    align_orthonormal_vectors,
-    get_angles_for_all_hypotheses,
-    get_more_directions_in_plane,
     rotate_pose_dependent_features,
 )
 
@@ -113,8 +104,7 @@ class FlopCountingEvidenceGraphLM(EvidenceGraphLM):
             leafsize=40,
         )
         vote_nn = 3  # TODO: Make this a parameter?
-        if graph_location_vote.shape[0] < vote_nn:
-            vote_nn = graph_location_vote.shape[0]
+        vote_nn = min(graph_location_vote.shape[0], vote_nn)
 
         # Account for FLOPs for KDTree Construction
         num_reference_points = len(graph_location_vote)

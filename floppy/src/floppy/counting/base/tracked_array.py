@@ -179,7 +179,7 @@ class TrackedArray(np.ndarray):
                 for o in result
             )
             return wrapped[0] if len(wrapped) == 1 else wrapped
-        elif isinstance(result, np.ndarray) and not isinstance(result, TrackedArray):
+        if isinstance(result, np.ndarray) and not isinstance(result, TrackedArray):
             return TrackedArray(result, self.counter)
         return result
 
@@ -340,7 +340,7 @@ class TrackedArray(np.ndarray):
                             ) from e
                         except Exception as e:
                             raise RuntimeError(
-                                f"Error in wrapped method '{name}': {str(e)}"
+                                f"Error in wrapped method '{name}': {e!s}"
                             ) from e
 
                     # Cache the wrapped method
@@ -354,7 +354,7 @@ class TrackedArray(np.ndarray):
                 import warnings
 
                 warnings.warn(
-                    f"Unexpected error in __getattribute__ for {name}: {str(e)}"
+                    f"Unexpected error in __getattribute__ for {name}: {e!s}"
                 )
 
         # For non-tracked attributes, use normal attribute access

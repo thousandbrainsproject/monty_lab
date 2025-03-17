@@ -45,10 +45,10 @@ class FlopAnalyzer:
             FileAnalysisError: If there's an error reading or parsing the file
         """
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 tree = ast.parse(f.read())
-        except (IOError, SyntaxError) as e:
-            raise FileAnalysisError(f"Error reading/parsing {filepath}: {str(e)}")
+        except (OSError, SyntaxError) as e:
+            raise FileAnalysisError(f"Error reading/parsing {filepath}: {e!s}")
 
         # Reset visitors
         self.numpy_visitor = NumpyCallVisitor()
@@ -166,7 +166,7 @@ class FlopAnalyzer:
                 results["total_stats"]["total_files"] += 1
 
             except FileAnalysisError as e:
-                print(f"Warning: {str(e)}")
+                print(f"Warning: {e!s}")
                 continue
 
         return results

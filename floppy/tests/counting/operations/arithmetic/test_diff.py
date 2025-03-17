@@ -12,7 +12,8 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_diff_basic():
+def test_diff_basic() -> None:
+    """Test np.diff behavior and flop count with basic array."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
@@ -21,7 +22,8 @@ def test_diff_basic():
         np.testing.assert_allclose(result, np.array([1, 2, 3, -7]))
 
 
-def test_diff_2d():
+def test_diff_2d() -> None:
+    """Test np.diff behavior and flop count with 2D arrays."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
@@ -37,7 +39,8 @@ def test_diff_2d():
         np.testing.assert_allclose(result, np.array([[1, 1], [1, 1]]))
 
 
-def test_diff_n():
+def test_diff_n() -> None:
+    """Test np.diff behavior and flop count with nth difference."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
@@ -46,7 +49,8 @@ def test_diff_n():
         np.testing.assert_allclose(result, np.array([1, 1, -10]))
 
 
-def test_diff_prepend():
+def test_diff_prepend() -> None:
+    """Test np.diff behavior and flop count with prepended zeros."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
@@ -55,7 +59,8 @@ def test_diff_prepend():
         np.testing.assert_allclose(result, np.array([1, 1, 2, 3, -7]))
 
 
-def test_diff_append():
+def test_diff_append() -> None:
+    """Test np.diff behavior and flop count with appended zeros."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 4, 7, 0])
@@ -64,7 +69,8 @@ def test_diff_append():
         np.testing.assert_allclose(result, np.array([1, 2, 3, -7, 0]))
 
 
-def test_diff_empty():
+def test_diff_empty() -> None:
+    """Test np.diff behavior and flop count with empty array."""
     counter = FlopCounter()
     with counter:
         a = np.array([])
@@ -73,7 +79,8 @@ def test_diff_empty():
         np.testing.assert_allclose(result, np.array([]))
 
 
-def test_diff_single_element():
+def test_diff_single_element() -> None:
+    """Test np.diff behavior and flop count with single-element array."""
     counter = FlopCounter()
     with counter:
         a = np.array([1])

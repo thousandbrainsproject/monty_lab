@@ -1,11 +1,9 @@
-"""
-This script reads the raw results from FLOPs measurements and accuracy and rotation errors and combines them together for easy visualization.
+"""This script reads the raw results from FLOPs measurements and accuracy and rotation errors and combines them together for easy visualization.
 
 FLOPs results are stored in `~/tbp/results/dmc/results/perf/monty/raw/{experiment}.csv`
 Eval Stats results are stored in `/tbp/results/dmc/results/perf/monty/raw/{experiment}/eval_stats.csv`
 """
 
-import os
 from pathlib import Path
 from typing import Tuple
 
@@ -13,8 +11,7 @@ import pandas as pd
 
 
 def compute_accuracy(predictions_df: pd.DataFrame) -> Tuple[float, float]:
-    """
-    If primary_performance is correct or correct_mlh, then it is considered correct.
+    """If primary_performance is correct or correct_mlh, then it is considered correct.
     """
     correct = predictions_df[
         predictions_df["primary_performance"].isin(["correct", "correct_mlh"])
@@ -25,8 +22,7 @@ def compute_accuracy(predictions_df: pd.DataFrame) -> Tuple[float, float]:
 
 
 def compute_rotation_error(predictions_df: pd.DataFrame) -> Tuple[float, float]:
-    """
-    Compute mean and std of rotation error from predictions dataframe
+    """Compute mean and std of rotation error from predictions dataframe
     """
     mean_rotation_error = predictions_df["rotation_error"].mean()
     std_rotation_error = predictions_df["rotation_error"].std()
@@ -34,8 +30,7 @@ def compute_rotation_error(predictions_df: pd.DataFrame) -> Tuple[float, float]:
 
 
 def compute_flops(flops_df: pd.DataFrame) -> float:
-    """
-    Compute total flops from flops dataframe from perf stat
+    """Compute total flops from flops dataframe from perf stat
     """
     flops_per_operation = {
         "fp_arith_inst_retired.128b_packed_double": 2,
@@ -107,7 +102,7 @@ def main():
                 }
             )
         except Exception as e:
-            print(f"Error processing {experiment}: {str(e)}")
+            print(f"Error processing {experiment}: {e!s}")
             continue
 
     results_df = pd.DataFrame(results)

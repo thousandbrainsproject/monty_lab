@@ -7,7 +7,7 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional
 
 import numpy as np
 
@@ -83,7 +83,7 @@ class SumOperation(FlopOperation):
                 * Full array sum: (total_size - 1) FLOPs
         """
         # Handle both np.sum(arr) and arr.sum() cases
-        array = args[0] if args else kwargs.get("self", None)
+        array = args[0] if args else kwargs.get("self")
         if array is None:
             return None
 

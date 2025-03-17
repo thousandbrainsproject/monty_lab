@@ -9,12 +9,11 @@
 
 import ast
 
-import pytest
-
 from floppy.analysis.visitors.sklearn_visitor import SklearnCallVisitor
 
 
-def test_basic_sklearn_imports():
+def test_basic_sklearn_imports() -> None:
+    """Test basic sklearn imports."""
     code = """
 import sklearn
 from sklearn import datasets
@@ -36,7 +35,8 @@ from sklearn.metrics import accuracy_score
     assert "sklearn.metrics.accuracy_score" in imports
 
 
-def test_sklearn_preprocessing():
+def test_sklearn_preprocessing() -> None:
+    """Test sklearn preprocessing."""
     code = """
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import numpy as np
@@ -59,7 +59,8 @@ X_minmax = minmax.fit_transform(X)
     assert ("attribute", "sklearn.fit_transform", 10) in calls
 
 
-def test_sklearn_model_selection():
+def test_sklearn_model_selection() -> None:
+    """Test sklearn model selection."""
     code = """
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
@@ -88,7 +89,8 @@ grid_search.fit(X, y)
     assert ("attribute", "sklearn.fit", 15) in calls
 
 
-def test_sklearn_pipeline():
+def test_sklearn_pipeline() -> None:
+    """Test sklearn pipeline."""
     code = """
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -114,7 +116,8 @@ predictions = pipe.predict(X_test)
     assert ("attribute", "sklearn.predict", 12) in calls
 
 
-def test_sklearn_metrics():
+def test_sklearn_metrics() -> None:
+    """Test sklearn metrics."""
     code = """
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 from sklearn.metrics import confusion_matrix, classification_report
@@ -138,7 +141,8 @@ report = classification_report(y_test, y_pred)
     assert ("direct", "sklearn.metrics.classification_report", 10) in calls
 
 
-def test_sklearn_clustering():
+def test_sklearn_clustering() -> None:
+    """Test sklearn clustering."""
     code = """
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.mixture import GaussianMixture

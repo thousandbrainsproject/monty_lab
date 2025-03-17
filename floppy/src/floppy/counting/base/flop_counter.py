@@ -12,7 +12,7 @@ import threading
 import time
 from contextlib import ContextDecorator
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 import numpy as np
 
@@ -174,7 +174,7 @@ class FlopCounter(ContextDecorator):
             if self.log_manager:
                 self.log_manager.flush()
 
-        except Exception as e:
+        except Exception:
             raise  # Re-raise the cleanup exception
 
         return False  # Re-raise the original exception if any

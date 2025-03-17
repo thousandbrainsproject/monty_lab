@@ -12,7 +12,8 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_convolve_basic():
+def test_convolve_basic() -> None:
+    """Test basic convolution operation with 'valid' mode."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
@@ -22,7 +23,8 @@ def test_convolve_basic():
         np.testing.assert_allclose(result, np.array([4, 7, 10]))
 
 
-def test_convolve_full():
+def test_convolve_full() -> None:
+    """Test convolution operation with 'full' mode."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
@@ -32,7 +34,8 @@ def test_convolve_full():
         np.testing.assert_allclose(result, np.array([1, 4, 10, 12, 9]))
 
 
-def test_convolve_same():
+def test_convolve_same() -> None:
+    """Test convolution operation with 'same' mode."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])

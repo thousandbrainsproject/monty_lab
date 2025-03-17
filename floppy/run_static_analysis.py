@@ -14,11 +14,9 @@ from floppy.analysis.analyzer import FlopAnalyzer
 
 
 def main(input_dir, output_dir=None):
-    """
-    Run static analysis on Python files in a specified directory.
+    """Run static analysis on Python files in a specified directory.
     Results are saved to a CSV file in the output directory.
     """
-
     if output_dir is None:
         output_dir = str(
             Path("~/tbp/monty_lab/floppy/results").expanduser() / "static_analysis"
@@ -37,7 +35,7 @@ def main(input_dir, output_dir=None):
         print(f"\nDetailed results saved to: {output_file}")
 
     except Exception as e:
-        print(f"Error during analysis: {str(e)}")
+        print(f"Error during analysis: {e!s}")
 
 
 if __name__ == "__main__":

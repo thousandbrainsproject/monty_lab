@@ -14,15 +14,15 @@ import numpy as np
 from ..base.protocols import FlopOperation
 
 __all__ = [
-    "SineOperation",
-    "CosineOperation",
-    "TangentOperation",
     "ArcSineOperation",
-    "ArccosOperation",
-    "ArcTangentOperation",
     "ArcTangent2Operation",
+    "ArcTangentOperation",
+    "ArccosOperation",
+    "CosineOperation",
     "DegreesOperation",
     "RadiansOperation",
+    "SineOperation",
+    "TangentOperation",
 ]
 
 class SineOperation(FlopOperation):
