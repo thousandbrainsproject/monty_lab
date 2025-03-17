@@ -12,43 +12,47 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_mod_operator_syntax():
+def test_mod_operator_syntax() -> None:
+    """Test modulo operation using the % operator syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = a % b
-        assert counter.flops == 9
+        assert counter.flops == 9  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([1, 2, 3]))
 
 
-def test_mod_ufunc_syntax():
+def test_mod_ufunc_syntax() -> None:
+    """Test modulo operation using numpy's mod ufunc syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = np.mod(a, b)
-        assert counter.flops == 9
+        assert counter.flops == 9  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([1, 2, 3]))
 
 
-def test_mod_augmented_assignment():
+def test_mod_augmented_assignment() -> None:
+    """Test modulo operation using augmented assignment (%=)."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         a %= b
-        assert counter.flops == 9
+        assert counter.flops == 9  # noqa: PLR2004
         np.testing.assert_allclose(a, np.array([1, 2, 3]))
 
 
-def test_mod_broadcasting():
+def test_mod_broadcasting() -> None:
+    """Test modulo operation with broadcasting between array and scalar."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2
         result = a % b
-        assert counter.flops == 9
+        assert counter.flops == 9  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([1, 0, 1]))
 
     counter.flops = 0
@@ -56,5 +60,5 @@ def test_mod_broadcasting():
         a = np.array([1, 2, 3])
         b = 2
         result = b % a
-        assert counter.flops == 9
+        assert counter.flops == 9  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([0, 0, 2]))

@@ -12,51 +12,58 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_subtract_operator_syntax():
+def test_subtract_operator_syntax() -> None:
+    """Test subtraction behavior and flop count using operator syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = a - b
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([-3, -3, -3]))
 
 
-def test_subtract_ufunc_syntax():
+def test_subtract_ufunc_syntax() -> None:
+    """Test subtraction behavior and flop count using ufunc syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = np.subtract(a, b)
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([-3, -3, -3]))
 
-def test_subtract_method_syntax():
+
+def test_subtract_method_syntax() -> None:
+    """Test subtraction behavior and flop count using method syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = a.subtract(b)
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([-3, -3, -3]))
 
 
-def test_subtract_augmented_assignment():
+def test_subtract_augmented_assignment() -> None:
+    """Test subtraction behavior and flop count using augmented assignment."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         a -= b
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(a, np.array([-3, -3, -3]))
 
-def test_subtract_broadcasting():
+
+def test_subtract_broadcasting() -> None:
+    """Test subtraction behavior and flop count with broadcasting."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2
         result = a - b
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([-1, 0, 1]))
 
     counter.flops = 0
@@ -64,5 +71,5 @@ def test_subtract_broadcasting():
         a = np.array([1, 2, 3])
         b = 2
         result = b - a
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([1, 0, -1]))

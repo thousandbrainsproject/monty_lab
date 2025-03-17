@@ -12,28 +12,31 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_condition_number_2x2():
+def test_condition_number_2x2() -> None:
+    """Test condition number behavior and flop count with 2x2 matrix."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         result = np.linalg.cond(a)
-        assert counter.flops == 113
+        assert counter.flops == 113  # noqa: PLR2004
         np.testing.assert_allclose(result, 14.933034373659265)
 
 
-def test_condition_number_3x3():
+def test_condition_number_3x3() -> None:
+    """Test condition number behavior and flop count with 3x3 matrix."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 10]])
         result = np.linalg.cond(a)
-        assert counter.flops == 379
+        assert counter.flops == 379  # noqa: PLR2004
         np.testing.assert_allclose(result, 88.4482799206987)
 
 
-def test_condition_number_4x4():
+def test_condition_number_4x4() -> None:
+    """Test condition number behavior and flop count with 4x4 matrix."""
     counter = FlopCounter()
     with counter:
         a = np.eye(4)  # 4x4 identity matrix
         result = np.linalg.cond(a)
-        assert counter.flops == 897
+        assert counter.flops == 897  # noqa: PLR2004
         np.testing.assert_allclose(result, 1)

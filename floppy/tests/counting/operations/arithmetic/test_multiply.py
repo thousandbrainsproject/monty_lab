@@ -12,53 +12,58 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_multiply_operator_syntax():
+def test_multiply_operator_syntax() -> None:
+    """Test multiplication using the * operator syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = a * b
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([4, 10, 18]))
 
 
-def test_multiply_ufunc_syntax():
+def test_multiply_ufunc_syntax() -> None:
+    """Test multiplication using the np.multiply ufunc syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = np.multiply(a, b)
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([4, 10, 18]))
 
 
-def test_multiply_method_syntax():
+def test_multiply_method_syntax() -> None:
+    """Test multiplication using the array multiply method syntax."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = a.multiply(b)
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([4, 10, 18]))
 
 
-def test_multiply_augmented_assignment():
+def test_multiply_augmented_assignment() -> None:
+    """Test multiplication using augmented assignment operator (*=)."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         a *= b
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(a, np.array([4, 10, 18]))
 
 
-def test_multiply_broadcasting():
+def test_multiply_broadcasting() -> None:
+    """Test multiplication with broadcasting."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = 2
         result = a * b
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([2, 4, 6]))
 
     counter.flops = 0
@@ -66,5 +71,5 @@ def test_multiply_broadcasting():
         a = np.array([1, 2, 3])
         b = 2
         result = b * a
-        assert counter.flops == 3
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([2, 4, 6]))

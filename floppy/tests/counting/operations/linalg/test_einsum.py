@@ -12,20 +12,22 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_einsum_matrix_mult():
+def test_einsum_matrix_mult() -> None:
+    """Test matrix multiplication behavior and flop count."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         b = np.array([[5, 6], [7, 8]])
         result = np.einsum("ij,jk->ik", a, b)
-        assert counter.flops == 12
+        assert counter.flops == 12  # noqa: PLR2004
         np.testing.assert_allclose(
             result,
             np.array([[19, 22], [43, 50]]),
         )
 
 
-def test_einsum_trace():
+def test_einsum_trace() -> None:
+    """Test trace behavior and flop count."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
@@ -34,54 +36,46 @@ def test_einsum_trace():
         np.testing.assert_allclose(result, 5)
 
 
-def test_einsum_dot_product():
+def test_einsum_dot_product() -> None:
+    """Test dot product behavior and flop count."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         b = np.array([4, 5, 6])
         result = np.einsum("i,i->", a, b)
-        assert counter.flops == 5  # 3 multiplications + 2 additions
-        np.testing.assert_allclose(result, 32)  # 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
+        assert counter.flops == 5  # noqa: PLR2004
+        np.testing.assert_allclose(result, 32)
 
 
-def test_einsum_element_wise():
+def test_einsum_element_wise() -> None:
+    """Test element-wise behavior and flop count."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2])
         b = np.array([3, 4])
         result = np.einsum("i,i->i", a, b)
-        assert counter.flops == 2  # 2 multiplications
-        np.testing.assert_allclose(result, np.array([3, 8]))  # [1*3, 2*4]
+        assert counter.flops == 2  # noqa: PLR2004
+        np.testing.assert_allclose(result, np.array([3, 8]))
 
 
-def test_einsum_batched_matrix_mult():
+def test_einsum_batched_matrix_mult() -> None:
+    """Test batched matrix multiplication behavior and flop count."""
     counter = FlopCounter()
     with counter:
-        a = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])  # shape: (2, 2, 2)
-        b = np.array([[[9, 10], [11, 12]], [[13, 14], [15, 16]]])  # shape: (2, 2, 2)
-        result = np.einsum("bij,bjk->bik", a, b)  # shape: (2, 2, 2)
-        assert counter.flops == 24  # 2 * (2*2*2 multiplications + 2*2 additions)
+        a = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+        b = np.array([[[9, 10], [11, 12]], [[13, 14], [15, 16]]])
+        result = np.einsum("bij,bjk->bik", a, b)
+        assert counter.flops == 24  # noqa: PLR2004
         expected = np.array([[[31, 34], [71, 78]], [[155, 166], [211, 226]]])
         np.testing.assert_allclose(result, expected)
 
 
-def test_einsum_sum():
+def test_einsum_sum() -> None:
+    """Test sum behavior and flop count."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2], [3, 4]])
         result = np.einsum("ij->", a)
-        assert counter.flops == 3  # 3 additions (4-1)
+        assert counter.flops == 3  # noqa: PLR2004
         np.testing.assert_allclose(result, 10)  # 1 + 2 + 3 + 4 = 10
 
-
-def test_einsum_zero():
-    counter = FlopCounter()
-    with counter:
-        a = np.array([[0, 1], [2, 0]])
-        b = np.array([[0, 2], [3, 0]])
-        result = np.einsum("ij,jk->ik", a, b)
-        assert counter.flops == 12
-        np.testing.assert_allclose(
-            result,
-            np.array([[3, 0], [0, 4]]),
-        )

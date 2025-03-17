@@ -12,34 +12,37 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_log_basic():
+def test_log_basic() -> None:
+    """Test logarithm behavior and flop count with basic array input."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.log(a)
-        assert counter.flops == 60
+        assert counter.flops == 60  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([0.0, 0.69314718, 1.09861229]))
 
 
-def test_log_broadcasting():
+def test_log_broadcasting() -> None:
+    """Test logarithm behavior and flop count with broadcasting."""
     counter = FlopCounter()
     with counter:
         a = 2
         result = np.log(a)
-        assert counter.flops == 20
+        assert counter.flops == 20  # noqa: PLR2004
         np.testing.assert_allclose(result, 0.69314718)
 
     counter.flops = 0
     with counter:
         a = np.array([[1, 2], [3, 4]])
         result = np.log(a)
-        assert counter.flops == 80
+        assert counter.flops == 80  # noqa: PLR2004
         np.testing.assert_allclose(
             result, np.array([[0.0, 0.69314718], [1.09861229, 1.38629436]])
         )
 
 
-def test_log_empty():
+def test_log_empty() -> None:
+    """Test logarithm behavior and flop count with empty array input."""
     counter = FlopCounter()
     with counter:
         a = np.array([])

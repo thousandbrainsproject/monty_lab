@@ -55,7 +55,7 @@ def test_linspace_with_retstep() -> None:
         result, step = np.linspace(0, 1, 5, retstep=True)
         assert counter.flops == 6  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([0.0, 0.25, 0.5, 0.75, 1.0]))
-        assert step == 0.25
+        assert step == 0.25  # noqa: PLR2004
 
 
 def test_linspace_with_dtype() -> None:
