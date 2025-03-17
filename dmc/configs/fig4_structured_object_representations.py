@@ -55,14 +55,15 @@ class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
         mode: str = "train",
         **kwargs,
     ) -> None:
-        """Store only final evidence data and no sensor data."""
+        """Store only maxima of final evidence values."""
 
         # Initialize output data.
-        self.handler_args["last_evidence"] = True  # Required for this handler.
         episode_total, buffer_data = self.init_buffer_data(
             data, episode, mode, **kwargs
         )
-        # Only store last evidence, and only for the 10 similar objects.
+        self.take_last_evidences(buffer_data)
+
+        # Only store maximum of final evidence values.
         evidences_ls = buffer_data["LM_0"]["evidences_ls"]
         output_data = {"LM_0": {}}
         output_data["LM_0"]["max_evidences_ls"] = {
