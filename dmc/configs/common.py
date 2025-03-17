@@ -11,7 +11,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Mapping, Optional, Tuple
+from typing import Iterable, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
@@ -493,7 +493,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
      - `symmetric_locations`
      - `symmetric_rotations`
 
-    However, if `selective_handler_args["last_evidence"]` is `True`, then only final
+    However, if `selective_handler_args["last_evidences"]` is `True`, then only final
     evidences, locations, and rotations are saved. This means `evidences`,
     `possible_locations`, and `possible_rotations` are replaced with `evidences_ls`,
     `possible_locations_ls`, and `possible_rotations_ls` respectively.
@@ -612,35 +612,20 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
             "symmetry_evidence",
             "symmetric_locations",
             "symmetric_rotations",
+            "goal_states",
+            "goal_state_achieved",
         )
         for lm_id in lm_ids:
-            lm_dict = detailed[lm_id]
+            lm_dict_in = detailed[lm_id]
             lm_dict_out = {}
             for name in lm_attrs:
-                lm_dict_out[name] = lm_dict.get(name, None)
+                if name in lm_dict_in:
+                    lm_dict_out[name] = lm_dict_in[name]
             buffer_data[lm_id] = lm_dict_out
-
-        # Optionally, only store the final evidences, locations, and rotations.
-        last_evidence = self.handler_args.get("last_evidence", False)
-        last_lm_attrs = (
-            "evidences",
-            "possible_locations",
-            "possible_rotations",
-        )
-        if last_evidence:
-            for lm_id in lm_ids:
-                lm_dict = buffer_data[lm_id]
-                for name in last_lm_attrs:
-                    val = lm_dict.get(name)
-                    if val is None:
-                        lm_dict[f"{name}_ls"] = None
-                    else:
-                        lm_dict[f"{name}_ls"] = val[-1]
-                    lm_dict.pop(name, None)
 
         # Add SM data, but only where LMs have processed data.
         sm_ids = [key for key in detailed if key.startswith("SM")]
-        lm_processed_steps = self.find_lm_processed_steps(detailed)
+        matching_steps = self.find_matching_steps(detailed)
         for sm_id in sm_ids:
             sm_dict = dict()
             for name in [
@@ -649,9 +634,14 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
                 "sm_properties",
             ]:
                 if name in detailed[sm_id]:
-                    lst = [detailed[sm_id][name][step] for step in lm_processed_steps]
+                    lst = [detailed[sm_id][name][step] for step in matching_steps]
                     sm_dict[name] = lst
             buffer_data[sm_id] = sm_dict
+
+        # Handle last evidences.
+        last_evidences = self.handler_args.get("last_evidences", False)
+        if last_evidences:
+            self.take_last_evidences(buffer_data)
 
         # Handle excludes.
         exclude = self.handler_args.get("exclude", [])
@@ -661,7 +651,7 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         # Return cumulative episode number and buffer data.
         return episode_total, buffer_data
 
-    def find_lm_processed_steps(self, detailed: Mapping) -> np.ndarray:
+    def find_matching_steps(self, detailed: Mapping) -> np.ndarray:
         """Find steps where any LM has processed data.
 
         Args:
@@ -672,17 +662,50 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
         """
         lm_ids = [key for key in detailed if key.startswith("LM")]
         if len(lm_ids) == 1:
-            bool_array = np.array(detailed[lm_ids[0]]["lm_processed_steps"])
+            is_matching_step = np.array(detailed[lm_ids[0]]["lm_processed_steps"])
         else:
             n_monty_steps = len(detailed[lm_ids[0]]["lm_processed_steps"])
-            bool_array = np.zeros(n_monty_steps, dtype=bool)
+            is_matching_step = np.zeros(n_monty_steps, dtype=bool)
             for step in range(n_monty_steps):
                 processed = [
                     detailed[key]["lm_processed_steps"][step] for key in lm_ids
                 ]
-                bool_array[step] = any(processed)
+                is_matching_step[step] = any(processed)
 
-        return np.atleast_1d(np.argwhere(bool_array).squeeze())
+        return np.atleast_1d(np.argwhere(is_matching_step).squeeze())
+
+    def take_last_evidences(self, buffer_data: Mapping) -> Mapping:
+        """Remove all but final values for evidence-related items.
+
+        The following keys are removed:
+            - `LM_*/evidences`
+            - `LM_*/possible_locations`
+            - `LM_*/possible_rotations`
+
+        And the following keys are added:
+            - `LM_*/evidences_ls`
+            - `LM_*/possible_locations_ls`
+            - `LM_*/possible_rotations_ls`
+
+        Args:
+            buffer_data (Mapping): The buffer data.
+
+        Returns:
+        """
+        possible_keys = (
+            "evidences",
+            "possible_locations",
+            "possible_rotations",
+        )
+        lm_ids = [key for key in buffer_data if key.startswith("LM")]
+        for lm_id in lm_ids:
+            lm_dict = buffer_data[lm_id]
+            for key in possible_keys:
+                if key in lm_dict:
+                    val = lm_dict[key]
+                    val = None if val is None else val[-1]
+                    lm_dict[f"{key}_ls"] = val
+                    lm_dict.pop(key)
 
 
 @dataclass
@@ -699,7 +722,6 @@ class SelectiveEvidenceLoggingConfig(EvalEvidenceLMLoggingConfig):
         default_factory=lambda: [
             BasicCSVStatsHandler,
             SelectiveEvidenceHandler,
-            ReproduceEpisodeHandler,
         ]
     )
     wandb_group: str = "dmc"
