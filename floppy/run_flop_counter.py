@@ -12,10 +12,7 @@ from tbp.monty.frameworks.run_env import setup_env
 
 setup_env()
 
-# Load all experiment configurations from local project
 import sys
-
-# Add monty_lab to Python path
 from pathlib import Path
 
 monty_lab_path = Path("~/tbp/monty_lab").expanduser().resolve()
