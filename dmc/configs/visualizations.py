@@ -288,7 +288,7 @@ fig6_surf_mismatch["logging_config"] = SelectiveEvidenceLoggingConfig(
 )
 fig6_surf_mismatch["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
     object_names=["spoon"],
-    object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
+    object_init_sampler=PredefinedObjectInitializer(rotations=[[19, 339, 301]]),
 )
 
 CONFIGS = {
