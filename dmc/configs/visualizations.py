@@ -284,10 +284,12 @@ fig6_surf_mismatch["logging_config"] = SelectiveEvidenceLoggingConfig(
         BasicCSVStatsHandler,
         GoalStateHandler,
     ],
-    selective_handler_args=dict(detailed_evidence_objects=["fork", "knife", "spoon"]),
+    selective_handler_args=dict(
+        detailed_evidence_objects=["fork", "knife", "spoon", "mug"]
+    ),
 )
 fig6_surf_mismatch["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
-    object_names=["spoon"],
+    object_names=["spoon", "mug"],
     object_init_sampler=PredefinedObjectInitializer(rotations=[[19, 339, 301]]),
 )
 
