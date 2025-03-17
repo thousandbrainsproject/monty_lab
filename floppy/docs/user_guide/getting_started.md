@@ -40,5 +40,3 @@ Results are saved in the `results/static_analysis/flop_analysis.csv` directory.
 ## Next Steps
 
 - Read the [User Guide](index.md) for more detailed information
-- Check out the [Examples](../examples/index.md) for real-world usage
-- Learn about [Advanced Features](../advanced_topics/index.md)

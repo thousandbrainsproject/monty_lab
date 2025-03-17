@@ -31,10 +31,8 @@ nav:
   - Home: index.md
   - User Guide:
     - Getting Started: user_guide/getting_started.md
-    - FLOP Counting: user_guide/flop_counting.md
-    - Static Analysis: user_guide/static_analysis.md
+    - User Guide: user_guide/index.md
   - API Reference: api/index.md
-  - Contributing: contributing.md
 
 markdown_extensions:
   - pymdownx.highlight:
