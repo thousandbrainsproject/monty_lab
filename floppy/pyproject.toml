@@ -1,0 +1,131 @@
+[build-system]
+requires = ["setuptools >= 71.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+authors = [
+    { name = "Thousand Brains Project" }
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha", # Update this status as the project evolves
+    "License :: OSI Approved :: MIT License",
+    "Private :: Do Not Upload", # Remove if you want to upload the project to PyPI
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+]
+description = "Flop Counter" 
+dynamic = ["version"]
+license = { file = "LICENSE" }
+name = "tbp.floppy" # TODO: Update this name
+readme = "README.md"
+requires-python = ">=3.8, <4" 
+
+[dependency-groups]
+dev = [
+    # Check for undeclared dependencies
+    "deptry",
+
+    # Python static type checker
+    "mypy==1.11.2",
+
+    # Testing, code style, etc...
+    "pytest==7.1.1",
+    "pytest-xdist==2.5.0",
+    "pytest-cov==3.0.0",
+
+    # Python linter and formatter
+    "ruff==0.7.1",
+]
+
+[project.urls]
+Repository = "https://github.com/thousandbrainsproject/tbp.project" # TODO: Update this URL
+Issues = "https://github.com/thousandbrainsproject/tbp.project/issues" # TODO: Update this URL
+
+[tool.coverage.run]
+branch = true
+parallel = true
+dynamic_context = "test_function"
+source = ["src"]
+
+[tool.coverage.report]
+skip_empty = true
+sort = "Cover"
+
+[tool.coverage.html]
+show_contexts = true
+
+[tool.deptry]
+exclude = ["venv", "\\.venv", "\\.direnv", "\\.git", "setup\\.py"]
+experimental_namespace_package = true # recognize `tbp.` prefixed packages as a namespace package
+ignore = ["DEP002"]
+
+[tool.mypy]
+explicit_package_bases = true
+files = ["src", "tests"]
+mypy_path = ["src", "tests"]
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -n auto"
+testpaths = ["tests/unit"]
+filterwarnings = [
+    "ignore:.*:DeprecationWarning",
+]
+junit_family = "xunit1"
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+
+[tool.ruff.format]
+indent-style = "space"
+line-ending = "auto"
+quote-style = "double"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true # comment this out to check all preview rules
+select = [
+    "ALL",
+    # Explicitly opt-in to preview rules
+    "E10", 
+    "CPY001", # Missing copyright notice at top of file
+    "DOC201", # return is not documented in docstring
+    "DOC202", # Docstring should not have a returns section because the function doesn't return anything
+    "DOC402", # yield is not documented in docstring
+    "DOC403", # Docstring has a "Yields" section but the function doesn't yield anything
+    "DOC501", # Raised exception {id} missing from docstring
+    "DOC502", # Raised exception is not explicitly raised: {id}
+    "E261", # Insert at least two spaces before an inline comment
+    "E262", # Inline comment should start with '# '
+    "E265", # Block comment should start with '# '
+]
+ignore = [
+    "COM812", # Trailing comma missing; conflicts with ruff format
+    "ISC001", # Implicitly concatenated string literals on one line; conflicts with ruff format
+]
+
+[tool.ruff.lint.per-file-ignores]
+# D104: Missing docstring in public package
+"__init__.py" = ["D104"]
+# D100: Missing docstring in public module
+# D101: Missing docstring in public class
+# D102: Missing docstring in public method
+# S101: Use of `assert` detected
+"tests/**.py" = ["D100", "D101", "D102", "S101"]
+
+[tool.ruff.lint.flake8-copyright]
+author = "Thousand Brains Project"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
