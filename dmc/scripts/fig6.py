@@ -34,6 +34,7 @@ from data_utils import (
     DMC_RESULTS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
+    ObjectModel,
     get_frequency,
     load_eval_stats,
     load_object_model,
@@ -41,7 +42,6 @@ from data_utils import (
 from matplotlib.lines import Line2D
 from plot_utils import (
     TBP_COLORS,
-    add_legend,
     axes3d_clean,
     axes3d_set_aspect_equal,
     violinplot,
@@ -149,11 +149,11 @@ def plot_curvature_guided_policy():
     fig.savefig(OUT_DIR / "curvature_guided_policy.svg", bbox_inches="tight")
 
 
-def plot_evidence_over_time():
+def plot_evidence_over_time(episode: int):
     exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
     detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[0]
+    stats = detailed_stats_interface[episode]
 
     evidences = stats["LM_0"]["evidences"]
     evidences_max = stats["LM_0"]["evidences_max"]
@@ -176,7 +176,10 @@ def plot_evidence_over_time():
         pos_match_evs = pos_match_evs[sorting_order]
 
         gs["step"] = step
-        gs["achieved"] = goal_state_achieved[i]
+        try:
+            gs["achieved"] = goal_state_achieved[i]
+        except IndexError:
+            gs["achieved"] = None
         gs["possible_matches"] = {
             pos_match_ids[i]: pos_match_evs[i] for i in range(len(pos_match_ids))
         }
@@ -219,8 +222,8 @@ def plot_evidence_over_time():
 
     for gs in goal_states:
         if gs:
-            # if gs["achieved"]:
-            ax.axvline(gs["step"], color="black", linestyle="--", alpha=0.5)
+            c = "red" if gs["achieved"] else "black"
+            ax.axvline(gs["step"], color=c, linestyle="--", alpha=0.5)
 
     ax.legend(framealpha=1)
     ax.set_xlabel("Step")
@@ -230,26 +233,12 @@ def plot_evidence_over_time():
     ax.spines["right"].set_visible(False)
     ax.spines["top"].set_visible(False)
     plt.show()
-    fig.savefig(OUT_DIR / "evidence_over_time.png", dpi=300, bbox_inches="tight")
-    fig.savefig(OUT_DIR / "evidence_over_time.svg", bbox_inches="tight")
-
-
-def get_mlh_dict(object_name: str, stats: Mapping, step: int) -> dict:
-    """Get the most likely hypothesis for a given graph id."""
-    evidences = stats["LM_0"]["evidences"]
-    locations = stats["LM_0"]["possible_locations"]
-    rotations = stats["LM_0"]["possible_rotations"][0]
-    mlh_id = np.argmax(evidences[step][object_name])
-    evidence = evidences[step][object_name][mlh_id]
-    location = np.array(locations[step][object_name][mlh_id])
-    rotation = R.from_matrix(rotations[object_name][mlh_id])
-    return {
-        "object_name": object_name,
-        "mlh_id": mlh_id,
-        "location": location,
-        "rotation": rotation,
-        "evidence": evidence,
-    }
+    out_dir = OUT_DIR / "evidence_over_time"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(
+        out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight"
+    )
+    fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
 
 
 def plot_performance():
@@ -315,75 +304,182 @@ def plot_performance():
     fig.savefig(OUT_DIR / "performance.svg", bbox_inches="tight")
 
 
-def plot_sensor_path(
-    ax,
-    sensor_locations: np.ndarray,
-    markerstyle: Optional[Mapping] = None,
-    linestyle: Optional[Mapping] = None,
-):
-    if markerstyle is None:
-        markerstyle = dict(
-            color=TBP_COLORS["blue"],
-            alpha=1,
-            s=20,
-            marker="v",
-            zorder=5,
-        )
-    if linestyle is None:
-        linestyle = dict(
-            color=TBP_COLORS["blue"],
-            alpha=1,
-        )
-    ax.scatter(
-        sensor_locations[:, 0],
-        sensor_locations[:, 1],
-        sensor_locations[:, 2],
-        color=TBP_COLORS["blue"],
-        alpha=1,
-        s=20,
-        marker="v",
-        zorder=5,
-    )
-    ax.plot(
-        sensor_locations[:, 0],
-        sensor_locations[:, 1],
-        sensor_locations[:, 2],
-        color=TBP_COLORS["blue"],
-        alpha=1,
-        zorder=10,
-        lw=2,
-    )
+def get_mlh_for_object(object_name: str, stats: Mapping, step: int) -> Mapping:
+    """Get the most likely hypothesis for a given object.
+
+    Args:
+        object_name (str): The object name.
+        stats (Mapping): Detailed stats for an episode.
+        step (int): The step to get the MLH for.
+
+    Returns:
+        Mapping: The MLH.
+    """
+    evidences = stats["LM_0"]["evidences"][step]
+    locations = stats["LM_0"]["possible_locations"][step]
+    rotations = stats["LM_0"]["possible_rotations"][0]
+    mlh_id = np.argmax(evidences[object_name])
+    return {
+        "object_name": object_name,
+        "mlh_id": mlh_id,
+        "evidence": evidences[object_name][mlh_id],
+        "location": np.array(locations[object_name][mlh_id]),
+        "rotation": R.from_matrix(rotations[object_name][mlh_id]),
+    }
 
 
-def get_mlh_graph(
-    object_name: str,
+def get_top_two_mlhs(stats, step) -> Tuple[Mapping, Mapping]:
+    """Get the top two MLHs for a given step.
+
+    Args:
+        stats (Mapping): Detailed stats for an episode.
+        step (int): The step to get the MLHs for.
+
+    Returns:
+        Tuple[Mapping, Mapping]: The top two MLHs in descending order of evidence.
+    """
+    evidences = stats["LM_0"]["evidences"][step]
+    mlh_info = []
+    for object_name in evidences.keys():
+        mlh_info.append(get_mlh_for_object(object_name, stats, step))
+    lst = sorted(mlh_info, key=lambda x: x["evidence"], reverse=True)
+    return lst[0], lst[1]
+
+
+def get_top_two_mlhs_for_object(
+    object_name: str, stats: Mapping, step: int
+) -> Tuple[Mapping, Mapping]:
+    """Get the top two pose hypotheses for a given object.
+
+    Args:
+        object_name (str): The object/graph id.
+        stats (Mapping): Detailed stats for an episode.
+        step (int): The step to get the MLHs for.
+
+    Returns:
+        Tuple[Mapping, Mapping]: An object's top two pose hypothesis MLHs in
+        descending order of evidence.
+    """
+    evidences = stats["LM_0"]["evidences"][step]
+    locations = stats["LM_0"]["possible_locations"][step]
+    rotations = stats["LM_0"]["possible_rotations"][0]
+    sort_order = np.argsort(evidences[object_name])[::-1]
+    mlhs = []
+    for mlh_id in sort_order[:2]:
+        mlhs.append(
+            {
+                "object_name": object_name,
+                "mlh_id": mlh_id,
+                "evidence": evidences[object_name][mlh_id],
+                "location": np.array(locations[object_name][mlh_id]),
+                "rotation": R.from_matrix(rotations[object_name][mlh_id]),
+            }
+        )
+    return mlhs
+
+
+def get_graph_for_mlh(
+    mlh: Mapping,
     stats: Mapping,
     step: int,
     pretrained_model: str = "surf_agent_1lm",
-) -> Tuple[np.ndarray, R]:
+) -> ObjectModel:
     """
-    Get the graph of the MLH object at the given step.
+    Get the graph of the MLH placed in body coordinates.
     """
-    mlh = get_mlh_dict(object_name, stats, step)
     rotated_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
     sensor_location = np.array(
         stats["SM_0"]["processed_observations"][step]["location"]
     )
-    learned_graph = load_object_model(pretrained_model, object_name)
+    learned_graph = load_object_model(pretrained_model, mlh["object_name"])
     graph = learned_graph.rotated(mlh["rotation"].inv())
     graph -= rotated_mlh_location
     graph += sensor_location
     return graph
 
 
-def plot_mismatch_at_step(
+def get_goal_states(experiment: str, episode: int) -> List[Mapping]:
+    exp_dir = VISUALIZATION_RESULTS_DIR / experiment
+    detailed_stats_path = exp_dir / "detailed_run_stats.json"
+    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+    stats = detailed_stats_interface[episode]
+
+    evidences_max = stats["LM_0"]["evidences_max"]
+    goal_states = stats["LM_0"]["goal_states"]
+    goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
+    possible_matches = stats["LM_0"]["possible_matches"]
+
+    # Summarize goal states and evidence counts as each attempted goal state.
+    goal_state_episodes = np.argwhere(goal_states).squeeze()
+    out = []
+    for i, step in enumerate(goal_state_episodes):
+        gs = goal_states[step]
+        match_ids = np.array(possible_matches[step], dtype=object)
+        match_evs = np.array([evidences_max[step][match] for match in match_ids])
+        match_evs, match_ids = zip(*sorted(zip(match_evs, match_ids), reverse=True))
+        gs["step"] = step
+        try:
+            gs["achieved"] = goal_state_achieved[i]
+        except IndexError:
+            gs["achieved"] = None
+        gs["possible_matches"] = dict(zip(match_ids, match_evs))
+        out.append(gs)
+
+    return out
+
+
+def plot_mlhs_for_step(
     stats: Mapping,
     step: int,
-    mlh_objects: Iterable[str],
-    colors: Mapping,
-    pretrained_model: str = "surf_agent_1lm",
-):
-    """ """
+    top_mlh: Mapping,
+    second_mlh: Mapping,
+    goal_state: Optional[Mapping] = None,
+    style: Optional[Mapping] = None,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot the MLHs for a given step."""
+    default_style = {
+        "target": {
+            "alpha": 0.5,
+            "s": 5,
+            "edgecolor": "none",
+        },
+        "sensor_path_scatter": {
+            "color": TBP_COLORS["blue"],
+            "s": 10,
+            "marker": "v",
+            "zorder": 10,
+        },
+        "sensor_path_line": {
+            "color": TBP_COLORS["blue"],
+            "alpha": 1,
+            "lw": 1,
+            "zorder": 5,
+        },
+        "top_mlh": {
+            "color": TBP_COLORS["blue"],
+            "alpha": 0.20,
+            "s": 2,
+            "edgecolor": "none",
+        },
+        "second_mlh": {
+            "color": TBP_COLORS["green"],
+            "alpha": 0.20,
+            "s": 2,
+            "edgecolor": "none",
+        },
+        "proposed_point": {
+            "color": TBP_COLORS["yellow"],
+            "alpha": 1,
+            "s": 20,
+            "marker": "o",
+            "zorder": 20,
+            "edgecolor": "black",
+        },
+    }
+    if style:
+        for key, val in style.items():
+            default_style[key].update(val.copy())
+        style = default_style
 
     # Get ground-truth object and its pose.
     target_object = stats["target"]["primary_target_object"]
@@ -399,13 +495,6 @@ def plot_mismatch_at_step(
     )
     sensor_locations = sensor_locations[: step + 1]
 
-    # Load MLH objects.
-    top_mlh_object = mlh_objects[0]
-    second_mlh_object = mlh_objects[1]
-
-    # Load goal state.
-    goal_state = stats["LM_0"]["goal_states"][step]
-
     fig, axes = plt.subplots(1, 2, figsize=(6, 4), subplot_kw={"projection": "3d"})
 
     """
@@ -414,40 +503,30 @@ def plot_mismatch_at_step(
     ax = axes[0]
 
     # Plot ground-truth object.
-    learned_graph = load_object_model(pretrained_model, target_object)
-    graph = learned_graph - learned_position
-    graph = graph.rotated(target_rotation)  # ground-truth location
-    graph += target_position  # ground-truth location
+    learned_graph = load_object_model("surf_agent_1lm", target_object)
+    target_graph = learned_graph - learned_position
+    target_graph = target_graph.rotated(target_rotation)
+    target_graph += target_position
     ax.scatter(
-        graph.x,
-        graph.y,
-        graph.z,
-        color=graph.rgba,
-        alpha=0.5,
-        s=5,
-        edgecolor="none",
+        target_graph.x,
+        target_graph.y,
+        target_graph.z,
+        color=style["target"].pop("color", target_graph.rgba),
+        **style["target"],
     )
 
-    # Plot sensor path.
-    c = colors.get("sensor_path", TBP_COLORS["purple"])
+    # Plot sensor path on ground-truth object.
     ax.scatter(
         sensor_locations[:, 0],
         sensor_locations[:, 1],
         sensor_locations[:, 2],
-        color=c,
-        alpha=1,
-        s=10,
-        marker="v",
-        zorder=10,
+        **style["sensor_path_scatter"],
     )
     ax.plot(
         sensor_locations[:, 0],
         sensor_locations[:, 1],
         sensor_locations[:, 2],
-        color=c,
-        alpha=1,
-        zorder=5,
-        lw=1,
+        **style["sensor_path_line"],
     )
 
     """
@@ -456,71 +535,88 @@ def plot_mismatch_at_step(
     ax = axes[1]
 
     # Plot first and second MLHs.
-    top_mlh_graph = get_mlh_graph(
-        top_mlh_object, stats, step, pretrained_model=pretrained_model
+    top_mlh["graph"] = get_graph_for_mlh(
+        top_mlh, stats, step, pretrained_model="surf_agent_1lm"
     )
-    second_mlh_graph = get_mlh_graph(
-        second_mlh_object, stats, step, pretrained_model=pretrained_model
+    ax.scatter(
+        top_mlh["graph"].x,
+        top_mlh["graph"].y,
+        top_mlh["graph"].z,
+        **style["top_mlh"],
     )
-    colors = {} if colors is None else colors
-    mlh_colors = [
-        colors.get("top_mlh", TBP_COLORS["blue"]),
-        colors.get("second_mlh", TBP_COLORS["green"]),
-    ]
-    for i, graph in enumerate([top_mlh_graph, second_mlh_graph]):
-        ax.scatter(
-            graph.x,
-            graph.y,
-            graph.z,
-            color=mlh_colors[i],
-            alpha=0.20,
-            s=2,
-            edgecolor="none",
-            label=mlh_objects[i],
-        )
+
+    second_mlh["graph"] = get_graph_for_mlh(
+        second_mlh, stats, step, pretrained_model="surf_agent_1lm"
+    )
+    ax.scatter(
+        second_mlh["graph"].x,
+        second_mlh["graph"].y,
+        second_mlh["graph"].z,
+        **style["second_mlh"],
+    )
 
     # Plot the goal state's target if possible.
     if goal_state:
         proposed_surface_loc = goal_state["info"]["proposed_surface_loc"]
-        c = colors.get("proposed_point", TBP_COLORS["yellow"])
         for ax in axes:
             ax.scatter(
                 proposed_surface_loc[0],
                 proposed_surface_loc[1],
                 proposed_surface_loc[2],
-                color=c,
-                alpha=1,
-                s=20,
-                marker="o",
-                zorder=10,
-                label="Proposed Point",
+                **style["proposed_point"],
             )
-
     return fig, axes
 
 
-def plot_object_mismatch():
-    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
+def plot_object_hypothesis():
+    experiment = "fig6_surf_mismatch"
+    episode = 0
+
+    exp_dir = VISUALIZATION_RESULTS_DIR / experiment
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
     detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[0]
+    stats = detailed_stats_interface[episode]
 
-    mlh_objects = ["spoon", "fork"]
-    colors = {
-        "sensor_path": TBP_COLORS["blue"],
-        "top_mlh": TBP_COLORS["blue"],
-        "second_mlh": TBP_COLORS["green"],
-        "proposed_point": TBP_COLORS["yellow"],
+    # Select a step where there's a goal state was achieved, and it was
+    # for distuinguishing between different objects.
+    goal_states = get_goal_states(experiment, episode)
+    lst = filter(lambda gs: gs["achieved"] is True, goal_states)
+    lst = list(filter(lambda gs: len(gs["possible_matches"]) > 1, lst))
+    gs = lst[0]
+    step = gs["step"]
+
+    # Get the pose MLHs.
+    top_mlh, second_mlh = get_top_two_mlhs(stats, step)
+
+    style = {
+        "target": {
+            "alpha": 0.2,
+            "s": 2,
+        },
+        "top_mlh": {
+            "color": TBP_COLORS["blue"],
+            "alpha": 0.1,
+            "s": 2,
+        },
+        "second_mlh": {
+            "color": TBP_COLORS["green"],
+            "alpha": 0.1,
+            "s": 2,
+        },
     }
-
-    step = 10
-    fig, axes = plot_mismatch_at_step(
-        stats, step, mlh_objects, colors=colors, pretrained_model="surf_agent_1lm"
+    fig, axes = plot_mlhs_for_step(
+        stats,
+        step,
+        top_mlh,
+        second_mlh,
+        goal_state=gs,
+        style=style,
     )
+
+    # Add label, legends, etc.
     width = 0.08
     axis_limits = [[-width, width], [1.5 - width, 1.5 + width], [-width, width]]
     view_angles = [(-50, -180, 0), (-80, 180, 0)]
-
     axes[0].set_title("Ground Truth + Sensor Path")
     axes[1].set_title("First + Second MLHs")
     for i, ax in enumerate(axes):
@@ -533,10 +629,10 @@ def plot_object_mismatch():
         ax.set_zlim(axis_limits[2])
 
     # Add legend to the second plot.
-    colors = list(colors.values())
-    labels = ["Sensor Path", "MLH 1 (spoon)", "MLH 2 (fork)", "Proposed Point"]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["yellow"]]
+    labels = ["MLH 1", "MLH 2", "Proposed Point"]
     legend_handles = []
-    for i in range(1, 4):
+    for i in range(3):
         h = Line2D(
             [0],
             [0],
@@ -556,10 +652,103 @@ def plot_object_mismatch():
 
     plt.show()
 
-    out_dir = OUT_DIR / "mismatch"
+    out_dir = OUT_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / f"object_mismatch.png", dpi=300, bbox_inches="tight")
-    fig.savefig(out_dir / f"object_mismatch.svg", bbox_inches="tight")
+    fig.savefig(out_dir / "object_hypothesis.png", dpi=300, bbox_inches="tight")
+    fig.savefig(out_dir / "object_hypothesis.svg", bbox_inches="tight")
 
 
-plot_object_mismatch()
+def plot_pose_hypothesis():
+    experiment = "fig6_surf_mismatch"
+    episode = 1
+
+    exp_dir = VISUALIZATION_RESULTS_DIR / experiment
+    detailed_stats_path = exp_dir / "detailed_run_stats.json"
+    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+    stats = detailed_stats_interface[episode]
+
+    # Select a step where there's a goal state was achieved, and it was
+    # for pose estimation (object was already determined).
+    goal_states = get_goal_states(experiment, episode)
+    lst = filter(lambda gs: gs["achieved"] is True, goal_states)
+    lst = list(filter(lambda gs: len(gs["possible_matches"]) == 1, lst))
+    gs = lst[0]
+    step = gs["step"]
+
+    # Get the pose MLHs.
+    mlh_graph_id = stats["LM_0"]["current_mlh"][step]["graph_id"]
+    top_mlh, second_mlh = get_top_two_mlhs_for_object(mlh_graph_id, stats, step)
+
+    style = {
+        "target": {
+            "alpha": 0.2,
+            "s": 2,
+        },
+    }
+    fig, axes = plot_mlhs_for_step(
+        stats,
+        step,
+        top_mlh,
+        second_mlh,
+        goal_state=gs,
+        style=style,
+    )
+
+    # Add label, legends, etc.
+    width = 0.08
+    axis_limits = [[-width, width], [1.5 - width, 1.5 + width], [-width, width]]
+    view_angles = [
+        (-37, 26, 0),
+        (-7.498398271623369, 34.260448483945446, 0),
+    ]
+
+    axes[0].set_title("Ground Truth + Sensor Path")
+    axes[1].set_title("First + Second MLHs")
+    for i, ax in enumerate(axes):
+        ax.set_proj_type("persp", focal_length=0.8)
+        axes3d_set_aspect_equal(ax)
+        axes3d_clean(ax)
+        ax.view_init(*view_angles[i])
+        ax.set_xlim(axis_limits[0])
+        ax.set_ylim(axis_limits[1])
+        ax.set_zlim(axis_limits[2])
+
+    # Add legend to the second plot.
+    colors = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["yellow"]]
+    labels = ["MLH 1", "MLH 2", "Proposed Point"]
+    legend_handles = []
+    for i in range(3):
+        h = Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=colors[i],
+            markersize=8,
+            label=labels[i],
+        )
+        legend_handles.append(h)
+    axes[1].legend(
+        handles=legend_handles,
+        bbox_to_anchor=(0.2, 0.8),
+        framealpha=1,
+        fontsize=8,
+    )
+
+    plt.show()
+
+    out_dir = OUT_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_dir / "pose_hypothesis.png", dpi=300, bbox_inches="tight")
+    fig.savefig(out_dir / "pose_hypothesis.svg", bbox_inches="tight")
+
+    return fig, axes
+
+
+# Get current view angles for each axis
+def print_ax(axes):
+    print(f"0: ({axes[0].elev}, {axes[0].azim}, {axes[0].roll})")
+    print(f"1: ({axes[1].elev}, {axes[1].azim}, {axes[1].roll})")
+
+plot_pose_hypothesis()
+plot_object_hypothesis()
