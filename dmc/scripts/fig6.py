@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -8,30 +7,21 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 """
-Figure 4: Visualize 8-patch view finder
+Figure 6: Rapid Inference With Model-Free and Model-Based Policies
 """
 
-import copy
-import os
-from numbers import Number
-from pathlib import Path
 from typing import (
-    Container,
-    Iterable,
     List,
     Mapping,
     Optional,
     Tuple,
-    Union,
 )
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
 from data_utils import (
     DMC_ANALYSIS_DIR,
-    DMC_RESULTS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
     ObjectModel,
@@ -70,7 +60,6 @@ def plot_curvature_guided_policy():
     locations = [obs["location"] for obs in stats["SM_0"]["processed_observations"]]
     locations = np.array(locations)[:14]
 
-    # %matplotlib qt
     fig, ax = plt.subplots(1, 1, figsize=(4, 4), subplot_kw={"projection": "3d"})
 
     model = load_object_model("dist_agent_1lm", "mug")
@@ -104,7 +93,7 @@ def plot_curvature_guided_policy():
         lw=2,
     )
     ax.set_proj_type("persp", focal_length=0.5)
-    axes3d_clean(ax, grid_color=(1, 1, 1, 1))
+    axes3d_clean(ax)
     axes3d_set_aspect_equal(ax)
     ax.view_init(elev=54, azim=-36, roll=60)
     plt.show()
@@ -406,7 +395,7 @@ def get_goal_states(stats: Mapping) -> List[Mapping]:
     return out
 
 
-def plot_mlhs_for_step(
+def plot_hypotheses_for_step(
     stats: Mapping,
     step: int,
     top_mlh: Mapping,
@@ -414,11 +403,24 @@ def plot_mlhs_for_step(
     goal_state: Optional[Mapping] = None,
     style: Optional[Mapping] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    """Plot the MLHs for a given step."""
+    """Plot the hypotheses for a given step.
+
+    Args:
+        stats (Mapping): Detailed stats for an episode.
+        step (int): The step to plot the hypotheses for.
+        top_mlh (Mapping): The MLH with the highest evidence value.
+        second_mlh (Mapping): The MLH with the second highest evidence value.
+        goal_state (Optional[Mapping]): The goal state. If provided, the proposed
+          surface location from the goal state generator is plotted.
+        style (Optional[Mapping]): The style for the plot items.
+
+    Returns:
+        Tuple[plt.Figure, plt.Axes]: The figure and axes.
+    """
     default_style = {
         "target": {
-            "alpha": 0.5,
-            "s": 5,
+            "alpha": 0.2,
+            "s": 2,
             "edgecolor": "none",
         },
         "sensor_path_scatter": {
@@ -457,7 +459,7 @@ def plot_mlhs_for_step(
     if style:
         for key, val in style.items():
             default_style[key].update(val.copy())
-        style = default_style
+    style = default_style
 
     # Get ground-truth object and its pose.
     target_object = stats["target"]["primary_target_object"]
@@ -557,7 +559,7 @@ def plot_object_hypothesis():
 
     # Select a step where there's a goal state was achieved, and it was
     # for distuinguishing between different objects.
-    goal_states = get_goal_states(experiment, episode)
+    goal_states = get_goal_states(stats)
     lst = filter(lambda gs: gs["achieved"] is True, goal_states)
     lst = list(filter(lambda gs: len(gs["possible_matches"]) > 1, lst))
     gs = lst[0]
@@ -566,23 +568,8 @@ def plot_object_hypothesis():
     # Get the pose MLHs.
     top_mlh, second_mlh = get_top_two_mlhs(stats, step)
 
-    style = {
-        "target": {
-            "alpha": 0.2,
-            "s": 2,
-        },
-        "top_mlh": {
-            "color": TBP_COLORS["blue"],
-            "alpha": 0.1,
-            "s": 2,
-        },
-        "second_mlh": {
-            "color": TBP_COLORS["green"],
-            "alpha": 0.1,
-            "s": 2,
-        },
-    }
-    fig, axes = plot_mlhs_for_step(
+    style = {}
+    fig, axes = plot_hypotheses_for_step(
         stats,
         step,
         top_mlh,
@@ -646,7 +633,7 @@ def plot_pose_hypothesis():
 
     # Select a step where there's a goal state was achieved, and it was
     # for pose estimation (object was already determined).
-    goal_states = get_goal_states(experiment, episode)
+    goal_states = get_goal_states(stats)
     lst = filter(lambda gs: gs["achieved"] is True, goal_states)
     lst = list(filter(lambda gs: len(gs["possible_matches"]) == 1, lst))
     gs = lst[0]
@@ -662,7 +649,7 @@ def plot_pose_hypothesis():
             "s": 2,
         },
     }
-    fig, axes = plot_mlhs_for_step(
+    fig, axes = plot_hypotheses_for_step(
         stats,
         step,
         top_mlh,
