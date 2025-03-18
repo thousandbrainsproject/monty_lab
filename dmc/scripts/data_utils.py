@@ -161,6 +161,49 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     df = df[column_order]
     return df
 
+def load_floppy_traces(exp: os.PathLike) -> pd.DataFrame:
+    """Load and process floppy experiment statistics.
+
+    This function reads flop traces from a floppy experiment directory
+    and returns a DataFrame with statistics about flops.
+
+    Args:
+        exp (os.PathLike): Name of a floppy experiment or path to experiment directory.
+
+    Returns:
+        pd.DataFrame: DataFrame containing experiment statistics with columns:
+            - experiment: Name of the experiment
+            - flops_mean: Mean flops per episode
+            - flops_std: Standard deviation of flops per episode
+    """
+    path = Path(exp).expanduser()
+    if not path.exists():
+        # Given a run name. Look in DMC folder.
+        path = DMC_RESULTS_DIR / path
+
+    # Initialize results dictionary
+    result_dict = {
+        "experiment": [path.name],
+        "flops_mean": [np.nan],
+        "flops_std": [np.nan],
+    }
+
+    # Read all flop traces files
+    experiment_flops = []
+    files = list(path.glob("flop_traces*.csv"))
+
+    for file in files:
+        flops_df = pd.read_csv(file)
+        # Get average of flops for experiment.run_episode in method column
+        run_episode_df = flops_df[flops_df["method"] == "experiment.run_episode"]
+        experiment_flops.extend(run_episode_df["flops"].tolist())
+
+    # Calculate flops statistics
+    if experiment_flops:
+        result_dict["flops_mean"] = [np.mean(experiment_flops)]
+        result_dict["flops_std"] = [np.std(experiment_flops)]
+
+    return pd.DataFrame(result_dict)
 
 def get_frequency(items: Iterable, match: Union[Any, Container[Any]]) -> float:
     """Get the fraction of values that belong to a collection of values.
