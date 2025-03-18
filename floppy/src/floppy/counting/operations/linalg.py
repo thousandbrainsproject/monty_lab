@@ -140,6 +140,9 @@ class MatmulOperation:
             Optional[int]: Number of floating point operations (FLOPs).
                           Returns None if operation cannot be performed.
 
+        Raises:
+            ValueError: If there is an error counting matrix multiplication FLOPs.
+
         Note:
             Matrix multiplication computation:
             - For vector dot product (N,) x (N,): 2N-1 FLOPs

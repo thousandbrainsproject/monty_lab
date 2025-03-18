@@ -87,9 +87,6 @@ class TrackedArray(np.ndarray):
             obj: The parent array from which this array was created. Can be None if the array
                 was created directly through __new__.
 
-        Returns:
-            None
-
         Note:
             This is a NumPy internal method that is automatically called during array creation
             and manipulation. It should not be called directly by users.
@@ -230,6 +227,11 @@ class TrackedArray(np.ndarray):
                     - Python scalars
             **kwargs: Keyword arguments for the ufunc. Special handling for:
                      - 'out': Pre-allocated output array(s) for results
+
+        Returns:
+            Union[None, TrackedArray, np.ndarray, tuple]: The result of the ufunc operation,
+            wrapped in TrackedArray if it's an array result, or None if the operation
+            stores its result in the out parameter.
 
         Notes:
             - All array inputs and outputs maintain their FLOP tracking capabilities

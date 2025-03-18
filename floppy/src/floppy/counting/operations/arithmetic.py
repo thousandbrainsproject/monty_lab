@@ -38,7 +38,7 @@ class ArithmeticOperation(FlopOperation):
         Broadcasted: (M,1) + (1,N) -> (M,N)
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
         """Initialize the arithmetic operation.
 
         Args:
@@ -95,7 +95,7 @@ class Addition(ArithmeticOperation):
     is counted as 1 FLOP, following standard practice in numerical analysis.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the addition operation."""
         super().__init__("add")
 
@@ -107,7 +107,7 @@ class Subtraction(ArithmeticOperation):
     is counted as 1 FLOP, following standard practice in numerical analysis.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the subtraction operation."""
         super().__init__("subtract")
 
@@ -119,7 +119,7 @@ class Multiplication(ArithmeticOperation):
     is counted as 1 FLOP, following standard practice in numerical analysis.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the multiplication operation."""
         super().__init__("multiply")
 
@@ -137,7 +137,7 @@ class Division(ArithmeticOperation):
         (see https://www.stat.cmu.edu/~ryantibs/convexopt-F18/scribes/Lecture_19.pdf).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the division operation."""
         super().__init__("divide")
 
@@ -149,7 +149,7 @@ class AbsoluteOperation(ArithmeticOperation):
     value operation is counted as 1 FLOP, following standard practice in numerical analysis.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the absolute value operation."""
         super().__init__("absolute")
 

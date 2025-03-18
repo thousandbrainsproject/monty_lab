@@ -23,7 +23,8 @@ from .visitors.sklearn_visitor import SklearnCallVisitor
 class FlopAnalyzer:
     """Main analyzer class for finding and analyzing FLOP operations in Python code."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the FlopAnalyzer with empty results and visitors."""
         self.analysis_results: Dict[str, Dict] = {}
         self.numpy_visitor = NumpyCallVisitor()
         self.scipy_visitor = ScipyCallVisitor()
@@ -102,7 +103,11 @@ class FlopAnalyzer:
         return results
 
     def _collect_imports(self) -> List[Dict]:
-        """Collect all imports from the visitors."""
+        """Collect all imports from the visitors.
+
+        Returns:
+            List of dictionaries containing import information.
+        """
         imports = []
 
         # Collect NumPy imports
@@ -132,6 +137,9 @@ class FlopAnalyzer:
             Dict containing:
             - files: Dict mapping filenames to their analysis results
             - total_stats: Aggregated statistics across all files
+
+        Raises:
+            FileNotFoundError: If the specified directory does not exist
         """
         path = Path(directory)
         if not path.exists():
@@ -217,7 +225,14 @@ class FlopAnalyzer:
                 rows.append(row)
 
     def _get_operation_type(self, type_str: str) -> str:
-        """Convert the operation type to a consistent category."""
+        """Convert the operation type to a consistent category.
+
+        Args:
+            type_str: The raw operation type string
+
+        Returns:
+            A standardized operation type string
+        """
         type_mapping = {
             "direct": "function_call",
             "attribute": "method_call",

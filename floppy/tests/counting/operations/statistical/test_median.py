@@ -12,61 +12,65 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_median_np_function():
+def test_median_np_function() -> None:
+    """Test median behavior and flop count using np.median."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4, 5])
         result = np.median(a)
-        assert counter.flops == 0  # odd length array, no FLOPs needed
+        assert counter.flops == 0
         np.testing.assert_allclose(result, 3)
 
 
-def test_median_even_length():
+def test_median_even_length() -> None:
+    """Test median behavior and flop count for even length array."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         result = np.median(a)
-        assert counter.flops == 2  # even length array: 1 addition + 1 division
+        assert counter.flops == 2  # noqa: PLR2004
         np.testing.assert_allclose(result, 2.5)
 
 
-def test_median_method():
+def test_median_method() -> None:
+    """Test median behavior and flop count using array.median method."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3, 4])
         result = np.median(a)
-        assert counter.flops == 2
+        assert counter.flops == 2  # noqa: PLR2004
         np.testing.assert_allclose(result, 2.5)
 
 
-def test_median_axis():
+def test_median_axis() -> None:
+    """Test median behavior and flop count for axis parameter."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
-        result = np.median(a, axis=0)  # Median along columns
-        assert (
-            counter.flops == 2
-        )  # even length arrays: 1 addition + 1 division per column
+        result = np.median(a, axis=0)
+        assert counter.flops == 2  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([2.5, 3.5, 4.5]))
 
     counter.flops = 0
     with counter:
         a = np.array([[1, 2], [3, 4]])
-        result = np.median(a, axis=1)  # Median along rows
-        assert counter.flops == 2  # even length arrays: 1 addition + 1 division per row
+        result = np.median(a, axis=1)
+        assert counter.flops == 2  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([1.5, 3.5]))
 
 
-def test_median_keepdims():
+def test_median_keepdims() -> None:
+    """Test median behavior and flop count for keepdims parameter."""
     counter = FlopCounter()
     with counter:
         a = np.array([[1, 2, 3], [4, 5, 6]])
         result = np.median(a, keepdims=True)
-        assert counter.flops == 2  # even length array: 1 addition + 1 division
+        assert counter.flops == 2  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([[3.5]]))
 
 
-def test_median_empty():
+def test_median_empty() -> None:
+    """Test median behavior and flop count for empty array."""
     counter = FlopCounter()
     with counter:
         a = np.array([])
@@ -75,10 +79,11 @@ def test_median_empty():
         np.testing.assert_allclose(result, np.nan)
 
 
-def test_median_single_element():
+def test_median_single_element() -> None:
+    """Test median behavior and flop count for single element array."""
     counter = FlopCounter()
     with counter:
         a = np.array([1])
         result = np.median(a)
-        assert counter.flops == 0  # single element, no FLOPs needed
+        assert counter.flops == 0
         np.testing.assert_allclose(result, 1)

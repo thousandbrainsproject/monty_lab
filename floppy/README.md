@@ -18,7 +18,7 @@ Floppy is a framework for analyzing and counting floating-point operations (FLOP
 
 For `monty_lab` conda environment, please follow instructions from [Thousand Brains Project documentation](https://thousandbrainsproject.readme.io/docs/getting-started) and run:
 
-```
+```bash
 conda create --clone tbp.monty -n monty_lab
 conda activate monty_lab
 cd path/to/monty_lab/floppy

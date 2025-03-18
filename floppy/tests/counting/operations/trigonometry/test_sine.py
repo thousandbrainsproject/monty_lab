@@ -12,36 +12,39 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_sin_ufunc_syntax():
+def test_sin_ufunc_syntax() -> None:
+    """Test basic array conversion from sine to arcsine."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.sin(a)
-        assert counter.flops == 60
+        assert counter.flops == 60  # noqa: PLR2004
         np.testing.assert_allclose(
             result, np.array([0.84147098, 0.90929743, 0.14112001])
         )
 
 
-def test_sin_broadcasting():
+def test_sin_broadcasting() -> None:
+    """Test sine of 2D array."""
     counter = FlopCounter()
     with counter:
         a = 2
         result = np.sin(a)
-        assert counter.flops == 20
+        assert counter.flops == 20  # noqa: PLR2004
         np.testing.assert_allclose(result, 0.90929743)
 
     counter.flops = 0
     with counter:
         a = np.array([[1, 2], [3, 4]])
         result = np.sin(a)
-        assert counter.flops == 80
+        assert counter.flops == 80  # noqa: PLR2004
         np.testing.assert_allclose(
             result, np.array([[0.84147098, 0.90929743], [0.14112001, -0.7568025]])
         )
 
 
-def test_sin_empty():
+def test_sin_empty() -> None:
+    """Test sine of empty array."""
     counter = FlopCounter()
     with counter:
         a = np.array([])
@@ -50,12 +53,13 @@ def test_sin_empty():
         np.testing.assert_allclose(result, np.array([]))
 
 
-def test_sine_chaining():
+def test_sine_chaining() -> None:
+    """Test chaining of sine operations."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.sin(np.sin(a))
-        assert counter.flops == 120
+        assert counter.flops == 120  # noqa: PLR2004
         np.testing.assert_allclose(
             result, np.array([0.74562414, 0.78907234, 0.14065208])
         )

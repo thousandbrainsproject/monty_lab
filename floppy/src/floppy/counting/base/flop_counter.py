@@ -188,9 +188,6 @@ class FlopCounter(ContextDecorator):
 
         Args:
             count: The number of FLOPs to add to the total count.
-
-        Returns:
-            None
         """
         if not self._should_exclude_operation():
             with self._flops_lock:
@@ -209,7 +206,6 @@ class FlopCounter(ContextDecorator):
             *args: Variable length argument list passed to np.array().
                 Common args include data (array_like), dtype (numpy.dtype), copy (bool).
             **kwargs: Arbitrary keyword arguments passed to np.array().
-                Common kwargs include order ('C', 'F'), subok (bool), ndmin (int).
 
         Returns:
             TrackedArray: A tracked version of the array that would have been created
@@ -224,12 +220,14 @@ class FlopCounter(ContextDecorator):
         arr = self._original_array_func(*args, **kwargs)
         return TrackedArray(arr, self)
 
-    def _unwrap_tracked_args(self, args, kwargs):
+    def _unwrap_tracked_args(
+        self, *args: Any, **kwargs: Any
+    ) -> Tuple[List[Any], Dict[str, Any]]:
         """Unwrap TrackedArray arguments to their base NumPy arrays.
 
         Args:
-            args: Positional arguments that may contain TrackedArrays
-            kwargs: Keyword arguments that may contain TrackedArrays
+            *args: Variable length argument list that may contain TrackedArrays.
+            **kwargs: Arbitrary keyword arguments that may contain TrackedArrays.
 
         Returns:
             tuple: (clean_args, clean_kwargs) with unwrapped arrays
@@ -252,14 +250,20 @@ class FlopCounter(ContextDecorator):
 
         return clean_args, clean_kwargs
 
-    def _count_operation_flops(self, func_name, args, result, kwargs):
+    def _count_operation_flops(
+        self,
+        func_name: str,
+        args: Tuple[Any, ...],
+        result: Any,
+        kwargs: Dict[str, Any],
+    ) -> None:
         """Count FLOPs for an operation if conditions are met.
 
         Args:
-            func_name: Name of the function being counted
-            args: Arguments to the function
-            result: Result of the operation
-            kwargs: Keyword arguments to the function
+            func_name: Name of the function being counted.
+            args: Arguments to the function.
+            result: Result of the operation.
+            kwargs: Keyword arguments to the function.
         """
         if not (self._is_active and len(self._operation_stack) == 1):
             return
@@ -285,7 +289,7 @@ class FlopCounter(ContextDecorator):
             Callable: A wrapped version of the function that counts FLOPs
         """
 
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Check if this is a reduction operation
             is_reduce = kwargs.pop("_is_reduce", False)
             operation_name = f"{func_name}.reduce" if is_reduce else func_name
@@ -338,7 +342,13 @@ class FlopCounter(ContextDecorator):
                 self._operation_stack.pop()
 
         # Create the reduce method that calls the wrapper with is_reduce=True
-        def reduce(array, axis=0, dtype=None, out=None, **kwargs):
+        def reduce(
+            array: np.ndarray,
+            axis: int = 0,
+            dtype: Optional[np.dtype] = None,
+            out: Optional[np.ndarray] = None,
+            **kwargs: Any,
+        ) -> Any:
             kwargs["_is_reduce"] = True
             return wrapper(array, axis=axis, dtype=dtype, out=out, **kwargs)
 

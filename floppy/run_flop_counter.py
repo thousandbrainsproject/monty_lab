@@ -8,18 +8,19 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
 
-from tbp.monty.frameworks.run_env import setup_env
-
-setup_env()
-
 import sys
 from pathlib import Path
 
+from tbp.monty.frameworks.run_env import setup_env
+
 monty_lab_path = Path("~/tbp/monty_lab").expanduser().resolve()
 sys.path.append(str(monty_lab_path))
+
 from dmc.configs import CONFIGS  # noqa: E402
 
 from frameworks.run import flop_main  # noqa: E402
+
+setup_env()
 
 if __name__ == "__main__":
     flop_main(all_configs=CONFIGS)

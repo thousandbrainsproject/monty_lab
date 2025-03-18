@@ -19,7 +19,7 @@ def test_convolve_basic() -> None:
         a = np.array([1, 2, 3, 4])
         kernel = np.array([1, 2])
         result = np.convolve(a, kernel, mode="valid")
-        assert counter.flops == 9
+        assert counter.flops == 9  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([4, 7, 10]))
 
 
@@ -30,7 +30,7 @@ def test_convolve_full() -> None:
         a = np.array([1, 2, 3])
         kernel = np.array([1, 2, 3])
         result = np.convolve(a, kernel, mode="full")
-        assert counter.flops == 25
+        assert counter.flops == 25  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([1, 4, 10, 12, 9]))
 
 
@@ -41,5 +41,5 @@ def test_convolve_same() -> None:
         a = np.array([1, 2, 3, 4])
         kernel = np.array([1, 2, 3])
         result = np.convolve(a, kernel, mode="same")
-        assert counter.flops == 20
+        assert counter.flops == 20  # noqa: PLR2004
         np.testing.assert_allclose(result, np.array([4, 10, 16, 17]))

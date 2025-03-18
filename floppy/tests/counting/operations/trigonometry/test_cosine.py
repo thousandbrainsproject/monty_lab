@@ -12,36 +12,39 @@ import numpy as np
 from floppy.counting.base import FlopCounter
 
 
-def test_cos_ufunc_syntax():
+def test_cos_ufunc_syntax() -> None:
+    """Test basic array conversion from cosine to arccosine."""
     counter = FlopCounter()
     with counter:
         a = np.array([1, 2, 3])
         result = np.cos(a)
-        assert counter.flops == 60  # 20 flops * 3 elements
+        assert counter.flops == 60  # noqa: PLR2004
         np.testing.assert_allclose(
             result, np.array([0.54030231, -0.41614684, -0.9899925])
         )
 
 
-def test_cos_broadcasting():
+def test_cos_broadcasting() -> None:
+    """Test cosine of 2D array."""
     counter = FlopCounter()
     with counter:
         a = 2
         result = np.cos(a)
-        assert counter.flops == 20
+        assert counter.flops == 20  # noqa: PLR2004
         np.testing.assert_allclose(result, -0.41614684)
 
     counter.flops = 0
     with counter:
         a = np.array([[1, 2], [3, 4]])
         result = np.cos(a)
-        assert counter.flops == 80
+        assert counter.flops == 80  # noqa: PLR2004
         np.testing.assert_allclose(
             result, np.array([[0.54030231, -0.41614684], [-0.9899925, -0.65364362]])
         )
 
 
-def test_cos_empty():
+def test_cos_empty() -> None:
+    """Test cosine of empty array."""
     counter = FlopCounter()
     with counter:
         a = np.array([])
