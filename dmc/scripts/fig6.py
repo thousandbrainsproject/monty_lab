@@ -400,7 +400,6 @@ def plot_hypotheses_for_step(
     step: int,
     top_mlh: Mapping,
     second_mlh: Mapping,
-    goal_state: Optional[Mapping] = None,
     style: Optional[Mapping] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot the hypotheses for a given step.
@@ -410,8 +409,6 @@ def plot_hypotheses_for_step(
         step (int): The step to plot the hypotheses for.
         top_mlh (Mapping): The MLH with the highest evidence value.
         second_mlh (Mapping): The MLH with the second highest evidence value.
-        goal_state (Optional[Mapping]): The goal state. If provided, the proposed
-          surface location from the goal state generator is plotted.
         style (Optional[Mapping]): The style for the plot items.
 
     Returns:
@@ -536,6 +533,7 @@ def plot_hypotheses_for_step(
     )
 
     # Plot the goal state's target if possible.
+    goal_state = stats["LM_0"]["goal_states"][step]
     if goal_state:
         proposed_surface_loc = goal_state["info"]["proposed_surface_loc"]
         for ax in axes:
@@ -574,7 +572,6 @@ def plot_object_hypothesis():
         step,
         top_mlh,
         second_mlh,
-        goal_state=gs,
         style=style,
     )
 
@@ -654,7 +651,6 @@ def plot_pose_hypothesis():
         step,
         top_mlh,
         second_mlh,
-        goal_state=gs,
         style=style,
     )
 
