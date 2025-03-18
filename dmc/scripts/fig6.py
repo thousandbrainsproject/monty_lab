@@ -720,10 +720,5 @@ def plot_pose_hypothesis():
     return fig, axes
 
 
-# Get current view angles for each axis
-def print_ax(axes):
-    print(f"0: ({axes[0].elev}, {axes[0].azim}, {axes[0].roll})")
-    print(f"1: ({axes[1].elev}, {axes[1].azim}, {axes[1].roll})")
-
 plot_pose_hypothesis()
 plot_object_hypothesis()
