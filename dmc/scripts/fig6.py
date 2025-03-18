@@ -56,49 +56,12 @@ OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def euler(r):
-    return r.as_euler("xyz", degrees=True)
-
-
-def get_relative_rotation(
-    rot_a: R,
-    rot_b: R,
-    degrees: bool = True,
-) -> Tuple[float, np.ndarray]:
-    """Computes the angle and axis of rotation between two rotation matrices.
-
-    Args:
-        rot_a (scipy.spatial.transform.Rotation): The first rotation.
-        rot_b (scipy.spatial.transform.Rotation): The second rotation.
-
-    Returns:
-        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
-    """
-    # Compute rotation angle
-    rel = rot_a * rot_b.inv()
-    mat = rel.as_matrix()
-    trace = np.trace(mat)
-    theta = np.arccos((trace - 1) / 2)
-
-    if np.isclose(theta, 0):  # No rotation
-        return 0.0, np.array([0.0, 0.0, 0.0])
-
-    # Compute rotation axis
-    axis = np.array(
-        [
-            mat[2, 1] - mat[1, 2],
-            mat[0, 2] - mat[2, 0],
-            mat[1, 0] - mat[0, 1],
-        ]
-    )
-    axis = axis / (2 * np.sin(theta))  # Normalize
-    if degrees:
-        theta, axis = np.degrees(theta), np.degrees(axis)
-
-    return theta, axis
-
-
 def plot_curvature_guided_policy():
+    """Plot the curvature guided policy.
+
+    Plots the ground truth object and the sensor path over the course of the episode.
+
+    """
     exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_curvature_guided_policy"
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
     detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
@@ -150,6 +113,16 @@ def plot_curvature_guided_policy():
 
 
 def plot_evidence_over_time(episode: int):
+    """Plot the evidence over time for a given episode.
+
+    Plots the maximum evidence at each step for the top 3 and bottom 2 objects (in
+    terms of maximum evidence value) over the course of the episode.
+    Args:
+        episode (int): The episode to plot the evidence over time for.
+
+    Returns:
+        Tuple[plt.Figure, plt.Axes]: The figure and axes.
+    """
     exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
     detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
@@ -384,8 +357,17 @@ def get_graph_for_mlh(
     step: int,
     pretrained_model: str = "surf_agent_1lm",
 ) -> ObjectModel:
-    """
-    Get the graph of the MLH placed in body coordinates.
+    """Get the graph of the MLH in the same reference frame as the sensed target object.
+
+    Args:
+        mlh (Mapping): The MLH dictionary.
+        stats (Mapping): Detailed stats for an episode.
+        step (int): The step to get the MLH for.
+        pretrained_model (str): The pretrained model to use.
+
+    Returns:
+        ObjectModel: The graph of the MLH in the same reference frame as
+          the sensed target object.
     """
     rotated_mlh_location = mlh["rotation"].inv().apply(mlh["location"])
     sensor_location = np.array(
@@ -398,18 +380,14 @@ def get_graph_for_mlh(
     return graph
 
 
-def get_goal_states(experiment: str, episode: int) -> List[Mapping]:
-    exp_dir = VISUALIZATION_RESULTS_DIR / experiment
-    detailed_stats_path = exp_dir / "detailed_run_stats.json"
-    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[episode]
+def get_goal_states(stats: Mapping) -> List[Mapping]:
 
     evidences_max = stats["LM_0"]["evidences_max"]
     goal_states = stats["LM_0"]["goal_states"]
     goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
     possible_matches = stats["LM_0"]["possible_matches"]
 
-    # Summarize goal states and evidence counts as each attempted goal state.
+    # Collect info about goal states.
     goal_state_episodes = np.argwhere(goal_states).squeeze()
     out = []
     for i, step in enumerate(goal_state_episodes):
@@ -617,8 +595,6 @@ def plot_object_hypothesis():
     width = 0.08
     axis_limits = [[-width, width], [1.5 - width, 1.5 + width], [-width, width]]
     view_angles = [(-50, -180, 0), (-80, 180, 0)]
-    axes[0].set_title("Ground Truth + Sensor Path")
-    axes[1].set_title("First + Second MLHs")
     for i, ax in enumerate(axes):
         ax.set_proj_type("persp", focal_length=0.8)
         axes3d_set_aspect_equal(ax)
@@ -629,10 +605,10 @@ def plot_object_hypothesis():
         ax.set_zlim(axis_limits[2])
 
     # Add legend to the second plot.
-    colors = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["yellow"]]
-    labels = ["MLH 1", "MLH 2", "Proposed Point"]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
+    labels = ["spoon", "fork"]
     legend_handles = []
-    for i in range(3):
+    for i in range(2):
         h = Line2D(
             [0],
             [0],
@@ -645,9 +621,10 @@ def plot_object_hypothesis():
         legend_handles.append(h)
     axes[1].legend(
         handles=legend_handles,
-        bbox_to_anchor=(0.2, 0.8),
+        bbox_to_anchor=(0.1, 0.8),
         framealpha=1,
-        fontsize=8,
+        fontsize=6,
+        title="Hypotheses",
     )
 
     plt.show()
@@ -701,9 +678,6 @@ def plot_pose_hypothesis():
         (-37, 26, 0),
         (-7.498398271623369, 34.260448483945446, 0),
     ]
-
-    axes[0].set_title("Ground Truth + Sensor Path")
-    axes[1].set_title("First + Second MLHs")
     for i, ax in enumerate(axes):
         ax.set_proj_type("persp", focal_length=0.8)
         axes3d_set_aspect_equal(ax)
@@ -714,25 +688,26 @@ def plot_pose_hypothesis():
         ax.set_zlim(axis_limits[2])
 
     # Add legend to the second plot.
-    colors = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["yellow"]]
-    labels = ["MLH 1", "MLH 2", "Proposed Point"]
+    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
+    labels = ["pose 1", "pose 2"]
     legend_handles = []
-    for i in range(3):
+    for i in range(2):
         h = Line2D(
             [0],
             [0],
             marker="o",
             color="w",
             markerfacecolor=colors[i],
-            markersize=8,
+            markersize=6,
             label=labels[i],
         )
         legend_handles.append(h)
     axes[1].legend(
         handles=legend_handles,
-        bbox_to_anchor=(0.2, 0.8),
+        bbox_to_anchor=(0.1, 0.8),
         framealpha=1,
         fontsize=8,
+        title="Hypotheses",
     )
 
     plt.show()
