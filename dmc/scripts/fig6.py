@@ -60,7 +60,7 @@ def plot_curvature_guided_policy():
     locations = [obs["location"] for obs in stats["SM_0"]["processed_observations"]]
     locations = np.array(locations)[:14]
 
-    fig, ax = plt.subplots(1, 1, figsize=(4, 4), subplot_kw={"projection": "3d"})
+    fig, ax = plt.subplots(1, 1, figsize=(3, 3), subplot_kw={"projection": "3d"})
 
     model = load_object_model("dist_agent_1lm", "mug")
     ax.scatter(
@@ -73,25 +73,34 @@ def plot_curvature_guided_policy():
         edgecolor="none",
     )
 
-    ax.scatter(
-        locations[:, 0],
-        locations[:, 1],
-        locations[:, 2],
-        color=TBP_COLORS["blue"],
+    plot_sensor_path(
+        ax,
+        locations,
+        color=TBP_COLORS["purple"],
         alpha=1,
-        s=20,
-        marker="v",
-        zorder=10,
-    )
-    ax.plot(
-        locations[:, 0],
-        locations[:, 1],
-        locations[:, 2],
-        color=TBP_COLORS["blue"],
-        alpha=1,
-        zorder=10,
         lw=2,
+        size=20,
+        start_marker_size=20,
     )
+    # ax.scatter(
+    #     locations[:, 0],
+    #     locations[:, 1],
+    #     locations[:, 2],
+    #     color=TBP_COLORS["blue"],
+    #     alpha=1,
+    #     s=20,
+    #     marker="v",
+    #     zorder=10,
+    # )
+    # ax.plot(
+    #     locations[:, 0],
+    #     locations[:, 1],
+    #     locations[:, 2],
+    #     color=TBP_COLORS["blue"],
+    #     alpha=1,
+    #     zorder=10,
+    #     lw=2,
+    # )
     ax.set_proj_type("persp", focal_length=0.5)
     axes3d_clean(ax)
     axes3d_set_aspect_equal(ax)
@@ -394,6 +403,58 @@ def get_goal_states(stats: Mapping) -> List[Mapping]:
 
     return out
 
+def plot_sensor_path(
+    ax: plt.Axes,
+    sensor_locations: np.ndarray,
+    color: str = TBP_COLORS["purple"],
+    alpha: float = 1,
+    # Line style
+    lw: float = 1,
+    # Scatter style
+    size: float = 10,
+    marker: str = "v",
+    start_marker: Optional[str] = "x",
+    start_marker_size: float = 10,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot the sensor path on the ground-truth object.
+
+    Args:
+        ax (plt.Axes): The axes to plot on.
+        sensor_locations (np.ndarray): The sensor locations.
+    """
+    scatter_locations = line_locations = sensor_locations
+    if start_marker:
+        ax.scatter(
+            [scatter_locations[0, 0]],
+            [scatter_locations[0, 1]],
+            [scatter_locations[0, 2]],
+            marker=start_marker,
+            color=color,
+            s=start_marker_size,
+            alpha=alpha,
+            zorder=10,
+        )
+        scatter_locations = scatter_locations[1:]
+
+    ax.scatter(
+        scatter_locations[:, 0],
+        scatter_locations[:, 1],
+        scatter_locations[:, 2],
+        marker=marker,
+        color=color,
+        s=size,
+        alpha=alpha,
+        zorder=10,
+    )
+    ax.plot(
+        line_locations[:, 0],
+        line_locations[:, 1],
+        line_locations[:, 2],
+        color=color,
+        lw=lw,
+        alpha=alpha,
+        zorder=20,
+    )
 
 def plot_hypotheses_for_step(
     stats: Mapping,
@@ -472,7 +533,7 @@ def plot_hypotheses_for_step(
     )
     sensor_locations = sensor_locations[: step + 1]
 
-    fig, axes = plt.subplots(1, 2, figsize=(6, 4), subplot_kw={"projection": "3d"})
+    fig, axes = plt.subplots(1, 2, figsize=(5, 4), subplot_kw={"projection": "3d"})
 
     """
     First plot has ground-truth object and sensor path.
@@ -493,19 +554,10 @@ def plot_hypotheses_for_step(
     )
 
     # Plot sensor path on ground-truth object.
-    ax.scatter(
-        sensor_locations[:, 0],
-        sensor_locations[:, 1],
-        sensor_locations[:, 2],
-        **style["sensor_path_scatter"],
+    plot_sensor_path(
+        ax,
+        sensor_locations,
     )
-    ax.plot(
-        sensor_locations[:, 0],
-        sensor_locations[:, 1],
-        sensor_locations[:, 2],
-        **style["sensor_path_line"],
-    )
-
     """
     Second plot has first and second MLHs.
     """
@@ -588,27 +640,12 @@ def plot_object_hypothesis():
         ax.set_ylim(axis_limits[1])
         ax.set_zlim(axis_limits[2])
 
-    # Add legend to the second plot.
-    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
-    labels = ["spoon", "fork"]
-    legend_handles = []
-    for i in range(2):
-        h = Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            markerfacecolor=colors[i],
-            markersize=8,
-            label=labels[i],
-        )
-        legend_handles.append(h)
+    legend_handles = get_legend_handles(["sensor", "spoon", "fork", "goal"])
     axes[1].legend(
         handles=legend_handles,
         bbox_to_anchor=(0.1, 0.8),
         framealpha=1,
-        fontsize=6,
-        title="Hypotheses",
+        fontsize=8,
     )
 
     plt.show()
@@ -639,13 +676,7 @@ def plot_pose_hypothesis():
     # Get the pose MLHs.
     mlh_graph_id = stats["LM_0"]["current_mlh"][step]["graph_id"]
     top_mlh, second_mlh = get_top_two_mlhs_for_object(mlh_graph_id, stats, step)
-
-    style = {
-        "target": {
-            "alpha": 0.2,
-            "s": 2,
-        },
-    }
+    style = {}
     fig, axes = plot_hypotheses_for_step(
         stats,
         step,
@@ -671,26 +702,12 @@ def plot_pose_hypothesis():
         ax.set_zlim(axis_limits[2])
 
     # Add legend to the second plot.
-    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
-    labels = ["pose 1", "pose 2"]
-    legend_handles = []
-    for i in range(2):
-        h = Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            markerfacecolor=colors[i],
-            markersize=6,
-            label=labels[i],
-        )
-        legend_handles.append(h)
+    legend_handles = get_legend_handles(["sensor", "pose 1", "pose 2", "goal"])
     axes[1].legend(
         handles=legend_handles,
         bbox_to_anchor=(0.1, 0.8),
         framealpha=1,
         fontsize=8,
-        title="Hypotheses",
     )
 
     plt.show()
@@ -703,5 +720,51 @@ def plot_pose_hypothesis():
     return fig, axes
 
 
+def get_legend_handles(
+    labels: List[str],
+) -> List[Line2D]:
+    legend_handles = []
+    legend_handles.append(
+        Line2D(
+            [0],
+            [0],
+            marker="v",
+            color="w",
+            markerfacecolor=TBP_COLORS["purple"],
+            markeredgecolor=TBP_COLORS["purple"],
+            markersize=7,
+            label=labels[0],
+        )
+    )
+    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
+    for i in range(2):
+        legend_handles.append(
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor=colors[i],
+                markeredgecolor=colors[i],
+                markersize=6,
+                label=labels[i + 1],
+            )
+        )
+    legend_handles.append(
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="w",
+            markerfacecolor=TBP_COLORS["yellow"],
+            markeredgecolor="black",
+            markersize=6,
+            label=labels[3],
+        )
+    )
+    return legend_handles
+
+
+plot_curvature_guided_policy()
 plot_pose_hypothesis()
 plot_object_hypothesis()
