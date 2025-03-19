@@ -218,7 +218,7 @@ def load_perf_stat_flops(exp: os.PathLike) -> pd.DataFrame:
     count,,instruction_type,percentage,value,42.00,,
 
     Args:
-        exp (os.PathLike): Name of a floppy experiment or path to experiment directory.
+        exp (os.PathLike): CSV file containing perf stat output.
 
     Returns:
         pd.DataFrame: DataFrame containing experiment statistics with columns:
@@ -227,8 +227,7 @@ def load_perf_stat_flops(exp: os.PathLike) -> pd.DataFrame:
     """
     path = Path(exp).expanduser()
     if not path.exists():
-        # Given a run name. Look in DMC folder.
-        path = DMC_RESULTS_DIR / path
+        raise FileNotFoundError(f"No perf stat output file found for {exp}")
 
     # Read the perf stat output file
     # Skip the header line with timestamp
