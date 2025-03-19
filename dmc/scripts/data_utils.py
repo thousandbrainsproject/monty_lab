@@ -161,6 +161,7 @@ def load_eval_stats(exp: os.PathLike) -> pd.DataFrame:
     df = df[column_order]
     return df
 
+
 def load_floppy_traces(exp: os.PathLike) -> pd.DataFrame:
     """Load and process floppy experiment statistics.
 
@@ -204,6 +205,104 @@ def load_floppy_traces(exp: os.PathLike) -> pd.DataFrame:
         result_dict["flops_std"] = [np.std(experiment_flops)]
 
     return pd.DataFrame(result_dict)
+
+
+def load_perf_stat_flops(exp: os.PathLike) -> pd.DataFrame:
+    """Load and process performance statistics data from perf stat output.
+
+    This function reads performance statistics data from perf stat output files
+    and returns a DataFrame with the total FLOPs.
+
+    The input file should be in the format:
+    # started on [timestamp]
+    count,,instruction_type,percentage,value,42.00,,
+
+    Args:
+        exp (os.PathLike): CSV file containing perf stat output.
+
+    Returns:
+        pd.DataFrame: DataFrame containing experiment statistics with columns:
+            - experiment: Name of the experiment
+            - flops_mean: Total number of floating point operations
+    """
+    path = Path(exp).expanduser()
+    if not path.exists():
+        raise FileNotFoundError(f"No perf stat output file found for {exp}")
+
+    # Read the perf stat output file
+    # Skip the header line with timestamp
+    df = pd.read_csv(path, comment="#", header=None)
+
+    # Rename columns based on the data format
+    df.columns = [
+        "count",
+        "empty1",
+        "instruction_type",
+        "percentage",
+        "value",
+        "empty2",
+        "empty3",
+        "empty4",
+    ]
+
+    # Clean up the data
+    df = df.drop(columns=["empty1", "empty2", "empty3", "empty4"])
+    df["percentage"] = df["percentage"].str.rstrip("%").astype(float)
+
+    # Define FLOPs per operation for different instruction types
+    flops_per_operation = {
+        "fp_arith_inst_retired.128b_packed_double": 2,
+        "fp_arith_inst_retired.128b_packed_single": 4,
+        "fp_arith_inst_retired.256b_packed_double": 4,
+        "fp_arith_inst_retired.256b_packed_single": 8,
+        "fp_arith_inst_retired.512b_packed_double": 8,
+        "fp_arith_inst_retired.512b_packed_single": 16,
+        "fp_arith_inst_retired.scalar_double": 1,
+        "fp_arith_inst_retired.scalar_single": 1,
+    }
+
+    # Calculate total FLOPs
+    total_flops = sum(
+        row["count"] * flops_per_operation.get(row["instruction_type"], 0)
+        for _, row in df.iterrows()
+        if row["count"] > 0 and row["instruction_type"] in flops_per_operation
+    )
+
+    return pd.DataFrame({"experiment": [path.name], "flops_mean": [total_flops]})
+
+
+def load_vit_predictions(path: os.PathLike) -> pd.DataFrame:
+    """Load and process ViT model predictions from a CSV file.
+
+    This function reads a CSV file containing ViT model predictions with real and predicted
+    class labels and quaternions, and returns a DataFrame with processed data.
+
+    Args:
+        path (os.PathLike): Path to the CSV file containing ViT predictions.
+
+    Returns:
+        pd.DataFrame: DataFrame containing:
+            - real_class: The true class label
+            - predicted_class: The predicted class label
+            - real_quaternion: The true quaternion as a numpy array
+            - predicted_quaternion: The predicted quaternion as a numpy array
+            - quaternion_error_degs: The quaternion error in degrees
+    """
+    # Read the CSV file
+    df = pd.read_csv(path)
+
+    # Convert string quaternions to numpy arrays
+    def parse_quaternion(q_str):
+        # Remove brackets and split by comma
+        q_str = q_str.strip("[]")
+        return np.array([float(x) for x in q_str.split(",")])
+
+    # Apply parsing to quaternion columns
+    df["real_quaternion"] = df["real_quaternion"].apply(parse_quaternion)
+    df["predicted_quaternion"] = df["predicted_quaternion"].apply(parse_quaternion)
+
+    return df
+
 
 def get_frequency(items: Iterable, match: Union[Any, Container[Any]]) -> float:
     """Get the fraction of values that belong to a collection of values.
