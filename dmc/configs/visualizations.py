@@ -213,12 +213,12 @@ fig6_curvature_guided_policy["eval_dataloader_args"] = (
     )
 )
 
-class GoalStateHandler(SelectiveEvidenceHandler):
-    """Logging handler that only saves terminal evidence data for the MLH object.
+class HypothesisDrivenPolicyEvidenceHandler(SelectiveEvidenceHandler):
+    """Logging handler that saves limited data for figure 6.
 
-    A lean logger handler for the symmetry experiment (which are full-length runs,
-    and so we need to be very selective about which data to log).
-
+    A logger handler that stores the maximum evidence values for all objects
+    at each step, complete evidence data for select objects, and no sensor data
+    except the processed observations from sensor module 0.
     """
 
     def report_episode(
@@ -249,9 +249,7 @@ class GoalStateHandler(SelectiveEvidenceHandler):
             lm_dict["evidences_max"] = evidence_max
 
         # Only store complete evidence data for select objects.
-        detailed_evidence_objects = self.handler_args.get(
-            "detailed_evidence_objects", []
-        )
+        detailed_evidence_objects = self.handler_args["detailed_evidence_objects"]
         for lm_id in lm_ids:
             lm_dict = buffer_data[lm_id]
             to_filter = ("evidences", "possible_locations", "possible_rotations")
@@ -275,22 +273,24 @@ class GoalStateHandler(SelectiveEvidenceHandler):
         self.save(episode_total, buffer_data, output_dir)
 
 
-fig6_surf_mismatch = deepcopy(surf_agent_1lm)
-fig6_surf_mismatch["experiment_args"].n_eval_epochs = 1
-fig6_surf_mismatch["logging_config"] = SelectiveEvidenceLoggingConfig(
+fig6_hypothesis_driven_policy = deepcopy(surf_agent_1lm)
+fig6_hypothesis_driven_policy["experiment_args"].n_eval_epochs = 1
+fig6_hypothesis_driven_policy["logging_config"] = SelectiveEvidenceLoggingConfig(
     output_dir=str(VISUALIZATION_RESULTS_DIR),
-    run_name="fig6_surf_mismatch",
+    run_name="fig6_hypothesis_driven_policy",
     monty_handlers=[
         BasicCSVStatsHandler,
-        GoalStateHandler,
+        HypothesisDrivenPolicyEvidenceHandler,
     ],
     selective_handler_args=dict(
         detailed_evidence_objects=["fork", "knife", "spoon", "mug"]
     ),
 )
-fig6_surf_mismatch["eval_dataloader_args"] = EnvironmentDataloaderPerObjectArgs(
-    object_names=["spoon", "mug"],
-    object_init_sampler=PredefinedObjectInitializer(rotations=[[19, 339, 301]]),
+fig6_hypothesis_driven_policy["eval_dataloader_args"] = (
+    EnvironmentDataloaderPerObjectArgs(
+        object_names=["spoon", "mug"],
+        object_init_sampler=PredefinedObjectInitializer(rotations=[[19, 339, 301]]),
+    )
 )
 
 CONFIGS = {
@@ -298,5 +298,5 @@ CONFIGS = {
     "fig4_symmetry_run": fig4_symmetry_run,
     "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
     "fig6_curvature_guided_policy": fig6_curvature_guided_policy,
-    "fig6_surf_mismatch": fig6_surf_mismatch,
+    "fig6_hypothesis_driven_policy": fig6_hypothesis_driven_policy,
 }
