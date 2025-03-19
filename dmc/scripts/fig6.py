@@ -45,6 +45,54 @@ plt.rcParams["svg.fonttype"] = "none"
 OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+STYLE = {
+    "sensor_path_scatter": {
+        "color": TBP_COLORS["pink"],
+        "alpha": 1,
+        "s": 10,
+        "marker": "v",
+        "zorder": 10,
+    },
+    "sensor_path_start": {
+        "color": TBP_COLORS["pink"],
+        "alpha": 1,
+        "s": 10,
+        "marker": "x",
+        "zorder": 10,
+    },
+    "sensor_path_line": {
+        "color": TBP_COLORS["pink"],
+        "alpha": 1,
+        "lw": 1,
+        "zorder": 10,
+    },
+    "target": {
+        "alpha": 0.2,
+        "s": 2,
+        "edgecolor": "none",
+    },
+    "top_mlh": {
+        "color": TBP_COLORS["blue"],
+        "alpha": 0.20,
+        "s": 2,
+        "edgecolor": "none",
+    },
+    "second_mlh": {
+        "color": TBP_COLORS["green"],
+        "alpha": 0.20,
+        "s": 2,
+        "edgecolor": "none",
+    },
+    "proposed_point": {
+        "color": TBP_COLORS["yellow"],
+        "alpha": 1,
+        "s": 20,
+        "marker": "o",
+        "edgecolor": "black",
+        "zorder": 20,
+    },
+}
+
 
 def plot_curvature_guided_policy():
     """Plot the curvature guided policy.
@@ -76,31 +124,7 @@ def plot_curvature_guided_policy():
     plot_sensor_path(
         ax,
         locations,
-        color=TBP_COLORS["purple"],
-        alpha=1,
-        lw=2,
-        size=20,
-        start_marker_size=20,
     )
-    # ax.scatter(
-    #     locations[:, 0],
-    #     locations[:, 1],
-    #     locations[:, 2],
-    #     color=TBP_COLORS["blue"],
-    #     alpha=1,
-    #     s=20,
-    #     marker="v",
-    #     zorder=10,
-    # )
-    # ax.plot(
-    #     locations[:, 0],
-    #     locations[:, 1],
-    #     locations[:, 2],
-    #     color=TBP_COLORS["blue"],
-    #     alpha=1,
-    #     zorder=10,
-    #     lw=2,
-    # )
     ax.set_proj_type("persp", focal_length=0.5)
     axes3d_clean(ax)
     axes3d_set_aspect_equal(ax)
@@ -121,7 +145,7 @@ def plot_evidence_over_time(episode: int):
     Returns:
         Tuple[plt.Figure, plt.Axes]: The figure and axes.
     """
-    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_surf_mismatch"
+    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
     detailed_stats_path = exp_dir / "detailed_run_stats.json"
     detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
     stats = detailed_stats_interface[episode]
@@ -406,15 +430,6 @@ def get_goal_states(stats: Mapping) -> List[Mapping]:
 def plot_sensor_path(
     ax: plt.Axes,
     sensor_locations: np.ndarray,
-    color: str = TBP_COLORS["purple"],
-    alpha: float = 1,
-    # Line style
-    lw: float = 1,
-    # Scatter style
-    size: float = 10,
-    marker: str = "v",
-    start_marker: Optional[str] = "x",
-    start_marker_size: float = 10,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot the sensor path on the ground-truth object.
 
@@ -422,38 +437,28 @@ def plot_sensor_path(
         ax (plt.Axes): The axes to plot on.
         sensor_locations (np.ndarray): The sensor locations.
     """
+
     scatter_locations = line_locations = sensor_locations
-    if start_marker:
-        ax.scatter(
-            [scatter_locations[0, 0]],
-            [scatter_locations[0, 1]],
-            [scatter_locations[0, 2]],
-            marker=start_marker,
-            color=color,
-            s=start_marker_size,
-            alpha=alpha,
-            zorder=10,
-        )
-        scatter_locations = scatter_locations[1:]
+
+    ax.scatter(
+        [scatter_locations[0, 0]],
+        [scatter_locations[0, 1]],
+        [scatter_locations[0, 2]],
+        **STYLE["sensor_path_start"],
+    )
+    scatter_locations = scatter_locations[1:]
 
     ax.scatter(
         scatter_locations[:, 0],
         scatter_locations[:, 1],
         scatter_locations[:, 2],
-        marker=marker,
-        color=color,
-        s=size,
-        alpha=alpha,
-        zorder=10,
+        **STYLE["sensor_path_scatter"],
     )
     ax.plot(
         line_locations[:, 0],
         line_locations[:, 1],
         line_locations[:, 2],
-        color=color,
-        lw=lw,
-        alpha=alpha,
-        zorder=20,
+        **STYLE["sensor_path_line"],
     )
 
 def plot_hypotheses_for_step(
@@ -480,18 +485,6 @@ def plot_hypotheses_for_step(
             "alpha": 0.2,
             "s": 2,
             "edgecolor": "none",
-        },
-        "sensor_path_scatter": {
-            "color": TBP_COLORS["blue"],
-            "s": 10,
-            "marker": "v",
-            "zorder": 10,
-        },
-        "sensor_path_line": {
-            "color": TBP_COLORS["blue"],
-            "alpha": 1,
-            "lw": 1,
-            "zorder": 5,
         },
         "top_mlh": {
             "color": TBP_COLORS["blue"],
@@ -549,8 +542,8 @@ def plot_hypotheses_for_step(
         target_graph.x,
         target_graph.y,
         target_graph.z,
-        color=style["target"].pop("color", target_graph.rgba),
-        **style["target"],
+        color=target_graph.rgba,
+        **STYLE["target"],
     )
 
     # Plot sensor path on ground-truth object.
@@ -571,7 +564,7 @@ def plot_hypotheses_for_step(
         top_mlh["graph"].x,
         top_mlh["graph"].y,
         top_mlh["graph"].z,
-        **style["top_mlh"],
+        **STYLE["top_mlh"],
     )
 
     second_mlh["graph"] = get_graph_for_mlh(
@@ -581,25 +574,25 @@ def plot_hypotheses_for_step(
         second_mlh["graph"].x,
         second_mlh["graph"].y,
         second_mlh["graph"].z,
-        **style["second_mlh"],
+        **STYLE["second_mlh"],
     )
 
     # Plot the goal state's target if possible.
     goal_state = stats["LM_0"]["goal_states"][step]
     if goal_state:
-        proposed_surface_loc = goal_state["info"]["proposed_surface_loc"]
+        proposed_surface_loc = goal_state["proposed_surface_loc"]
         for ax in axes:
             ax.scatter(
                 proposed_surface_loc[0],
                 proposed_surface_loc[1],
                 proposed_surface_loc[2],
-                **style["proposed_point"],
+                **STYLE["proposed_point"],
             )
     return fig, axes
 
 
 def plot_object_hypothesis():
-    experiment = "fig6_surf_mismatch"
+    experiment = "fig6_hypothesis_driven_policy"
     episode = 0
 
     exp_dir = VISUALIZATION_RESULTS_DIR / experiment
@@ -657,7 +650,7 @@ def plot_object_hypothesis():
 
 
 def plot_pose_hypothesis():
-    experiment = "fig6_surf_mismatch"
+    experiment = "fig6_hypothesis_driven_policy"
     episode = 1
 
     exp_dir = VISUALIZATION_RESULTS_DIR / experiment
@@ -728,24 +721,23 @@ def get_legend_handles(
         Line2D(
             [0],
             [0],
-            marker="v",
+            marker=STYLE["sensor_path_scatter"]["marker"],
             color="w",
-            markerfacecolor=TBP_COLORS["purple"],
-            markeredgecolor=TBP_COLORS["purple"],
-            markersize=7,
+            markerfacecolor=STYLE["sensor_path_scatter"]["color"],
+            markeredgecolor=STYLE["sensor_path_scatter"]["color"],
+            markersize=6,
             label=labels[0],
         )
     )
-    colors = [TBP_COLORS["blue"], TBP_COLORS["green"]]
-    for i in range(2):
+    for i, style in enumerate([STYLE["top_mlh"], STYLE["second_mlh"]]):
         legend_handles.append(
             Line2D(
                 [0],
                 [0],
                 marker="o",
                 color="w",
-                markerfacecolor=colors[i],
-                markeredgecolor=colors[i],
+                markerfacecolor=style["color"],
+                markeredgecolor=style["color"],
                 markersize=6,
                 label=labels[i + 1],
             )
@@ -756,7 +748,7 @@ def get_legend_handles(
             [0],
             marker="o",
             color="w",
-            markerfacecolor=TBP_COLORS["yellow"],
+            markerfacecolor=STYLE["proposed_point"]["color"],
             markeredgecolor="black",
             markersize=6,
             label=labels[3],
@@ -764,7 +756,7 @@ def get_legend_handles(
     )
     return legend_handles
 
-
-plot_curvature_guided_policy()
-plot_pose_hypothesis()
-plot_object_hypothesis()
+plot_evidence_over_time(0)
+# plot_curvature_guided_policy()
+# plot_pose_hypothesis()
+# plot_object_hypothesis()
