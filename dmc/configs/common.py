@@ -11,7 +11,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Mapping, Optional, Tuple, Union
+from typing import List, Mapping, Optional, Tuple
 
 import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
