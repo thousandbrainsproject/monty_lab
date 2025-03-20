@@ -274,7 +274,7 @@ class HypothesisDrivenPolicyEvidenceHandler(SelectiveEvidenceHandler):
 
 
 fig6_hypothesis_driven_policy = deepcopy(surf_agent_1lm)
-fig6_hypothesis_driven_policy["experiment_args"].n_eval_epochs = 2
+fig6_hypothesis_driven_policy["experiment_args"].n_eval_epochs = 1
 fig6_hypothesis_driven_policy["logging_config"] = SelectiveEvidenceLoggingConfig(
     output_dir=str(VISUALIZATION_RESULTS_DIR),
     run_name="fig6_hypothesis_driven_policy",
@@ -289,9 +289,7 @@ fig6_hypothesis_driven_policy["logging_config"] = SelectiveEvidenceLoggingConfig
 fig6_hypothesis_driven_policy["eval_dataloader_args"] = (
     EnvironmentDataloaderPerObjectArgs(
         object_names=["spoon", "mug"],
-        object_init_sampler=PredefinedObjectInitializer(
-            rotations=[[19, 339, 301], [0, 0, 0]]
-        ),
+        object_init_sampler=PredefinedObjectInitializer(rotations=[[19, 339, 301]]),
     )
 )
 
