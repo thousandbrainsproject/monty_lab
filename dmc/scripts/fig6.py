@@ -10,6 +10,7 @@
 Figure 6: Rapid Inference With Model-Free and Model-Based Policies
 """
 
+from pprint import pprint
 from typing import (
     List,
     Mapping,
@@ -760,152 +761,166 @@ def get_legend_handles(
     return legend_handles
 
 # plot_evidence_over_time(0)
-plot_curvature_guided_policy()
-plot_object_hypothesis()
-plot_pose_hypothesis()
+# plot_curvature_guided_policy()
+# plot_object_hypothesis()
+# plot_pose_hypothesis()
 
 
-episode = 0
+# episode = 0
+# exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
+# detailed_stats_path = exp_dir / "detailed_run_stats.json"
+# detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+
+# stats = detailed_stats_interface[episode]
+# evidences = stats["LM_0"]["evidences"]
+# evidences_max = stats["LM_0"]["evidences_max"]
+# goal_states = stats["LM_0"]["goal_states"]
+# goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
+# possible_matches = stats["LM_0"]["possible_matches"]
+# n_steps = len(evidences)
+
+# # Plot hypothesis-driven jumps first.
+# fig, ax = plt.subplots(1, 1, figsize=(3, 2))
+
+# goal_states = get_goal_states(stats)
+# for gs in goal_states:
+#     if gs["achieved"]:
+#         ls = "--" if gs["is_pose_hypothesis"] else "-"
+#         ax.axvline(gs["step"], color="gray", lw=1, linestyle=ls, alpha=1)
+
+# # Plot evidence values over time for a handful of objects.
+# all_graph_ids = list(evidences_max[0].keys())
+# all_info = {}
+# for graph_id in all_graph_ids:
+#     info = {}
+#     info["max_ev_per_step"] = np.array([dct[graph_id] for dct in evidences_max])
+#     info["max_ev"] = np.max(info["max_ev_per_step"])
+#     where_possible = np.where([graph_id in p for p in possible_matches])[0]
+#     if where_possible.size > 0:
+#         info["last_step"] = where_possible[-1]
+#     else:
+#         info["last_step"] = None
+#     all_info[graph_id] = info
+
+# # Sort evidence values by maximum over time.
+# ev_maxs = {graph_id: info["max_ev"] for graph_id, info in all_info.items()}
+# ev_maxs_names = np.array(list(ev_maxs.keys()), dtype=object)
+# ev_maxs_arr = np.array(list(ev_maxs.values()))
+# sorting_order = np.argsort(ev_maxs_arr)[::-1]
+# sorted_names = ev_maxs_names[sorting_order]
+# all_info = {graph_id: all_info[graph_id] for graph_id in sorted_names}
+# top_3 = sorted_names[:3]
+
+# colors = [
+#     TBP_COLORS["blue"],
+#     TBP_COLORS["green"],
+#     TBP_COLORS["purple"],
+#     TBP_COLORS["green"],
+#     TBP_COLORS["yellow"],
+#     TBP_COLORS["pink"],
+# ]
+
+# color_counter = 0
+# others_drawn = False
+# for graph_id, info in all_info.items():
+#     last_step = info["last_step"]
+#     if last_step is None:
+#         continue
+#     arr = info["max_ev_per_step"][:last_step]
+#     if graph_id in top_3:
+#         c, alpha, label = colors[color_counter], 1, graph_id
+#         color_counter += 1
+#     else:
+#         c, alpha = "gray", 0.75
+#         label = "others" if not others_drawn else None
+#         others_drawn = True
+#     ax.plot(arr, color=c, lw=1, alpha=alpha, label=label)
+
+# ax.legend(title="Object", framealpha=1, handlelength=0.75, fontsize=6)
+# ax.set_xlabel("Step")
+# ax.set_xlim(0, n_steps)
+# ax.set_ylabel("Evidence")
+# ax.set_ylim(0, 40)
+# ax.spines["right"].set_visible(False)
+# ax.spines["top"].set_visible(False)
+# plt.show()
+
+# out_dir = OUT_DIR / "evidence_over_time"
+# out_dir.mkdir(parents=True, exist_ok=True)
+# fig.savefig(out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight")
+# fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
+
+# # ------------------------------------------------------------------------------
+# # Pose
+# # ------------------------------------------------------------------------------
+# episode = 1
+# stats = detailed_stats_interface[episode]
+# evidences = stats["LM_0"]["evidences"]
+# evidences_max = stats["LM_0"]["evidences_max"]
+# rotations = stats["LM_0"]["possible_rotations"][0]
+# goal_states = stats["LM_0"]["goal_states"]
+# goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
+# possible_matches = stats["LM_0"]["possible_matches"]
+# n_steps = len(evidences)
+
+# # Plot hypothesis-driven jumps first.
+# fig, ax = plt.subplots(1, 1, figsize=(3, 2))
+
+# goal_states = get_goal_states(stats)
+# for gs in goal_states:
+#     if gs["achieved"]:
+#         ls = "--" if gs["is_pose_hypothesis"] else "-"
+#         ax.axvline(gs["step"], color="gray", lw=1, linestyle=ls, alpha=1)
+
+# # Sort poses by max evidence.
+# mug_evidences = np.array([dct["mug"] for dct in evidences])
+# mug_max_evs = np.max(mug_evidences, axis=0)
+# sorting_order = np.argsort(mug_max_evs)[::-1]
+# mug_max_evs = mug_evidences.T[sorting_order].T
+# mug_rotations = np.array(rotations["mug"])
+# mug_rotations = mug_rotations[sorting_order]
+# mug_rotations = [R.from_matrix(rot) for rot in mug_rotations]
+# mug_rotations = [rot.as_euler("xyz", degrees=True) for rot in mug_rotations]
+
+# colors = [
+#     TBP_COLORS["blue"],
+#     TBP_COLORS["green"],
+#     TBP_COLORS["purple"],
+#     TBP_COLORS["green"],
+#     TBP_COLORS["yellow"],
+#     TBP_COLORS["pink"],
+# ]
+# for i in range(5):
+#     c = colors[i]
+#     x_, y_, z_ = mug_rotations[i].astype(int)
+#     lbl = f"({x_}, {y_}, {z_})"
+#     ax.plot(mug_max_evs[:, i], label=lbl, color=c, lw=1, alpha=0.75)
+
+
+# ax.legend(title="Pose", framealpha=1, handlelength=0.75, fontsize=6)
+# ax.set_xlabel("Step")
+# ax.set_xlim(0, n_steps)
+# ax.set_ylabel("Evidence")
+# ax.set_ylim(0, 40)
+# ax.spines["right"].set_visible(False)
+# ax.spines["top"].set_visible(False)
+# plt.show()
+
+# out_dir = OUT_DIR / "evidence_over_time"
+# out_dir.mkdir(parents=True, exist_ok=True)
+# fig.savefig(out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight")
+# fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
+
+
+episode = 1
 exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
 detailed_stats_path = exp_dir / "detailed_run_stats.json"
 detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
 
 stats = detailed_stats_interface[episode]
-evidences = stats["LM_0"]["evidences"]
-evidences_max = stats["LM_0"]["evidences_max"]
-goal_states = stats["LM_0"]["goal_states"]
-goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
-possible_matches = stats["LM_0"]["possible_matches"]
-n_steps = len(evidences)
 
-# Plot hypothesis-driven jumps first.
-fig, ax = plt.subplots(1, 1, figsize=(3, 2))
+gss = [g for g in stats["LM_0"]["goal_states"] if g]
+for g in gss:
+    pprint(g)
 
-goal_states = get_goal_states(stats)
-for gs in goal_states:
-    if gs["achieved"]:
-        ls = "--" if gs["is_pose_hypothesis"] else "-"
-        ax.axvline(gs["step"], color="gray", lw=1, linestyle=ls, alpha=1)
-
-# Plot evidence values over time for a handful of objects.
-all_graph_ids = list(evidences_max[0].keys())
-all_info = {}
-for graph_id in all_graph_ids:
-    info = {}
-    info["max_ev_per_step"] = np.array([dct[graph_id] for dct in evidences_max])
-    info["max_ev"] = np.max(info["max_ev_per_step"])
-    where_possible = np.where([graph_id in p for p in possible_matches])[0]
-    if where_possible.size > 0:
-        info["last_step"] = where_possible[-1]
-    else:
-        info["last_step"] = None
-    all_info[graph_id] = info
-
-# Sort evidence values by maximum over time.
-ev_maxs = {graph_id: info["max_ev"] for graph_id, info in all_info.items()}
-ev_maxs_names = np.array(list(ev_maxs.keys()), dtype=object)
-ev_maxs_arr = np.array(list(ev_maxs.values()))
-sorting_order = np.argsort(ev_maxs_arr)[::-1]
-sorted_names = ev_maxs_names[sorting_order]
-all_info = {graph_id: all_info[graph_id] for graph_id in sorted_names}
-top_3 = sorted_names[:3]
-
-colors = [
-    TBP_COLORS["blue"],
-    TBP_COLORS["green"],
-    TBP_COLORS["purple"],
-    TBP_COLORS["green"],
-    TBP_COLORS["yellow"],
-    TBP_COLORS["pink"],
-]
-
-color_counter = 0
-others_drawn = False
-for graph_id, info in all_info.items():
-    last_step = info["last_step"]
-    if last_step is None:
-        continue
-    arr = info["max_ev_per_step"][:last_step]
-    if graph_id in top_3:
-        c, alpha, label = colors[color_counter], 1, graph_id
-        color_counter += 1
-    else:
-        c, alpha = "gray", 0.75
-        label = "others" if not others_drawn else None
-        others_drawn = True
-    ax.plot(arr, color=c, lw=1, alpha=alpha, label=label)
-
-ax.legend(title="Object", framealpha=1, handlelength=0.75, fontsize=6)
-ax.set_xlabel("Step")
-ax.set_xlim(0, n_steps)
-ax.set_ylabel("Evidence")
-ax.set_ylim(0, 40)
-ax.spines["right"].set_visible(False)
-ax.spines["top"].set_visible(False)
-plt.show()
-
-out_dir = OUT_DIR / "evidence_over_time"
-out_dir.mkdir(parents=True, exist_ok=True)
-fig.savefig(out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight")
-fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
-
-# ------------------------------------------------------------------------------
-# Pose
-# ------------------------------------------------------------------------------
-episode = 1
-stats = detailed_stats_interface[episode]
-evidences = stats["LM_0"]["evidences"]
-evidences_max = stats["LM_0"]["evidences_max"]
-rotations = stats["LM_0"]["possible_rotations"][0]
-goal_states = stats["LM_0"]["goal_states"]
-goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
-possible_matches = stats["LM_0"]["possible_matches"]
-n_steps = len(evidences)
-
-# Plot hypothesis-driven jumps first.
-fig, ax = plt.subplots(1, 1, figsize=(3, 2))
-
-goal_states = get_goal_states(stats)
-for gs in goal_states:
-    if gs["achieved"]:
-        ls = "--" if gs["is_pose_hypothesis"] else "-"
-        ax.axvline(gs["step"], color="gray", lw=1, linestyle=ls, alpha=1)
-
-# Sort poses by max evidence.
-mug_evidences = np.array([dct["mug"] for dct in evidences])
-mug_max_evs = np.max(mug_evidences, axis=0)
-sorting_order = np.argsort(mug_max_evs)[::-1]
-mug_max_evs = mug_evidences.T[sorting_order].T
-mug_rotations = np.array(rotations["mug"])
-mug_rotations = mug_rotations[sorting_order]
-mug_rotations = [R.from_matrix(rot) for rot in mug_rotations]
-mug_rotations = [rot.as_euler("xyz", degrees=True) for rot in mug_rotations]
-
-colors = [
-    TBP_COLORS["blue"],
-    TBP_COLORS["green"],
-    TBP_COLORS["purple"],
-    TBP_COLORS["green"],
-    TBP_COLORS["yellow"],
-    TBP_COLORS["pink"],
-]
-for i in range(5):
-    c = colors[i]
-    x_, y_, z_ = mug_rotations[i].astype(int)
-    lbl = f"({x_}, {y_}, {z_})"
-    ax.plot(mug_max_evs[:, i], label=lbl, color=c, lw=1, alpha=0.75)
-
-
-ax.legend(title="Pose", framealpha=1, handlelength=0.75, fontsize=6)
-ax.set_xlabel("Step")
-ax.set_xlim(0, n_steps)
-ax.set_ylabel("Evidence")
-ax.set_ylim(0, 40)
-ax.spines["right"].set_visible(False)
-ax.spines["top"].set_visible(False)
-plt.show()
-
-out_dir = OUT_DIR / "evidence_over_time"
-out_dir.mkdir(parents=True, exist_ok=True)
-fig.savefig(out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight")
-fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
+g = gss[0]
