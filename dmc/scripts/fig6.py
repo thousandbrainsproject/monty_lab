@@ -583,7 +583,7 @@ def plot_hypotheses_for_step(
     # Plot the goal state's target if possible.
     goal_state = stats["LM_0"]["goal_states"][step]
     if goal_state:
-        proposed_surface_loc = goal_state["proposed_surface_loc"]
+        proposed_surface_loc = goal_state["info"]["proposed_surface_loc"]
         for ax in axes:
             ax.scatter(
                 proposed_surface_loc[0],
@@ -761,8 +761,9 @@ def get_legend_handles(
 
 # plot_evidence_over_time(0)
 plot_curvature_guided_policy()
-# plot_pose_hypothesis()
-# plot_object_hypothesis()
+plot_object_hypothesis()
+plot_pose_hypothesis()
+
 
 episode = 0
 exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
