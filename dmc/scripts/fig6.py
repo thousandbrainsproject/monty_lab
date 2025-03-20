@@ -916,11 +916,13 @@ episode = 1
 exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
 detailed_stats_path = exp_dir / "detailed_run_stats.json"
 detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+for episode in range(4):
+    stats = detailed_stats_interface[episode]
+    gss = stats["LM_0"]["goal_states"]
+    # gss = [g for g in stats["LM_0"]["goal_states"] if g]
+    print(f"\n\nEpisode {episode} {len(gss)} goal states:\n\n")
+    for g in gss:
+        pprint(g)
 
-stats = detailed_stats_interface[episode]
-
-gss = [g for g in stats["LM_0"]["goal_states"] if g]
-for g in gss:
-    pprint(g)
 
 g = gss[0]
