@@ -10,17 +10,22 @@
 Figure 6: Rapid Inference With Model-Free and Model-Based Policies
 """
 
+import copy
+from numbers import Number
 from pprint import pprint
 from typing import (
+    Iterable,
     List,
     Mapping,
     Optional,
     Tuple,
+    Union,
 )
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import skimage
 from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
@@ -31,275 +36,73 @@ from data_utils import (
     load_object_model,
 )
 from matplotlib.lines import Line2D
+from matplotlib.patches import Polygon
 from plot_utils import (
     TBP_COLORS,
+    SensorModuleData,
     axes3d_clean,
     axes3d_set_aspect_equal,
+    extract_style,
+    init_matplotlib_style,
+    update_style,
     violinplot,
 )
 from scipy.spatial.transform import Rotation as R
 
-plt.rcParams["font.size"] = 8
-plt.rcParams["font.family"] = "Arial"
-plt.rcParams["svg.fonttype"] = "none"
+init_matplotlib_style()
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Plotting styles.
+HYPOTHESIS_COLORS = [
+    TBP_COLORS["blue"],
+    TBP_COLORS["green"],
+    TBP_COLORS["purple"],
+    TBP_COLORS["pink"],
+    TBP_COLORS["yellow"],
+]
+
 STYLE = {
-    "sensor_path_scatter": {
-        "color": TBP_COLORS["purple"],
-        "alpha": 1,
-        "s": 10,
-        "marker": "v",
-        "zorder": 10,
-    },
-    "sensor_path_start": {
-        "color": TBP_COLORS["purple"],
-        "alpha": 1,
-        "s": 10,
-        "marker": "x",
-        "zorder": 10,
-    },
-    "sensor_path_line": {
-        "color": TBP_COLORS["purple"],
-        "alpha": 1,
-        "lw": 1,
-        "zorder": 10,
-    },
-    "target": {
-        "alpha": 0.2,
-        "s": 2,
-        "edgecolor": "none",
-    },
-    "top_mlh": {
-        "color": TBP_COLORS["blue"],
-        "alpha": 0.20,
-        "s": 2,
-        "edgecolor": "none",
-    },
-    "second_mlh": {
-        "color": TBP_COLORS["green"],
-        "alpha": 0.20,
-        "s": 2,
-        "edgecolor": "none",
-    },
-    "proposed_point": {
-        "color": TBP_COLORS["yellow"],
-        "alpha": 1,
-        "s": 20,
-        "marker": "o",
-        "edgecolor": "black",
-        "zorder": 20,
-    },
+    "target.color": "gray",
+    "target.alpha": 0.5,
+    "target.marker": "o",
+    "target.s": 1,
+    "target.edgecolor": "none",
+    "top_mlh.color": HYPOTHESIS_COLORS[0],
+    "top_mlh.alpha": 0.20,
+    "top_mlh.marker": "o",
+    "top_mlh.s": 1,
+    "top_mlh.edgecolor": "none",
+    "second_mlh.color": HYPOTHESIS_COLORS[1],
+    "second_mlh.alpha": 0.20,
+    "second_mlh.marker": "o",
+    "second_mlh.s": 1,
+    "second_mlh.edgecolor": "none",
+    "goal.color": TBP_COLORS["yellow"],
+    "goal.alpha": 1,
+    "goal.marker": "v",
+    "goal.s": 20,
+    "goal.edgecolor": "black",
+    "goal.lw": 0.5,
+    "goal.zorder": 20,
 }
 
-
-def plot_curvature_guided_policy():
-    """Plot the curvature guided policy.
-
-    Plots the ground truth object and the sensor path over the course of the episode.
-
-    """
-    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_curvature_guided_policy"
-    detailed_stats_path = exp_dir / "detailed_run_stats.json"
-    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[0]
-
-    locations = [obs["location"] for obs in stats["SM_0"]["processed_observations"]]
-    locations = np.array(locations)[:14]
-
-    fig, ax = plt.subplots(1, 1, figsize=(3, 3), subplot_kw={"projection": "3d"})
-
-    model = load_object_model("dist_agent_1lm", "mug")
-    ax.scatter(
-        model.x,
-        model.y,
-        model.z,
-        color=model.rgba,
-        alpha=0.35,
-        s=3,
-        edgecolor="none",
-    )
-
-    plot_sensor_path(
-        ax,
-        locations,
-    )
-    ax.set_proj_type("persp", focal_length=0.5)
-    axes3d_clean(ax)
-    axes3d_set_aspect_equal(ax)
-    ax.view_init(elev=54, azim=-36, roll=60)
-    plt.show()
-    fig.savefig(OUT_DIR / "curvature_guided_policy.png", dpi=300, bbox_inches="tight")
-    fig.savefig(OUT_DIR / "curvature_guided_policy.svg", bbox_inches="tight")
+"""
+Utilities
+"""
 
 
-def plot_evidence_over_time(episode: int):
-    """Plot the evidence over time for a given episode.
-
-    Plots the maximum evidence at each step for the top 3 and bottom 2 objects (in
-    terms of maximum evidence value) over the course of the episode.
-    Args:
-        episode (int): The episode to plot the evidence over time for.
-
-    Returns:
-        Tuple[plt.Figure, plt.Axes]: The figure and axes.
-    """
-    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
-    detailed_stats_path = exp_dir / "detailed_run_stats.json"
-    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
-    stats = detailed_stats_interface[episode]
-
-    evidences = stats["LM_0"]["evidences"]
-    evidences_max = stats["LM_0"]["evidences_max"]
+def get_goal_states(stats: Mapping, achieved: Optional[bool] = True) -> List[Mapping]:
     goal_states = stats["LM_0"]["goal_states"]
-    goal_state_achieved = stats["LM_0"]["goal_state_achieved"]
+    if achieved is not None:
+        goal_states = [gs for gs in goal_states if gs["info"]["achieved"] == achieved]
     possible_matches = stats["LM_0"]["possible_matches"]
-    n_steps = len(evidences)
-
-    # Summarize goal states and evidence counts as each attempted goal state.
-    print("Goal States")
-    for i, step in enumerate(np.where(goal_states)[0]):
-        gs = goal_states[step]
-        gs["step"] = step
-        pos_match_ids = np.array(possible_matches[step], dtype=object)
-        pos_match_evs = np.array(
-            [evidences_max[step][match] for match in pos_match_ids]
-        )
-        sorting_order = np.argsort(pos_match_evs)[::-1]
-        pos_match_ids = pos_match_ids[sorting_order]
-        pos_match_evs = pos_match_evs[sorting_order]
-
-        gs["step"] = step
-        try:
-            gs["achieved"] = goal_state_achieved[i]
-        except IndexError:
-            gs["achieved"] = None
-        gs["possible_matches"] = {
-            pos_match_ids[i]: pos_match_evs[i] for i in range(len(pos_match_ids))
-        }
-        gs["is_pose_hypothesis"] = len(gs["possible_matches"]) == 1
-
-        s = f" - Step {step} (achieved: {gs['achieved']}): "
-        lst = []
-        for i in range(len(pos_match_ids)):
-            lst.append(f"{pos_match_ids[i]} ({pos_match_evs[i]:.2f})")
-        s += ", ".join(lst)
-        print(s)
-
-    # Plot evidence values over time for a handful of objects.
-    all_graph_ids = list(evidences_max[0].keys())
-    evs_per_step = {}
-    for graph_id in all_graph_ids:
-        evs_per_step[graph_id] = np.array([dct[graph_id] for dct in evidences_max])
-
-    # Sort evidence values by maximum over time.
-    ev_maxs = {graph_id: np.max(arr) for graph_id, arr in evs_per_step.items()}
-    ev_maxs_names = np.array(list(ev_maxs.keys()), dtype=object)
-    ev_maxs_arr = np.array(list(ev_maxs.values()))
-    sorting_order = np.argsort(ev_maxs_arr)[::-1]
-    sorted_names = ev_maxs_names[sorting_order]
-    top_3 = sorted_names[:3]
-    bottom_2 = sorted_names[-2:]
-
-    colors = [
-        "black",
-        TBP_COLORS["blue"],
-        TBP_COLORS["purple"],
-        TBP_COLORS["green"],
-        TBP_COLORS["yellow"],
-        "red",
-    ]
-    graph_ids = list(top_3) + list(bottom_2)
-    fig, ax = plt.subplots(1, 1, figsize=(4, 3))
-    for i in range(len(graph_ids)):
-        graph_id = graph_ids[i]
-        color = colors[i]
-        ax.plot(evs_per_step[graph_id], label=graph_id, color=color)
-
     for gs in goal_states:
-        if gs:
-            c = "red" if gs["achieved"] else "black"
-            ax.axvline(gs["step"], color=c, linestyle="--", alpha=0.5)
-
-    ax.legend(framealpha=1)
-    ax.set_xlabel("Step")
-    ax.set_xlim(0, n_steps)
-    ax.set_ylabel("Evidence")
-    ax.set_ylim(0, 55)
-    ax.spines["right"].set_visible(False)
-    ax.spines["top"].set_visible(False)
-    plt.show()
-    out_dir = OUT_DIR / "evidence_over_time"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(
-        out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight"
-    )
-    fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
-
-
-def plot_performance():
-    experiments = [
-        "dist_agent_1lm_randrot_noise_nohyp",
-        "surf_agent_1lm_randrot_noise_nohyp",
-        "surf_agent_1lm_randrot_noise",
-    ]
-    xticks = np.arange(len(experiments))
-    xticklabels = [
-        "None",
-        "Model-Free",
-        "Model-Based",
-    ]
-    eval_stats = []
-    for exp in experiments:
-        eval_stats.append(load_eval_stats(exp))
-
-    fig, axes = plt.subplots(1, 2, figsize=(4, 3))
-
-    ax = axes[0]
-    accuracies, accuracies_mlh = [], []
-    for df in eval_stats:
-        accuracies.append(100 * get_frequency(df["primary_performance"], "correct"))
-        accuracies_mlh.append(
-            100 * get_frequency(df["primary_performance"], "correct_mlh")
-        )
-    ax.bar(xticks, accuracies, width=0.8, color=TBP_COLORS["blue"])
-    ax.bar(
-        xticks, accuracies_mlh, bottom=accuracies, width=0.8, color=TBP_COLORS["yellow"]
-    )
-
-    ax.set_title("Accuracy")
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, rotation=45)
-    ax.set_ylabel("% Correct")
-    ax.set_ylim(0, 100)
-    ax.legend(["Correct", "Correct MLH"], loc="lower right", framealpha=1)
-    sns.despine(ax=ax)
-
-    ax = axes[1]
-    n_steps = []
-    for df in eval_stats:
-        n_steps.append(df["num_steps"])
-
-    violinplot(
-        n_steps,
-        xticks,
-        color=TBP_COLORS["blue"],
-        showmedians=True,
-        median_style=dict(color="lightgray"),
-        ax=ax,
-    )
-    ax.set_title("Steps")
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, rotation=45)
-    ax.set_ylabel("Count")
-    ax.set_ylim(0, 500)
-    sns.despine(ax=ax)
-    fig.tight_layout()
-    plt.show()
-    fig.savefig(OUT_DIR / "performance.png", dpi=300, bbox_inches="tight")
-    fig.savefig(OUT_DIR / "performance.svg", bbox_inches="tight")
+        step = gs["info"]["matching_step_when_output_goal_set"]
+        gs["info"]["is_pose_hypothesis"] = len(possible_matches[step]) == 1
+        gs["info"]["possible_matches"] = possible_matches[step]
+    return goal_states
 
 
 def get_mlh_for_object(object_name: str, stats: Mapping, step: int) -> Mapping:
@@ -376,7 +179,7 @@ def get_top_two_mlhs_for_object(
     return mlhs
 
 
-def get_graph_for_mlh(
+def get_graph_for_hypothesis(
     mlh: Mapping,
     stats: Mapping,
     step: int,
@@ -405,39 +208,210 @@ def get_graph_for_mlh(
     return graph
 
 
-def plot_sensor_path(
+def draw_triangle(
     ax: plt.Axes,
-    sensor_locations: np.ndarray,
-) -> Tuple[plt.Figure, plt.Axes]:
-    """Plot the sensor path on the ground-truth object.
+    x: Number,
+    y: Number,
+    theta: Number = 0,
+    degrees: bool = True,
+    radius: Number = 1,
+    align: str = "center",
+    **style,
+) -> Polygon:
+    """Get a triangle properly sized and located.
 
+    Matplotlib wasn't playing nicely when trying to put triangles on the figure
+    that went outside the axes limits. This function converts the triangle to
     Args:
-        ax (plt.Axes): The axes to plot on.
-        sensor_locations (np.ndarray): The sensor locations.
+        ax: Axes to plot in.
+        x: x position in data coordinates.
+        y: y position in data coordinates.
+        theta: Counter-clockwise rotation of triangle. Default is 0, which has the
+            triangle pointing up.
+        degrees: Whether theta is in degrees. Defaults to True.
+        radius: Radius of the circle that inscribes the triangle in millimeters.
+        align: Alignment of triangle. Defaults to "center".
+        style: Additional style arguments for the matplotlib polygon.
+    Raises:
+        ValueError: If align is not one of "center", "bottom", "top", "left", or
+        "right".
+
+    Returns:
+        np.ndarray: Triangle vertices in normalized axes coordinates.
     """
+    t = np.arange(0, 1, 1 / 3)
+    x_coords = radius * np.cos(t * 2 * np.pi)
+    y_coords = radius * np.sin(t * 2 * np.pi)
+    verts_mm = np.stack([x_coords, y_coords], axis=1)
 
-    scatter_locations = line_locations = sensor_locations
+    # Get triangle pointing up.
+    d_theta = 2 * np.pi / 3 - np.pi / 2
+    c, s = np.cos(d_theta), np.sin(d_theta)
+    rot = np.array([[c, -s], [s, c]])
+    verts_mm = verts_mm @ rot
 
+    # Apply counter-clockwise rotation.
+    if degrees:
+        theta = np.deg2rad(-theta)
+    c, s = np.cos(theta), np.sin(theta)
+    rot = np.array([[c, -s], [s, c]])
+    verts_mm = verts_mm @ rot
+
+    # Get points in axis-length coordinates.
+    verts_pix = verts_mm * ax.figure.dpi / 25.4
+    bbox = ax.get_window_extent()
+    pix_per_ax_length = np.array([bbox.width, bbox.height])
+    verts_ax = verts_pix / pix_per_ax_length[None, :]
+
+    # Align triangle.
+    if align == "bottom":
+        offset = np.array([0, verts_ax[:, 1].min()])
+    elif align == "top":
+        offset = np.array([0, verts_ax[:, 1].max()])
+    elif align == "left":
+        offset = np.array([verts_ax[:, 0].min(), 0])
+    elif align == "right":
+        offset = np.array([verts_ax[:, 0].max(), 0])
+    elif align == "center":
+        offset = np.array([0, 0])
+    else:
+        raise ValueError(f"Invalid align: {align}")
+    verts_ax = verts_ax - offset[None, :]
+
+    # Move vertices to location on axes.
+    x_lim = ax.get_xlim()
+    y_lim = ax.get_ylim()
+    x_ax = (x - x_lim[0]) / (x_lim[1] - x_lim[0])
+    y_ax = (y - y_lim[0]) / (y_lim[1] - y_lim[0])
+    offset = np.array([x_ax, y_ax])
+    verts_ax = verts_ax + offset[None, :]
+
+    kwargs = {
+        "closed": True,
+        "transform": ax.transAxes,
+        "clip_on": False,
+    }
+    kwargs.update(style)
+    triangle = Polygon(verts_ax, **kwargs)
+    ax.add_patch(triangle)
+
+    return triangle
+
+
+"""
+Curvature Guided Policy
+-------------------------------------------------------------------------------
+"""
+
+
+def plot_curvature_guided_policy():
+    """Plot the curvature guided policy.
+
+    Plots the ground truth object and the sensor path over the course of the episode.
+
+    """
+    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_curvature_guided_policy"
+    detailed_stats_path = exp_dir / "detailed_run_stats.json"
+    detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+    stats = detailed_stats_interface[0]
+
+    fig, ax = plt.subplots(1, 1, figsize=(3, 3), subplot_kw={"projection": "3d"})
+
+    model = load_object_model("dist_agent_1lm", "mug")
     ax.scatter(
-        [scatter_locations[0, 0]],
-        [scatter_locations[0, 1]],
-        [scatter_locations[0, 2]],
-        **STYLE["sensor_path_start"],
+        model.x,
+        model.y,
+        model.z,
+        color=model.rgba,
+        alpha=0.35,
+        s=4,
+        edgecolor="none",
     )
-    scatter_locations = scatter_locations[1:]
+    sm = SensorModuleData(stats["SM_0"])
+    sm.plot_sensor_path(ax, steps=14)
 
-    ax.scatter(
-        scatter_locations[:, 0],
-        scatter_locations[:, 1],
-        scatter_locations[:, 2],
-        **STYLE["sensor_path_scatter"],
+    ax.set_proj_type("persp", focal_length=0.5)
+    axes3d_clean(ax)
+    axes3d_set_aspect_equal(ax)
+    ax.view_init(elev=54, azim=-36, roll=60)
+    plt.show()
+    fig.savefig(OUT_DIR / "curvature_guided_policy.png", dpi=300, bbox_inches="tight")
+    fig.savefig(OUT_DIR / "curvature_guided_policy.svg", bbox_inches="tight")
+
+
+"""
+Performance
+-------------------------------------------------------------------------------
+"""
+
+
+def plot_performance():
+    experiments = [
+        "dist_agent_1lm_randrot_noise_nohyp",
+        "surf_agent_1lm_randrot_noise_nohyp",
+        "surf_agent_1lm_randrot_noise",
+    ]
+    xticks = np.arange(len(experiments))
+    xticklabels = [
+        "None",
+        "Model-Free",
+        "Model-Based",
+    ]
+    eval_stats = []
+    for exp in experiments:
+        eval_stats.append(load_eval_stats(exp))
+
+    fig, axes = plt.subplots(1, 2, figsize=(4, 3))
+
+    ax = axes[0]
+    accuracies, accuracies_mlh = [], []
+    for df in eval_stats:
+        accuracies.append(100 * get_frequency(df["primary_performance"], "correct"))
+        accuracies_mlh.append(
+            100 * get_frequency(df["primary_performance"], "correct_mlh")
+        )
+    ax.bar(xticks, accuracies, width=0.8, color=TBP_COLORS["blue"])
+    ax.bar(
+        xticks, accuracies_mlh, bottom=accuracies, width=0.8, color=TBP_COLORS["yellow"]
     )
-    ax.plot(
-        line_locations[:, 0],
-        line_locations[:, 1],
-        line_locations[:, 2],
-        **STYLE["sensor_path_line"],
+
+    ax.set_title("Accuracy")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels, rotation=45)
+    ax.set_ylabel("% Correct")
+    ax.set_ylim(0, 100)
+    ax.legend(["Correct", "Correct MLH"], loc="lower right", framealpha=1)
+    sns.despine(ax=ax)
+
+    ax = axes[1]
+    n_steps = []
+    for df in eval_stats:
+        n_steps.append(df["num_steps"])
+
+    violinplot(
+        n_steps,
+        xticks,
+        color=TBP_COLORS["blue"],
+        showmedians=True,
+        median_style=dict(color="lightgray"),
+        ax=ax,
     )
+    ax.set_title("Steps")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels, rotation=45)
+    ax.set_ylabel("Count")
+    ax.set_ylim(0, 500)
+    sns.despine(ax=ax)
+    fig.tight_layout()
+    plt.show()
+    fig.savefig(OUT_DIR / "performance.png", dpi=300, bbox_inches="tight")
+    fig.savefig(OUT_DIR / "performance.svg", bbox_inches="tight")
+
+
+"""
+Top-Two MLHs (object models)
+-------------------------------------------------------------------------------
+"""
 
 
 def plot_hypotheses_for_step(
@@ -459,38 +433,7 @@ def plot_hypotheses_for_step(
     Returns:
         Tuple[plt.Figure, plt.Axes]: The figure and axes.
     """
-    default_style = {
-        "target": {
-            "alpha": 0.2,
-            "s": 2,
-            "edgecolor": "none",
-        },
-        "top_mlh": {
-            "color": TBP_COLORS["blue"],
-            "alpha": 0.20,
-            "s": 2,
-            "edgecolor": "none",
-        },
-        "second_mlh": {
-            "color": TBP_COLORS["green"],
-            "alpha": 0.20,
-            "s": 2,
-            "edgecolor": "none",
-        },
-        "proposed_point": {
-            "color": TBP_COLORS["yellow"],
-            "alpha": 1,
-            "s": 20,
-            "marker": "o",
-            "zorder": 20,
-            "edgecolor": "black",
-        },
-    }
-    if style:
-        for key, val in style.items():
-            default_style[key].update(val.copy())
-    style = default_style
-
+    style = update_style(STYLE, style)
     # Get ground-truth object and its pose.
     target_object = stats["target"]["primary_target_object"]
     target_position = np.array(stats["target"]["primary_target_position"])
@@ -517,60 +460,73 @@ def plot_hypotheses_for_step(
     target_graph = learned_graph - learned_position
     target_graph = target_graph.rotated(target_rotation)
     target_graph += target_position
+    target_style = extract_style(style, "target")
+    if target_style.get("color") == "rgba":
+        target_style["color"] = target_graph.rgba
     ax.scatter(
         target_graph.x,
         target_graph.y,
         target_graph.z,
-        color=target_graph.rgba,
-        **STYLE["target"],
+        **target_style,
     )
 
     # Plot sensor path on ground-truth object.
-    plot_sensor_path(
-        ax,
-        sensor_locations,
-    )
+    sm = SensorModuleData(stats["SM_0"], style=style)
+    sm.plot_sensor_path(ax, steps=step + 1)
+
     """
     Second plot has first and second MLHs.
     """
     ax = axes[1]
 
     # Plot first and second MLHs.
-    top_mlh["graph"] = get_graph_for_mlh(
+    top_mlh["graph"] = get_graph_for_hypothesis(
         top_mlh, stats, step, pretrained_model="surf_agent_1lm"
     )
+    top_mlh_style = extract_style(style, "top_mlh")
+    if top_mlh_style.get("color") == "rgba":
+        top_mlh_style["color"] = top_mlh["graph"].rgba
     ax.scatter(
         top_mlh["graph"].x,
         top_mlh["graph"].y,
         top_mlh["graph"].z,
-        **STYLE["top_mlh"],
+        **top_mlh_style,
     )
 
-    second_mlh["graph"] = get_graph_for_mlh(
+    second_mlh["graph"] = get_graph_for_hypothesis(
         second_mlh, stats, step, pretrained_model="surf_agent_1lm"
     )
+    second_mlh_style = extract_style(style, "second_mlh")
+    if second_mlh_style.get("color") == "rgba":
+        second_mlh_style["color"] = second_mlh["graph"].rgba
     ax.scatter(
         second_mlh["graph"].x,
         second_mlh["graph"].y,
         second_mlh["graph"].z,
-        **STYLE["second_mlh"],
+        **second_mlh_style,
     )
 
     # Plot the goal state's target if possible.
-    goal_state = stats["LM_0"]["goal_states"][step]
-    if goal_state:
-        proposed_surface_loc = goal_state["info"]["proposed_surface_loc"]
+    goal_states = get_goal_states(stats)
+    gs = None
+    for g in goal_states:
+        if g["info"]["matching_step_when_output_goal_set"] == step:
+            gs = g
+    if gs:
+        proposed_surface_loc = gs["info"]["proposed_surface_loc"]
+        goal_style = extract_style(style, "goal")
         for ax in axes:
             ax.scatter(
                 proposed_surface_loc[0],
                 proposed_surface_loc[1],
                 proposed_surface_loc[2],
-                **STYLE["proposed_point"],
+                **goal_style,
             )
     return fig, axes
 
 
 def plot_object_hypothesis():
+    style = STYLE.copy()
     experiment = "fig6_hypothesis_driven_policy"
     episode = 0
 
@@ -581,16 +537,14 @@ def plot_object_hypothesis():
 
     # Select a step where there's a goal state was achieved, and it was
     # for distuinguishing between different objects.
-    goal_states = get_goal_states(stats)
-    lst = filter(lambda gs: gs["achieved"] is True, goal_states)
-    lst = list(filter(lambda gs: len(gs["possible_matches"]) > 1, lst))
-    gs = lst[0]
-    step = gs["step"]
+    goal_states = get_goal_states(stats, achieved=True)
+    goal_states = [g for g in goal_states if not g["info"]["is_pose_hypothesis"]]
+    gs = goal_states[0]
+    step = gs["info"]["matching_step_when_output_goal_set"]
 
     # Get the pose MLHs.
     top_mlh, second_mlh = get_top_two_mlhs(stats, step)
 
-    style = {}
     fig, axes = plot_hypotheses_for_step(
         stats,
         step,
@@ -600,24 +554,18 @@ def plot_object_hypothesis():
     )
 
     # Add label, legends, etc.
-    width = 0.08
-    axis_limits = [[-width, width], [1.5 - width, 1.5 + width], [-width, width]]
     view_angles = [(-50, -180, 0), (-80, 180, 0)]
     for i, ax in enumerate(axes):
         ax.set_proj_type("persp", focal_length=0.8)
         axes3d_set_aspect_equal(ax)
         axes3d_clean(ax)
         ax.view_init(*view_angles[i])
-        ax.set_xlim(axis_limits[0])
-        ax.set_ylim(axis_limits[1])
-        ax.set_zlim(axis_limits[2])
 
-    legend_handles = get_legend_handles(["sensor", "spoon", "fork", "goal"])
+    sm = SensorModuleData(stats["SM_0"], style=style)
+    legend_handles = get_legend_handles(["sensor", "spoon", "fork", "goal"], sm.style)
     axes[1].legend(
         handles=legend_handles,
         bbox_to_anchor=(0.1, 0.8),
-        framealpha=1,
-        fontsize=8,
     )
 
     plt.show()
@@ -629,6 +577,7 @@ def plot_object_hypothesis():
 
 
 def plot_pose_hypothesis():
+    style = update_style(STYLE, {"target.s": 4, "top_mlh.s": 4, "second_mlh.s": 4})
     experiment = "fig6_hypothesis_driven_policy"
     episode = 1
 
@@ -639,16 +588,14 @@ def plot_pose_hypothesis():
 
     # Select a step where there's a goal state was achieved, and it was
     # for pose estimation (object was already determined).
-    goal_states = get_goal_states(stats)
-    lst = filter(lambda gs: gs["achieved"] is True, goal_states)
-    lst = list(filter(lambda gs: len(gs["possible_matches"]) == 1, lst))
-    gs = lst[0]
-    step = gs["step"]
+    goal_states = get_goal_states(stats, achieved=True)
+    goal_states = [g for g in goal_states if g["info"]["is_pose_hypothesis"]]
+    gs = goal_states[0]
+    step = gs["info"]["matching_step_when_output_goal_set"]
 
     # Get the pose MLHs.
     mlh_graph_id = stats["LM_0"]["current_mlh"][step]["graph_id"]
     top_mlh, second_mlh = get_top_two_mlhs_for_object(mlh_graph_id, stats, step)
-    style = {}
     fig, axes = plot_hypotheses_for_step(
         stats,
         step,
@@ -658,23 +605,18 @@ def plot_pose_hypothesis():
     )
 
     # Add label, legends, etc.
-    width = 0.08
-    axis_limits = [[-width, width], [1.5 - width, 1.5 + width], [-width, width]]
-    view_angles = [
-        (-37, 26, 0),
-        (-7.498398271623369, 34.260448483945446, 0),
-    ]
+    view_angles = [(-37, 26, 0), (-7.50, 34.26, 0)]
     for i, ax in enumerate(axes):
         ax.set_proj_type("persp", focal_length=0.8)
         axes3d_set_aspect_equal(ax)
         axes3d_clean(ax)
         ax.view_init(*view_angles[i])
-        ax.set_xlim(axis_limits[0])
-        ax.set_ylim(axis_limits[1])
-        ax.set_zlim(axis_limits[2])
 
     # Add legend to the second plot.
-    legend_handles = get_legend_handles(["sensor", "pose 1", "pose 2", "goal"])
+    sm = SensorModuleData(stats["SM_0"], style=style)
+    legend_handles = get_legend_handles(
+        ["sensor", "pose 1", "pose 2", "goal"], sm.style
+    )
     axes[1].legend(
         handles=legend_handles,
         bbox_to_anchor=(0.1, 0.8),
@@ -694,257 +636,410 @@ def plot_pose_hypothesis():
 
 def get_legend_handles(
     labels: List[str],
+    style: Mapping,
 ) -> List[Line2D]:
+    style = update_style(STYLE, style)
     legend_handles = []
-    legend_handles.append(
-        Line2D(
-            [0],
-            [0],
-            marker=STYLE["sensor_path_scatter"]["marker"],
-            color="w",
-            markerfacecolor=STYLE["sensor_path_scatter"]["color"],
-            markeredgecolor=STYLE["sensor_path_scatter"]["color"],
-            markersize=6,
-            label=labels[0],
-        )
-    )
-    for i, style in enumerate([STYLE["top_mlh"], STYLE["second_mlh"]]):
+    for i, name in enumerate(("sensor_path.scatter", "top_mlh", "second_mlh", "goal")):
+        st = extract_style(style, name)
         legend_handles.append(
             Line2D(
                 [0],
                 [0],
-                marker="o",
+                marker=st["marker"],
                 color="w",
-                markerfacecolor=style["color"],
-                markeredgecolor=style["color"],
+                markerfacecolor=st["color"],
+                markeredgecolor=st["color"],
                 markersize=6,
-                label=labels[i + 1],
+                label=labels[i],
             )
         )
-    legend_handles.append(
-        Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            markerfacecolor=STYLE["proposed_point"]["color"],
-            markeredgecolor="black",
-            markersize=6,
-            label=labels[3],
-        )
-    )
+
     return legend_handles
 
 
-# plot_evidence_over_time(0)
-# plot_curvature_guided_policy()
-# plot_object_hypothesis()
-# plot_pose_hypothesis()
+"""
+Evidence Over Time
+-------------------------------------------------------------------------------
+"""
 
-show_below_threshold = False
-show_threshold = False
 
-episode = 0
-exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
-detailed_stats_path = exp_dir / "detailed_run_stats.json"
-detailed_stats_interface = DetailedJSONStatsInterface(detailed_stats_path)
+def plot_goal_state_steps(ax: plt.Axes, goal_states: List[Mapping]):
+    for gs in goal_states:
+        step = gs["info"]["matching_step_when_output_goal_set"]
+        if gs["info"]["is_pose_hypothesis"]:
+            color = "gray"
+            ls = "--"
+        else:
+            color = "gray"
+            ls = "-"
+        ax.axvline(step, color=color, lw=1, linestyle=ls, alpha=1)
 
-stats = detailed_stats_interface[episode]
-evidences = stats["LM_0"]["evidences"]
-evidences_max = stats["LM_0"]["evidences_max"]
-goal_states = stats["LM_0"]["goal_states"]
-goal_states = [gs for gs in goal_states if gs["info"]["achieved"]]
-possible_matches = stats["LM_0"]["possible_matches"]
-for gs in goal_states:
-    step = gs["info"]["matching_step_when_output_goal_set"]
-    gs["info"]["is_pose_hypothesis"] = len(possible_matches[step]) == 1
 
-n_steps = len(evidences)
-highest_ev_per_step = np.zeros(n_steps)
-for i in range(n_steps):
-    highest_ev = np.max([val for val in evidences_max[i].values()])
-    highest_ev_per_step[i] = highest_ev
-possible_match_threshold = highest_ev_per_step * 0.8
-
-# Plot hypothesis-driven jumps first.
-fig, ax = plt.subplots(1, 1, figsize=(3, 2))
-
-for gs in goal_states:
-    ls = "--" if gs["info"]["is_pose_hypothesis"] else "-"
-    ax.axvline(
-        gs["info"]["matching_step_when_output_goal_set"],
-        color="gray",
-        lw=1,
-        linestyle=ls,
-        alpha=1,
-    )
-
-# Plot evidence values over time for a handful of objects.
-all_graph_ids = list(evidences_max[0].keys())
-all_info = {}
-for graph_id in all_graph_ids:
-    info = {}
-    info["max_ev_per_step"] = np.array([dct[graph_id] for dct in evidences_max])
-    info["max_ev"] = np.max(info["max_ev_per_step"])
-    above_thresh = info["max_ev_per_step"] >= possible_match_threshold
-    where_possible = np.where(above_thresh)[0]
-    if where_possible.size > 0:
-        info["last_step"] = where_possible[-1]
+def plot_hypothesis(
+    ax: plt.Axes,
+    h: Mapping,
+    show_after_dropout: bool = False,
+    mark_dropout: bool = False,
+    skip_if_empty: bool = False,
+) -> None:
+    last_step = h["steps_above_threshold"]
+    if show_after_dropout:
+        arr = h["evidence"]
     else:
-        info["last_step"] = None
-    all_info[graph_id] = info
+        if last_step == 0 and skip_if_empty:
+            return
+        arr = h["evidence"][:last_step]
+    ax.plot(arr, **h["style"])
+    if mark_dropout and last_step < len(h["evidence"]):
+        ax.scatter(
+            last_step - 1,
+            h["evidence"][last_step],
+            color=h.get("style", {}).get("color"),
+            alpha=h.get("style", {}).get("alpha"),
+            marker="x",
+            s=10,
+        )
 
-# Sort evidence values by maximum over time.
-ev_maxs = {graph_id: info["max_ev"] for graph_id, info in all_info.items()}
-ev_maxs_names = np.array(list(ev_maxs.keys()), dtype=object)
-ev_maxs_arr = np.array(list(ev_maxs.values()))
-sorting_order = np.argsort(ev_maxs_arr)[::-1]
-sorted_names = ev_maxs_names[sorting_order]
-all_info = {graph_id: all_info[graph_id] for graph_id in sorted_names}
-top_3 = sorted_names[:3]
 
-colors = [
-    TBP_COLORS["blue"],
-    TBP_COLORS["green"],
-    TBP_COLORS["purple"],
-    TBP_COLORS["green"],
-    TBP_COLORS["yellow"],
-    TBP_COLORS["pink"],
-]
-
-color_counter = 0
-others_drawn = False
-for graph_id, info in all_info.items():
-    if show_below_threshold:
-        arr = info["max_ev_per_step"]
+def plot_hypotheses(
+    ax: plt.Axes,
+    hypotheses: Iterable[Mapping],
+    show_after_dropout: bool = False,
+    mark_dropout: bool = False,
+    n_top_hypotheses: int = 4,
+    n_bottom_hypotheses: Optional[Number] = np.inf,
+    bottom_hypothesis_color: str = "gray",
+    bottom_hypothesis_alpha: float = 0.5,
+    legend_kwargs: Optional[Mapping] = None,
+) -> None:
+    # Split hypotheses into two groups.
+    top_hypotheses = hypotheses[:n_top_hypotheses]
+    if n_bottom_hypotheses is None:
+        bottom_hypotheses = []
+    elif n_bottom_hypotheses is np.inf:
+        bottom_hypotheses = hypotheses[n_top_hypotheses:]
     else:
-        last_step = info["last_step"]
-        if last_step is None:
-            continue
-        arr = info["max_ev_per_step"][:last_step]
-    if graph_id in top_3:
-        c, alpha, label = colors[color_counter], 1, graph_id
-        color_counter += 1
-    else:
-        c, alpha = "gray", 0.75
-        label = "others" if not others_drawn else None
-        others_drawn = True
-    ax.plot(arr, color=c, lw=1, alpha=alpha, label=label)
+        h_start = n_top_hypotheses
+        h_stop = n_top_hypotheses + n_bottom_hypotheses
+        bottom_hypotheses = hypotheses[h_start:h_stop]
 
-if show_threshold:
-    ax.plot(possible_match_threshold, color="black", lw=2, alpha=1, label="Threshold")
-ax.legend(title="Object", framealpha=1, handlelength=0.75, fontsize=6)
-ax.set_xlabel("Step")
-ax.set_xlim(0, n_steps)
-ax.set_ylabel("Evidence")
-ax.set_ylim(0, 40)
-ax.spines["right"].set_visible(False)
-ax.spines["top"].set_visible(False)
-plt.show()
+    # Add style to hypotheses.
+    for i, h in enumerate(top_hypotheses):
+        h["style"] = {
+            "color": HYPOTHESIS_COLORS[i],
+            "alpha": 1,
+            "label": h["label"],
+        }
+    for i, h in enumerate(bottom_hypotheses):
+        h["style"] = {
+            "color": bottom_hypothesis_color,
+            "alpha": bottom_hypothesis_alpha,
+            "label": None,
+        }
+        if i == 0:
+            h["style"]["label"] = "others"
 
-out_dir = OUT_DIR / "evidence_over_time"
-out_dir.mkdir(parents=True, exist_ok=True)
-fig.savefig(out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight")
-fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
+    # Plot in reverse order because zorder argument doesn't work.
+    for i, h in enumerate(bottom_hypotheses[::-1]):
+        can_skip = h["style"]["label"] is None
+        plot_hypothesis(ax, h, show_after_dropout, mark_dropout, skip_if_empty=can_skip)
+    for h in top_hypotheses[::-1]:
+        plot_hypothesis(ax, h, show_after_dropout, mark_dropout, skip_if_empty=False)
 
-# ------------------------------------------------------------------------------
-# Pose
-# ------------------------------------------------------------------------------
-show_below_threshold = True
-show_threshold = False
-
-episode = 1
-object_name = "mug"
-
-stats = detailed_stats_interface[episode]
-goal_states = stats["LM_0"]["goal_states"]
-goal_states = [gs for gs in goal_states if gs["info"]["achieved"]]
-possible_matches = stats["LM_0"]["possible_matches"]
-for gs in goal_states:
-    step = gs["info"]["matching_step_when_output_goal_set"]
-    gs["info"]["is_pose_hypothesis"] = len(possible_matches[step]) == 1
-jump_step = goal_states[0]["info"]["matching_step_when_output_goal_set"]
-
-# Plot hypothesis-driven jumps first.
-fig, ax = plt.subplots(1, 1, figsize=(3, 2))
-
-for gs in goal_states:
-    ls = "--" if gs["info"]["is_pose_hypothesis"] else "-"
-    ax.axvline(
-        gs["info"]["matching_step_when_output_goal_set"],
-        color="gray",
-        lw=1,
-        linestyle=ls,
-        alpha=1,
-    )
-
-# evidences has shape (n_steps, n_poses).
-evidences = np.array([dct[object_name] for dct in stats["LM_0"]["evidences"]])
-rotations = np.array(stats["LM_0"]["possible_rotations"][0][object_name])
-n_steps, n_rotations = evidences.shape
-
-# Sort evidence at time of hypothesis-driven jump.
-sort_by = evidences[jump_step, :]
-sorting_order = np.argsort(sort_by)[::-1]
-evidences = evidences.T[sorting_order].T
-rotations = rotations[sorting_order]
-
-# Find the last step where evidence is above threshold.
-highest_ev_per_step = np.max(evidences, axis=1)
-possible_match_threshold = highest_ev_per_step * 0.8
-last_steps = []
-for i in range(n_rotations):
-    above_thresh = evidences[:, i] >= possible_match_threshold
-    where_possible = np.where(above_thresh)[0]
-    if where_possible.size > 0:
-        last_steps.append(where_possible[-1])
-    else:
-        last_steps.append(None)
+    # Hack to get legend items in order since we had to plot in reverse order.
+    legend_order = [h["style"]["label"] for h in top_hypotheses]
+    if len(bottom_hypotheses) > 0:
+        legend_order.append("others")
+    cur_handles, cur_labels = ax.get_legend_handles_labels()
+    handles, labels = [], []
+    for lbl in legend_order:
+        try:
+            ind = cur_labels.index(lbl)
+            handles.append(cur_handles[ind])
+            labels.append(cur_labels[ind])
+        except ValueError:
+            pass
+    legend_kwargs = legend_kwargs or {}
+    ax.legend(handles, labels, **legend_kwargs)
 
 
-colors = [
-    TBP_COLORS["blue"],
-    TBP_COLORS["green"],
-    TBP_COLORS["purple"],
-    TBP_COLORS["yellow"],
-    TBP_COLORS["pink"],
-]
-n_rotations_to_show = 5
-ax.computed_zorder = False
-for i in range(n_rotations_to_show):
-    if last_steps[i] is None:
-        continue
-    if show_below_threshold:
-        arr = evidences[:, i]
-    else:
-        arr = evidences[: int(last_steps[i]), i]
-    if i < 5:
-        c = colors[i]
+def finalize_axes(
+    ax: plt.Axes,
+    jump_step: Optional[int] = None,
+    **kw,
+):
+    # Set axes properties.
+    for key, val in kw.items():
+        getattr(ax, f"set_{key}")(val)
+
+    sns.despine(ax=ax)
+
+    # Add a triangle indicating where the jump was. Has to be done last.
+    if jump_step is not None:
+        draw_triangle(
+            ax,
+            jump_step,
+            ax.get_ylim()[1],
+            theta=180,
+            radius=2,
+            align="bottom",
+            facecolor=TBP_COLORS["yellow"],
+            edgecolor="black",
+        )
+
+
+def set_steps_above_threshold(
+    hypotheses: Iterable[Mapping], x_percent_threshold: float = 20
+) -> np.ndarray:
+    """Set the `steps_above_threshold` field for each hypothesis.
+    Args:
+        hypotheses (Iterable[Mapping]): Hypotheses to find steps above threshold for.
+
+    Returns:
+        np.ndarray: The step-wise evidence threshold.
+    """
+    # Find highest evidence at each step to compute the evidence threshold.
+    n_steps = hypotheses[0]["evidence"].shape[0]
+    highest_evidences = np.zeros(n_steps)
+    for step in range(n_steps):
+        highest_evidences[step] = np.max([h["evidence"][step] for h in hypotheses])
+    thresholds = highest_evidences * (1 - x_percent_threshold / 100)
+
+    # Find the last step where evidence was above threshold for each hypothesis.
+    for h in hypotheses:
+        where_above_threshold = np.where(h["evidence"] >= thresholds)[0]
+        if where_above_threshold.size == 0:
+            h["steps_above_threshold"] = 0
+        else:
+            h["steps_above_threshold"] = where_above_threshold[-1] + 1
+
+    return thresholds
+
+
+def init_object_hypotheses(stats: Mapping) -> np.ndarray:
+    max_evidence_dicts: List[Mapping[str, float]] = stats["LM_0"]["evidences_max"]
+    hypotheses = []
+    for key in max_evidence_dicts[0].keys():
+        h = {
+            "object_name": key,
+            "label": key,
+            "evidence": np.array([dct[key] for dct in max_evidence_dicts]),
+        }
+        hypotheses.append(h)
+    hypotheses = np.array(hypotheses, dtype=object)
+    set_steps_above_threshold(hypotheses)
+    return hypotheses
+
+
+def init_rotation_hypotheses(stats: Mapping, object_name: str) -> np.ndarray:
+    evidences = np.array([dct[object_name] for dct in stats["LM_0"]["evidences"]]).T
+    rotations = stats["LM_0"]["possible_rotations"][0][object_name]
+    hypotheses = []
+    for i in range(len(rotations)):
         angles = R.from_matrix(rotations[i]).as_euler("xyz", degrees=True)
         if np.any(angles < 0):
             angles = (angles + 180) % 360
-        lbl = f"({angles[0]:.0f}, {angles[1]:.0f}, {angles[2]:.0f})"
-        alpha = 1
+        label = f"({int(angles[0])}, {int(angles[1])}, {int(angles[2])})"
+        h = {
+            "rotation_matrix": rotations[i],
+            "evidence": evidences[i],
+            "label": label,
+        }
+        hypotheses.append(h)
+    hypotheses = np.array(hypotheses, dtype=object)
+    set_steps_above_threshold(hypotheses)
+    return hypotheses
+
+
+def plot_evidence_over_time_objects(
+    stats: Mapping,
+    show_after_dropout: bool = False,
+    mark_dropout: bool = False,
+    n_top_hypotheses: int = 4,
+    n_bottom_hypotheses: Optional[Number] = np.inf,
+    indicate_jump_step: bool = True,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot evidence over time for each object hypothesis.
+
+    Args:
+        stats (Mapping): Stats from a DMC run.
+        show_after_dropout (bool): Whether to show evidence after dropout.
+        mark_dropout (bool): Whether to mark dropout steps.
+        show_threshold (bool): Whether to show the threshold.
+    """
+
+    # Get all object hypotheses.
+    hypotheses = init_object_hypotheses(stats)
+    n_steps = hypotheses[0]["evidence"].shape[0]
+
+    # Collect match threshold info.
+    # Sort by evidence at step of hypothesis-driven jump.
+    goal_states = get_goal_states(stats)
+    obj_goal_states = [g for g in goal_states if not g["info"]["is_pose_hypothesis"]]
+    if len(obj_goal_states) == 0:
+        order_step = n_steps - 1
     else:
-        c = "gray"
-        lbl = None
-        alpha = 0.1
-    zorder = n_rotations_to_show - i + 2
-    ax.plot(arr, label=lbl, color=c, lw=1, alpha=alpha)
+        order_step = obj_goal_states[0]["info"]["matching_step_when_output_goal_set"]
+    sort_by = [h["evidence"][order_step] for h in hypotheses]
+    hypotheses = hypotheses[np.argsort(sort_by)[::-1]]
+
+    fig, ax = plt.subplots(1, 1, figsize=(3.75, 2.5), dpi=300)
+    plot_goal_state_steps(ax, goal_states)
+    plot_hypotheses(
+        ax,
+        hypotheses,
+        show_after_dropout,
+        mark_dropout,
+        n_top_hypotheses,
+        n_bottom_hypotheses,
+        legend_kwargs={"title": "Hypothesis", "fontsize": 8, "handlelength": 0.75},
+    )
+    # Finalize axes.
+    if indicate_jump_step and len(obj_goal_states) > 0:
+        jump_step = order_step
+    else:
+        jump_step = None
+    finalize_axes(
+        ax,
+        jump_step=jump_step,
+        xlim=(0, n_steps),
+        ylim=(0, 40),
+        yticks=[0, 10, 20, 30, 40],
+        xlabel="Step",
+        ylabel="Evidence",
+    )
+    plt.show()
+    return fig, ax
 
 
-if show_threshold:
-    ax.plot(possible_match_threshold, color="black", lw=2, alpha=1, label="Threshold")
-ax.legend(title="Pose", framealpha=1, handlelength=0.75, fontsize=6)
-ax.set_xlabel("Step")
-ax.set_xlim(0, n_steps)
-ax.set_ylabel("Evidence")
-ax.set_ylim(0, 40)
-ax.spines["right"].set_visible(False)
-ax.spines["top"].set_visible(False)
-plt.show()
+def plot_evidence_over_time_rotations(
+    stats: Mapping,
+    object_name: str,
+    show_after_dropout: bool = False,
+    mark_dropout: bool = False,
+    n_top_hypotheses: int = 4,
+    n_bottom_hypotheses: Optional[Number] = np.inf,
+    indicate_jump_step: bool = True,
+) -> Tuple[plt.Figure, plt.Axes]:
+    """Plot evidence over time for each object hypothesis.
 
-out_dir = OUT_DIR / "evidence_over_time"
-out_dir.mkdir(parents=True, exist_ok=True)
-fig.savefig(out_dir / f"evidence_over_time_{episode}.png", dpi=300, bbox_inches="tight")
-fig.savefig(out_dir / f"evidence_over_time_{episode}.svg", bbox_inches="tight")
+    Args:
+        stats (Mapping): Stats from a DMC run.
+        show_after_dropout (bool): Whether to show evidence after dropout.
+        mark_dropout (bool): Whether to mark dropout steps.
+        show_threshold (bool): Whether to show the threshold.
+    """
+
+    # Get all object hypotheses.
+    hypotheses = init_rotation_hypotheses(stats, object_name)
+    n_steps = hypotheses[0]["evidence"].shape[0]
+
+    # Collect match threshold info.
+    # Sort by evidence at step of hypothesis-driven jump.
+    goal_states = get_goal_states(stats)
+    pose_goal_states = [g for g in goal_states if g["info"]["is_pose_hypothesis"]]
+    if len(pose_goal_states) == 0:
+        order_step = n_steps - 1
+    else:
+        order_step = pose_goal_states[0]["info"]["matching_step_when_output_goal_set"]
+    sort_by = [h["evidence"][order_step] for h in hypotheses]
+    hypotheses = hypotheses[np.argsort(sort_by)[::-1]]
+
+    fig, ax = plt.subplots(1, 1, figsize=(3.75, 2.5), dpi=300)
+    plot_goal_state_steps(ax, goal_states)
+    plot_hypotheses(
+        ax,
+        hypotheses,
+        show_after_dropout,
+        mark_dropout,
+        n_top_hypotheses,
+        n_bottom_hypotheses,
+        legend_kwargs={"title": "Hypothesis", "fontsize": 8, "handlelength": 0.75},
+    )
+
+    # Finalize axes.
+    if indicate_jump_step and len(pose_goal_states) > 0:
+        jump_step = order_step
+    else:
+        jump_step = None
+
+    finalize_axes(
+        ax,
+        jump_step=jump_step,
+        xlim=(0, n_steps),
+        ylim=(0, 40),
+        yticks=[0, 10, 20, 30, 40],
+        xlabel="Step",
+        ylabel="Evidence",
+    )
+    plt.show()
+    return fig, ax
+
+
+def plot_evidence_over_time_all():
+    exp_dir = VISUALIZATION_RESULTS_DIR / "fig6_hypothesis_driven_policy"
+    detailed_stats_path = exp_dir / "detailed_run_stats.json"
+    detailed_stats = DetailedJSONStatsInterface(detailed_stats_path)
+
+    out_dir = OUT_DIR / "evidence_over_time"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    episode = 0
+    object_name = "spoon"
+    fig, ax = plot_evidence_over_time_objects(detailed_stats[episode])
+    fig.savefig(
+        out_dir / f"objects_episode_{episode}.png", dpi=300, bbox_inches="tight"
+    )
+    fig.savefig(out_dir / f"objects_episode_{episode}.svg", bbox_inches="tight")
+    fig, ax = plot_evidence_over_time_rotations(
+        detailed_stats[episode],
+        object_name,
+        indicate_jump_step=False,
+    )
+    fig.savefig(
+        out_dir / f"rotations_episode_{episode}_{object_name}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
+    fig.savefig(
+        out_dir / f"rotations_episode_{episode}_{object_name}.svg", bbox_inches="tight"
+    )
+
+    episode = 1
+    object_name = "mug"
+    fig, ax = plot_evidence_over_time_objects(
+        detailed_stats[episode], indicate_jump_step=False
+    )
+    fig.savefig(
+        out_dir / f"objects_episode_{episode}.png", dpi=300, bbox_inches="tight"
+    )
+    fig.savefig(out_dir / f"objects_episode_{episode}.svg", bbox_inches="tight")
+    fig, ax = plot_evidence_over_time_rotations(
+        detailed_stats[episode],
+        object_name,
+    )
+
+    fig.savefig(
+        out_dir / f"rotations_episode_{episode}_{object_name}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
+    fig.savefig(
+        out_dir / f"rotations_episode_{episode}_{object_name}.svg", bbox_inches="tight"
+    )
+
+
+"""
+-------------------------------------------------------------------------------
+"""
+
+"""
+-------------------------------------------------------------------------------
+"""
+
+plot_curvature_guided_policy()
+plot_object_hypothesis()
+plot_pose_hypothesis()
+plot_evidence_over_time_all()
+plot_performance()
