@@ -28,13 +28,17 @@ from data_utils import (
     load_eval_stats,
     load_object_model,
 )
-from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
+from plot_utils import (
+    TBP_COLORS,
+    SensorModuleData,
+    axes3d_clean,
+    axes3d_set_aspect_equal,
+    init_matplotlib_style,
+)
 from scipy.spatial.transform import Rotation as R
 from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
-plt.rcParams["font.size"] = 8
-plt.rcParams["font.family"] = "Arial"
-plt.rcParams["svg.fonttype"] = "none"
+init_matplotlib_style()
 
 
 # Directories to save plots and tables to.
@@ -56,87 +60,30 @@ def plot_sensor_path():
     )
     stats = detailed_stats[0]
 
-    mug = load_object_model("dist_agent_1lm_10distinctobj", "mug")
-    raw_observations = stats["SM_0"]["raw_observations"]  # a list of dicts
-    n_steps = 36
+    fig, ax = plt.subplots(1, 1, figsize=(3, 3), subplot_kw={"projection": "3d"})
 
-    # Extract the (central) locations of each observation.
-    n_rows = n_cols = 64
-    center_loc = n_rows // 2 * n_cols + n_cols // 2
-    centers = np.zeros((n_steps, 3))
-    for i in range(n_steps):
-        arr = np.array(raw_observations[i]["semantic_3d"])
-        centers[i, 0] = arr[center_loc, 0]
-        centers[i, 1] = arr[center_loc, 1]
-        centers[i, 2] = arr[center_loc, 2]
+    model = load_object_model("dist_agent_1lm", "mug")
+    ax.scatter(
+        model.x,
+        model.y,
+        model.z,
+        color=model.rgba,
+        alpha=0.35,
+        s=4,
+        edgecolor="none",
+    )
+    sm = SensorModuleData(stats["SM_0"])
+    sm.plot_sensor_path(ax, steps=36)
 
+    ax.set_proj_type("persp", focal_length=0.5)
+    ax.view_init(115, -90, 0)
+    axes3d_clean(ax)
+    axes3d_set_aspect_equal(ax)
+    plt.show()
     out_dir = OUT_DIR / "sensor_path"
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    def init_plot(
-        observed_points: bool = False,
-        path: bool = False,
-        path_labels: bool = False,
-    ):
-        fig = plt.figure(figsize=(4, 4))
-        ax = fig.add_subplot(projection="3d")
-        linewidths = np.zeros(len(mug.x))
-        ax.scatter(
-            mug.x,
-            mug.y,
-            mug.z,
-            color=mug.rgba,
-            alpha=0.5,
-            linewidths=linewidths,
-            zorder=1,
-            s=5,
-        )
-        ax.view_init(115, -90, 0)
-        axes3d_clean(ax, grid=False)
-        axes3d_set_aspect_equal(ax)
-        blue = TBP_COLORS["blue"]
-        x, y, z = centers[:, 0], centers[:, 1], centers[:, 2]
-        if observed_points:
-            # z += 0.005
-            ax.scatter(
-                x,
-                y,
-                z,
-                color="k",
-                edgecolors="k",
-                alpha=1,
-                zorder=5,
-                marker="s",
-                s=8,
-                linewidths=1,
-            )
-        if path:
-            ax.plot(x, y, z, color=blue, alpha=1, ls="--", lw=1)
-        if path_labels:
-            for i in range(len(x)):
-                if i % 10 == 0:
-                    ax.text(x[i], y[i], z[i], f"{i}", color="k", alpha=1, zorder=5)
-        return fig, ax
-
-    fig, ax = init_plot()
-    fig.savefig(out_dir / "mug.png", dpi=300)
-    fig.savefig(out_dir / "mug.svg")
-    plt.show()
-
-    fig, ax = init_plot(observed_points=True)
-    fig.savefig(out_dir / "mug_with_points.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_points.svg")
-    plt.show()
-
-    fig, ax = init_plot(observed_points=True, path=True)
-    fig.savefig(out_dir / "mug_with_path.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_path.svg")
-    plt.show()
-
-    fig, ax = init_plot(observed_points=True, path=True, path_labels=True)
-    fig.savefig(out_dir / "mug_with_labels.png", dpi=300)
-    fig.savefig(out_dir / "mug_with_labels.svg")
-    plt.show()
+    fig.savefig(out_dir / "sensor_path.png", dpi=300)
+    fig.savefig(out_dir / "sensor_path.svg")
 
 
 def plot_known_objects():
