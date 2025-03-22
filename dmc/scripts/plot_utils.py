@@ -422,7 +422,7 @@ class SensorModuleData:
 
         if contour:
             contour_style = extract_style(style, "raw_observation.contour")
-            contours = self.find_patch_contours(pos, on_object)
+            contours = self._find_patch_contours(pos, on_object)
             for xyz in contours:
                 ax.plot(xyz[:, 0], xyz[:, 1], xyz[:, 2], **contour_style)
 
