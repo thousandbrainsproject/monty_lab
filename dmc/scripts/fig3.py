@@ -14,13 +14,9 @@ of monty matching steps, accuracy, and rotation error. If functions are called w
 `save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
 """
 
-import os
-from types import SimpleNamespace
-from typing import List, Mapping, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
@@ -36,7 +32,6 @@ from plot_utils import (
     init_matplotlib_style,
 )
 from scipy.spatial.transform import Rotation as R
-from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
 init_matplotlib_style()
 
