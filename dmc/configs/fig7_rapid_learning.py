@@ -32,9 +32,6 @@ from copy import deepcopy
 from pathlib import Path
 
 import torch
-from tbp.monty.frameworks.config_utils.config_args import (
-    PretrainLoggingConfig,
-)
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
