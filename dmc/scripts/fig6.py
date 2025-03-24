@@ -42,9 +42,7 @@ from plot_utils import (
     SensorModuleData,
     axes3d_clean,
     axes3d_set_aspect_equal,
-    extract_style,
     init_matplotlib_style,
-    update_style,
     violinplot,
 )
 from scipy.spatial.transform import Rotation as R
@@ -53,6 +51,11 @@ init_matplotlib_style()
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig6"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+"""
+Style utilities. Can be hard-coded later when we decide on colors, etc.
+"""
+
 
 # Plotting styles.
 HYPOTHESIS_COLORS = [
@@ -88,8 +91,34 @@ STYLE = {
     "goal.zorder": 20,
 }
 
+def extract_style(dct: Mapping, prefix: str, strip: bool = True) -> Mapping:
+    """Extract a subset of a dictionary with keys that start with a given prefix."""
+    prefix = prefix + "." if not prefix.endswith(".") else prefix
+    if strip:
+        return {
+            k.replace(prefix, ""): v for k, v in dct.items() if k.startswith(prefix)
+        }
+    else:
+        return {k: v for k, v in dct.items() if k.startswith(prefix)}
+
+
+def update_style(
+    base: Optional[Mapping],
+    new: Optional[Mapping],
+) -> Mapping:
+    """Join two dictionaries of style properties.
+
+    If a key is present in both dictionaries, the value from the new dictionary is used.
+    If a key is present in only one dictionary, the value from that dictionary is used.
+
+    """
+    base = {} if base is None else base
+    new = {} if new is None else new
+    return {**base, **new}
+
+
 """
-Utilities
+Data Utilities
 """
 
 
@@ -1058,7 +1087,6 @@ def plot_evidence_over_time_all():
 
     fig.savefig(
         out_dir / f"rotations_episode_{episode}_{object_name}.png",
-        dpi=300,
         bbox_inches="tight",
     )
     fig.savefig(
@@ -1066,9 +1094,6 @@ def plot_evidence_over_time_all():
     )
 
 
-"""
--------------------------------------------------------------------------------
-"""
 
 """
 -------------------------------------------------------------------------------

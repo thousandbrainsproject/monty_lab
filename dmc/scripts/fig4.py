@@ -31,15 +31,18 @@ from data_utils import (
     load_eval_stats,
     load_object_model,
 )
-from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
+from plot_utils import (
+    TBP_COLORS,
+    axes3d_clean,
+    axes3d_set_aspect_equal,
+    init_matplotlib_style,
+)
 from scipy.cluster.hierarchy import dendrogram, linkage, set_link_color_palette
 from scipy.spatial.transform import Rotation as R
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
-plt.rcParams["font.size"] = 8
-plt.rcParams["font.family"] = "Arial"
-plt.rcParams["svg.fonttype"] = "none"
+init_matplotlib_style()
 
 
 # Directories to save plots and tables to.
@@ -518,9 +521,13 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
             rel_evidence_matrix_normed[j, i] = avg_value
     rel_evidence_matrix_normed = 1 - rel_evidence_matrix_normed
     # Plot dendrogram.
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(3.5, 3))
     Z = linkage(rel_evidence_matrix_normed, optimal_ordering=True)
-    link_color_palette = [TBP_COLORS["blue"], TBP_COLORS["green"], TBP_COLORS["purple"]]
+    link_color_palette = [
+        TBP_COLORS["blue"],
+        TBP_COLORS["yellow"],
+        TBP_COLORS["purple"],
+    ]
     set_link_color_palette(link_color_palette)
     dendrogram(
         Z,
@@ -532,14 +539,16 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
     xticklabels = ax.get_xticklabels()
     ax.set_xticklabels(xticklabels, rotation=45, fontsize=8, ha="right")
     ax.set_ylabel("Cluster Distance", fontsize=10)
-    sns.despine(left=False, bottom=False, right=True)
+    if modality == "surf":
+        ax.set_yticks([0, 0.05, 0.1, 0.15, 0.2])
+
     plt.tight_layout()
     plt.show()
-    fig.savefig(out_dir / f"dendrogram_{modality}.png", dpi=300)
+    fig.savefig(out_dir / f"dendrogram_{modality}.png")
     fig.savefig(out_dir / f"dendrogram_{modality}.svg")
 
     # Plot confusion matrix.
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(3.5, 3))
     if modality == "dist":
         permuted_names = [
             "fork",
@@ -587,7 +596,7 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
         labelpad=20,
         fontsize=10,
     )
-    plt.tight_layout()
+    # plt.tight_layout()
     plt.show()
     fig.savefig(out_dir / f"confusion_matrix_{modality}.png", dpi=300)
     fig.savefig(out_dir / f"confusion_matrix_{modality}.svg")
@@ -635,7 +644,7 @@ def plot_similar_object_models(modality: str):
 
 
 # plot_dendrogram_and_confusion_matrix("dist")
-# plot_dendrogram_and_confusion_matrix("surf")
+plot_dendrogram_and_confusion_matrix("surf")
 # plot_similar_object_models("dist")
 # plot_similar_object_models("surf")
 # plot_symmetry_stats()
