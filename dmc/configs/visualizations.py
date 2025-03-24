@@ -81,6 +81,42 @@ fig2_pretrain_surf_agent_1lm_checkpoints.update(
     )
 )
 
+"""
+Figure 3
+-------------------------------------------------------------------------------
+"""
+
+# `fig3_evidence_run`: Experiment for collecting detailed evidence values and sensor
+# data for one episode only. Used in `scripts/fig3.py` to generate evidence graphs
+# and visualize the path taken by the sensor/agent.
+fig3_evidence_run = deepcopy(dist_agent_1lm)
+fig3_evidence_run.update(
+    dict(
+        experiment_args=EvalExperimentArgs(
+            model_name_or_path=str(
+                DMC_PRETRAIN_DIR / "dist_agent_1lm_10distinctobj/pretrained"
+            ),
+            n_eval_epochs=1,
+            max_total_steps=100,
+            max_eval_steps=100,
+        ),
+        logging_config=SelectiveEvidenceLoggingConfig(
+            output_dir=str(VISUALIZATION_RESULTS_DIR),
+            run_name="fig3_evidence_run",
+        ),
+        eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+            object_names=["mug"],
+            object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
+        ),
+    )
+)
+fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
+
+"""
+Figure 4
+-------------------------------------------------------------------------------
+"""
+
 
 class MLHEvidenceHandler(SelectiveEvidenceHandler):
     """Logging handler that only saves terminal evidence data for the MLH object.
@@ -126,42 +162,6 @@ class MLHEvidenceHandler(SelectiveEvidenceHandler):
         self.save(episode_total, buffer_data, output_dir)
 
 
-
-"""
-Figure 3
--------------------------------------------------------------------------------
-"""
-
-# `fig3_evidence_run`: Experiment for collecting detailed evidence values and sensor
-# data for one episode only. Used in `scripts/fig3.py` to generate evidence graphs
-# and visualize the path taken by the sensor/agent.
-fig3_evidence_run = deepcopy(dist_agent_1lm)
-fig3_evidence_run.update(
-    dict(
-        experiment_args=EvalExperimentArgs(
-            model_name_or_path=str(
-                DMC_PRETRAIN_DIR / "dist_agent_1lm_10distinctobj/pretrained"
-            ),
-            n_eval_epochs=1,
-            max_total_steps=100,
-            max_eval_steps=100,
-        ),
-        logging_config=SelectiveEvidenceLoggingConfig(
-            output_dir=str(VISUALIZATION_RESULTS_DIR),
-            run_name="fig3_evidence_run",
-        ),
-        eval_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-            object_names=["mug"],
-            object_init_sampler=PredefinedObjectInitializer(rotations=[[0, 0, 0]]),
-        ),
-    )
-)
-fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
-
-"""
-Figure 4
--------------------------------------------------------------------------------
-"""
 
 # `fig4_symmetry_run`: Experiment for collecting data on symmetric rotations, the
 # results of which are used in `scripts/fig4.py` to investigate rotation error
