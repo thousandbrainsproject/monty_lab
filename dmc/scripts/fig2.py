@@ -100,7 +100,7 @@ def plot_agent_models_potted_meat_can():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Plot the distant agent's object model using stored colors.
-    obj = load_object_model("dist_agent_1lm_10distinctobj", "potted_meat_can")
+    obj = load_object_model("dist_agent_1lm", "potted_meat_can")
     obj -= np.array([0.0, 1.5, 0.0])
     obj = obj.rotated(R.from_euler("xyz", [90, 260, 0], degrees=True))
 
@@ -338,7 +338,7 @@ def plot_pretraining_epochs():
         )
         obj -= np.array([0.0, 1.5, 0.0])
         # color = TBP_COLORS["blue"]
-        ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, s=5, alpha=0.5)
+        ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, s=5, alpha=0.5, edgecolors="none")
         ax.set_proj_type("persp", focal_length=1)
         axes3d_clean(ax, grid=False)
         axes3d_set_aspect_equal(ax)
@@ -358,6 +358,6 @@ def plot_pretraining_epochs():
 
 # plot_agent_models_mug()
 # plot_agent_models_potted_meat_can()
-plot_object_views("potted_meat_can", background="gradient")
-plot_object_views("mug", background="white")
-# plot_pretraining_epochs()
+# plot_object_views("potted_meat_can", background="gradient")
+# plot_object_views("mug", background="white")
+plot_pretraining_epochs()
