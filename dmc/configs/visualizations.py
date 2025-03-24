@@ -32,12 +32,12 @@ import numpy as np
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
+    ExperimentArgs,
     PredefinedObjectInitializer,
 )
-from tbp.monty.frameworks.loggers.monty_handlers import (
-    BasicCSVStatsHandler,
-    DetailedJSONHandler,
-)
+from tbp.monty.frameworks.environments import embodied_data as ED
+from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
+from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
 
 from .common import (
     DMC_PRETRAIN_DIR,
@@ -51,9 +51,39 @@ from .fig5_rapid_inference_with_voting import (
     dist_agent_8lm_half_lms_match,
 )
 from .fig6_rapid_inference_with_model_based_policies import surf_agent_1lm
+from .fig7_rapid_learning import (
+    TRAIN_ROTATIONS_32,
+    DMCPretrainLoggingConfig,
+    PretrainingExperimentWithCheckpointing,
+)
+from .pretraining_experiments import pretrain_surf_agent_1lm
 
 # Main output directory for visualization experiment results.
 VISUALIZATION_RESULTS_DIR = DMC_ROOT_DIR / "visualizations"
+
+"""
+Figure 2
+-------------------------------------------------------------------------------
+"""
+
+fig2_pretrain_surf_agent_1lm_checkpoints = deepcopy(pretrain_surf_agent_1lm)
+fig2_pretrain_surf_agent_1lm_checkpoints.update(
+    dict(
+        experiment_class=PretrainingExperimentWithCheckpointing,
+        experiment_args=ExperimentArgs(
+            n_train_epochs=len(TRAIN_ROTATIONS_32),
+            do_eval=False,
+        ),
+        logging_config=DMCPretrainLoggingConfig(run_name="surf_agent_1lm_checkpoints"),
+        train_dataloader_class=ED.InformedEnvironmentDataLoader,
+        train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
+            object_names=SHUFFLED_YCB_OBJECTS,
+            object_init_sampler=PredefinedObjectInitializer(
+                rotations=TRAIN_ROTATIONS_32
+            ),
+        ),
+    )
+)
 
 
 class MLHEvidenceHandler(SelectiveEvidenceHandler):
@@ -98,6 +128,7 @@ class MLHEvidenceHandler(SelectiveEvidenceHandler):
 
         # Store data.
         self.save(episode_total, buffer_data, output_dir)
+
 
 
 """
@@ -294,6 +325,7 @@ fig6_hypothesis_driven_policy["eval_dataloader_args"] = (
 )
 
 CONFIGS = {
+    "fig2_pretrain_surf_agent_1lm_checkpoints": fig2_pretrain_surf_agent_1lm_checkpoints,
     "fig3_evidence_run": fig3_evidence_run,
     "fig4_symmetry_run": fig4_symmetry_run,
     "fig5_visualize_8lm_patches": fig5_visualize_8lm_patches,
