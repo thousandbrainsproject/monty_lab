@@ -52,11 +52,10 @@ from .fig5_rapid_inference_with_voting import (
 )
 from .fig6_rapid_inference_with_model_based_policies import surf_agent_1lm
 from .fig7_rapid_learning import (
-    TRAIN_ROTATIONS_32,
     DMCPretrainLoggingConfig,
     PretrainingExperimentWithCheckpointing,
 )
-from .pretraining_experiments import pretrain_surf_agent_1lm
+from .pretraining_experiments import TRAIN_ROTATIONS, pretrain_surf_agent_1lm
 
 # Main output directory for visualization experiment results.
 VISUALIZATION_RESULTS_DIR = DMC_ROOT_DIR / "visualizations"
@@ -70,17 +69,14 @@ fig2_pretrain_surf_agent_1lm_checkpoints = deepcopy(pretrain_surf_agent_1lm)
 fig2_pretrain_surf_agent_1lm_checkpoints.update(
     dict(
         experiment_class=PretrainingExperimentWithCheckpointing,
-        experiment_args=ExperimentArgs(
-            n_train_epochs=len(TRAIN_ROTATIONS_32),
-            do_eval=False,
+        logging_config=DMCPretrainLoggingConfig(
+            output_dir=str(VISUALIZATION_RESULTS_DIR),
+            run_name="fig2_surf_agent_1lm_checkpoints",
         ),
-        logging_config=DMCPretrainLoggingConfig(run_name="surf_agent_1lm_checkpoints"),
         train_dataloader_class=ED.InformedEnvironmentDataLoader,
         train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-            object_names=SHUFFLED_YCB_OBJECTS,
-            object_init_sampler=PredefinedObjectInitializer(
-                rotations=TRAIN_ROTATIONS_32
-            ),
+            object_names=["potted_meat_can"],
+            object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
         ),
     )
 )
