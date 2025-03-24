@@ -112,6 +112,7 @@ fig3_evidence_run.update(
 )
 fig3_evidence_run["monty_config"].monty_args.min_eval_steps = 40
 
+
 """
 Figure 4
 -------------------------------------------------------------------------------
