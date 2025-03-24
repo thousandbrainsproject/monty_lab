@@ -23,15 +23,18 @@ from data_utils import (
     DMC_ANALYSIS_DIR,
     load_object_model,
 )
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
-from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
+from plot_utils import (
+    TBP_COLORS,
+    axes3d_clean,
+    axes3d_set_aspect_equal,
+    init_matplotlib_style,
+)
 from render_view_finder_images import VIEW_FINDER_DIR
 from scipy.spatial.transform import Rotation as R
 
-plt.rcParams["font.size"] = 8
-plt.rcParams["font.family"] = "Arial"
-plt.rcParams["svg.fonttype"] = "none"
-
+init_matplotlib_style()
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig2"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -139,14 +142,19 @@ def plot_agent_models_potted_meat_can():
     fig.savefig(out_dir / "potted_meat_can_touch_agent.svg", pad_inches=0)
 
 
-def plot_object_views(object_name: str, **kw) -> None:
+def plot_object_views(
+    object_name: str,
+    background: str = "gradient",
+    vmin: float = 0.6,
+    vmax: float = 0.8,
+) -> None:
     """
     Loads view finder images of the potted meat can at 14 training rotations,
     and saves them as individual PNG and SVG files.
     """
 
     # Initialize input and output paths.
-    data_dir = VIEW_FINDER_DIR / "view_finder_base/view_finder_rgbd"
+    data_dir = VIEW_FINDER_DIR / "view_finder_base_highres/view_finder_rgbd"
     png_dir = OUT_DIR / f"object_views/{object_name}/png"
     svg_dir = OUT_DIR / f"object_views/{object_name}/svg"
     png_dir.mkdir(parents=True, exist_ok=True)
@@ -169,8 +177,8 @@ def plot_object_views(object_name: str, **kw) -> None:
         episode_number = episode[0]
 
         # Load the rgbd image, and alpha mask out any pixels that have a depth
-        # greater than 0.9. We do this because we want to place the objects over
-        # a neater (gray) background to match other plots in the figure.
+        # greater than 0.9. We do this because we want to replace the black
+        # background with something more visually appealing.
         rgbd = np.load(os.path.join(data_dir, f"arrays/{episode_number}.npy"))
         depth = rgbd[:, :, 3]
         rgba = rgbd.copy()
@@ -178,11 +186,12 @@ def plot_object_views(object_name: str, **kw) -> None:
         masked = np.argwhere(depth > 0.9)
         rgba[masked[:, 0], masked[:, 1], 3] = 0
 
-        # Put the image on the gray background, and plot it.
-        fn_kw = {key: kw[key] for key in kw if key in ["vmin", "vmax"]}
-        image = put_image_on_gray_gradient(rgba, **fn_kw)
-        # image = rgba
-        # fig, ax = plt.subplots(figsize=(1, 1))
+        # Put the image on a background.
+        if background == "gradient":
+            image = add_gradient_background(rgba, vmin=vmin, vmax=vmax)
+        else:
+            image = add_solid_background(rgba, background)
+
         fig = Figure(figsize=(1, 1))
         ax = fig.add_subplot(1, 1, 1)
         ax.imshow(image)
@@ -192,8 +201,22 @@ def plot_object_views(object_name: str, **kw) -> None:
         fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
 
 
-def put_image_on_gray_gradient(
-    image: np.ndarray, vmin: float = 0.2, vmax: float = 0.5
+def add_solid_background(
+    image: np.ndarray,
+    color: str,
+) -> np.ndarray:
+    """
+    Returns a solid background image of the given color.
+    """
+    width, height = image.shape[0], image.shape[1]
+    c = np.array(to_rgba(color))
+    bg = np.zeros([width, height, 4])
+    bg[:, :] = c
+    return blend_rgba_images(bg, image)
+
+
+def add_gradient_background(
+    image: np.ndarray, vmin: float = 0.7, vmax: float = 0.9
 ) -> np.ndarray:
     """
     Puts an image on a random (grayscale) gradient background.
@@ -220,9 +243,7 @@ def put_image_on_gray_gradient(
     bg = np.dstack((bg, bg, bg, np.ones((width, height))))
 
     # - Finally, blend the image with the background.
-    blended = blend_rgba_images(bg, image)
-
-    return blended
+    return blend_rgba_images(bg, image)
 
 
 def blend_rgba_images(background: np.ndarray, foreground: np.ndarray) -> np.ndarray:
@@ -337,5 +358,6 @@ def plot_pretraining_epochs():
 
 # plot_agent_models_mug()
 # plot_agent_models_potted_meat_can()
-# plot_object_views("potted_meat_can")
+plot_object_views("potted_meat_can", background="gradient")
+plot_object_views("mug", background="white")
 # plot_pretraining_epochs()
