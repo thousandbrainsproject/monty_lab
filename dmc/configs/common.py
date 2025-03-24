@@ -71,7 +71,7 @@ RANDOM_ROTATIONS_5 = [
 """
 Config Functions for Creating/Modifying Evaluation Experiments Configs
 ----------------------------------------------------------------------
-Note: See `pretraining_experiments.py` for functions that return/modify configs
+Note: See `pretraining_experiments.py` for functions that return configs
 suitable for pretraining experiments.
 
 """
