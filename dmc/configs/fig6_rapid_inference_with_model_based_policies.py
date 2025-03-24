@@ -50,9 +50,9 @@ from .common import (
     MIN_EVAL_STEPS,
     RANDOM_ROTATIONS_5,
     DMCEvalLoggingConfig,
-    get_surf_lm_config,
-    get_surf_motor_config,
-    get_surf_patch_config,
+    get_eval_lm_config,
+    get_eval_motor_config,
+    get_eval_patch_config,
     get_view_finder_config,
     make_randrot_noise_variant,
 )
@@ -72,13 +72,13 @@ surf_agent_1lm = dict(
         monty_class=MontyForEvidenceGraphMatching,
         monty_args=MontyArgs(min_eval_steps=MIN_EVAL_STEPS),
         sensor_module_configs=dict(
-            sensor_module_0=get_surf_patch_config(),
+            sensor_module_0=get_eval_patch_config("surf"),
             sensor_module_1=get_view_finder_config(),
         ),
         learning_module_configs=dict(
-            learning_module_0=get_surf_lm_config(),
+            learning_module_0=get_eval_lm_config("surf"),
         ),
-        motor_system_config=get_surf_motor_config(),
+        motor_system_config=get_eval_motor_config("surf"),
     ),
     # Set up environment.
     dataset_class=ED.EnvironmentDataset,

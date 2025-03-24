@@ -11,6 +11,7 @@
 
 This module defines the following experiments:
  - `dist_agent_1lm_randrot_noise_10simobj`
+ - `surf_agent_1lm_randrot_noise_10simobj`
 
  Experiments use:
  - 10 similar objects (but using the 77-object pretrained model)
@@ -42,8 +43,7 @@ from .fig6_rapid_inference_with_model_based_policies import (
 class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
     """Logging handler that only saves terminal evidence data for the MLH object.
 
-    A lean logger handler for the symmetry experiment (which are full-length runs,
-    and so we need to be very selective about which data to log).
+    A lean logger handler for the symmetry experiment.
 
     """
 
@@ -71,7 +71,7 @@ class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
         }
         self.save(episode_total, output_data, output_dir)
 
-
+# TODO: Delete this? Not used in the most recent figures.
 dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
 dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
     SelectiveEvidenceLoggingConfig(
