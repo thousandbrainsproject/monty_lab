@@ -188,7 +188,7 @@ def plot_object_views(object_name: str, **kw) -> None:
         ax.imshow(image)
         ax.axis("off")
         fig.tight_layout(pad=0)
-        fig.savefig(png_dir / f"{i}.png", dpi=300)
+        fig.savefig(png_dir / f"{i}.png")
         fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
 
 
