@@ -57,31 +57,6 @@ Symmetrical rotations
 """
 
 
-def get_emd_distance(
-    pc1: Union[np.ndarray, ObjectModel],
-    pc2: Union[np.ndarray, ObjectModel],
-) -> float:
-    """Computes the Earth Mover's Distance (EMD) between two point clouds.
-
-    Args:
-        pc1: A numpy array of shape (N, 3) representing the first point cloud.
-        pc2: A numpy array of shape (N, 3) representing the second point cloud.
-
-    Returns:
-        float: The EMD distance between the two point clouds.
-
-    TODO: Delete me.
-    """
-
-    pc1 = pc1.pos if isinstance(pc1, ObjectModel) else pc1
-    pc2 = pc2.pos if isinstance(pc2, ObjectModel) else pc2
-    # Compute pairwise distances
-    cost_matrix = scipy.spatial.distance.cdist(pc1, pc2)
-    # Solve transport problem
-    row_ind, col_ind = scipy.optimize.linear_sum_assignment(cost_matrix)
-    return cost_matrix[row_ind, col_ind].sum() / len(pc1)
-
-
 def get_chamfer_distance(
     pc1: Union[np.ndarray, ObjectModel],
     pc2: Union[np.ndarray, ObjectModel],
@@ -226,8 +201,8 @@ def get_symmetry_stats() -> Mapping:
 
     # Initialize dict that we'll be returning.
     stat_arrays = {
-        "pose_error": {"best": [], "mlh": [], "other": [], "random": []},
-        "Chamfer": {"best": [], "mlh": [], "other": [], "random": []},
+        "pose_error": {"min": [], "MLH": [], "sym": [], "rand": []},
+        "Chamfer": {"min": [], "MLH": [], "sym": [], "rand": []},
     }
     for episode, stats in enumerate(detailed_stats):
         # print(f"Episode {episode}/{len(detailed_stats)}")
@@ -248,26 +223,26 @@ def get_symmetry_stats() -> Mapping:
         )
 
         # - Create a random rotation.
-        random = SimpleNamespace(
+        rand = SimpleNamespace(
             rot=R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True),
             location=np.array([0, 1.5, 0]),
         )
 
         # - Load symmetry rotations, and computed pose error.
         rotations = load_symmetry_rotations(stats)
-        for r in rotations + [target, random]:
+        for r in rotations + [target, rand]:
             r.pose_error = np.degrees(
                 get_pose_error(r.rot.as_quat(), target.rot.as_quat())
             )
 
         # - Find mlh, best, and some other symmetric.
         rotations = sorted(rotations, key=lambda x: x.pose_error)
-        best = sorted(rotations, key=lambda x: x.pose_error)[0]
-        other = rotations[np.random.randint(1, len(rotations))]
+        min_ = sorted(rotations, key=lambda x: x.pose_error)[0]
+        sym = rotations[np.random.randint(1, len(rotations))]
         mlh = sorted(rotations, key=lambda x: x.evidence)[-1]
 
         # - Compute chamfer distances, and store the stats.
-        rotations = dict(best=best, mlh=mlh, other=other, random=random)
+        rotations = dict(min=min_, MLH=mlh, sym=sym, rand=rand)
         model = models[row.primary_target_object] - [0, 1.5, 0]
         target_obj = model.rotated(target.rot)
         for name, r in rotations.items():
@@ -287,12 +262,12 @@ def plot_symmetry_stats():
     """Plot the symmetry stats."""
     stat_arrays = get_symmetry_stats()
 
-    fig, axes = plt.subplots(1, 2, figsize=(4.5, 2.3))
+    fig, axes = plt.subplots(1, 2, figsize=(5.5, 2.5))
 
-    rotation_types = ["best", "mlh", "other", "random"]
+    rotation_types = ["min", "MLH", "sym", "rand"]
     colors = [TBP_COLORS["blue"]] * len(rotation_types)
     xticks = list(range(1, len(rotation_types) + 1))
-    xticklabels = ["min. error", "MLH", "other", "random"]
+    xticklabels = ["min", "MLH", "sym", "rand"]
 
     # Pose Error
     ax = axes[0]
@@ -306,8 +281,7 @@ def plot_symmetry_stats():
     ax.set_xticklabels(xticklabels)
     ax.set_yticks([0, 45, 90, 135, 180])
     ax.set_ylim(0, 180)
-    ax.set_ylabel("degrees")
-    ax.set_title("Pose Error")
+    ax.set_ylabel("Rotation Error (deg)")
 
     # Chamfer
     ax = axes[1]
@@ -319,10 +293,9 @@ def plot_symmetry_stats():
     vp["cmedians"].set_color("black")
     ax.set_xticks(xticks)
     ax.set_xticklabels(xticklabels)
-    ax.set_ylabel("meters")
+    ax.set_ylabel("Chamfer Distance (m)")
     ymax = max(np.percentile(arr, 95) for arr in arrays)
     ax.set_ylim(0, ymax)
-    ax.set_title("Chamfer Distance")
 
     fig.tight_layout()
 
@@ -521,7 +494,7 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
             rel_evidence_matrix_normed[j, i] = avg_value
     rel_evidence_matrix_normed = 1 - rel_evidence_matrix_normed
     # Plot dendrogram.
-    fig, ax = plt.subplots(figsize=(3.5, 3))
+    fig, ax = plt.subplots(figsize=(7, 3))
     Z = linkage(rel_evidence_matrix_normed, optimal_ordering=True)
     link_color_palette = [
         TBP_COLORS["blue"],
@@ -537,7 +510,7 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
         ax=ax,
     )
     xticklabels = ax.get_xticklabels()
-    ax.set_xticklabels(xticklabels, rotation=45, fontsize=8, ha="right")
+    ax.set_xticklabels(xticklabels, rotation=0, fontsize=8, ha="center")
     ax.set_ylabel("Cluster Distance", fontsize=10)
     if modality == "surf":
         ax.set_yticks([0, 0.05, 0.1, 0.15, 0.2])
@@ -643,9 +616,106 @@ def plot_similar_object_models(modality: str):
     fig.savefig(OUT_DIR / f"object_models_{modality}.svg")
 
 
+def plot_symmetry_diagram():
+    def draw_basis_vectors(ax, rot):
+        mat = rot.as_matrix()
+        origin = np.array([0, 0, 0])
+        colors = ["red", "green", "blue"]
+        axis_names = ["x", "y", "z"]
+        for i in range(3):
+            ax.quiver(
+                *origin,
+                *mat[:, i],
+                color=colors[i],
+                length=1,
+                arrow_length_ratio=0.1,
+                normalize=True,
+            )
+            getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+        ax.axis("off")
+
+    out_dir = OUT_DIR / "symmetry_diagram"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    fig, axes = plt.subplots(2, 5, figsize=(8, 4), subplot_kw={"projection": "3d"})
+
+    base_obj = load_object_model("dist_agent_1lm", "bowl")
+    base_obj = base_obj - [0, 1.5, 0]
+    base_obj = base_obj.rotated(R.from_euler("xyz", [90, 0, 0], degrees=True))
+    base_obj = base_obj.rotated(R.from_euler("xyz", [0, 0, 180], degrees=True))
+    target_rot = R.from_euler("xyz", [0, 0, 270], degrees=True)
+    target_obj = base_obj.rotated(target_rot)
+
+    min_rot = R.from_euler("xyz", [0, 0, 280], degrees=True)
+    mlh_rot = R.from_euler("xyz", [0, 0, 180], degrees=True)
+    sym_rot = R.from_euler("xyz", [0, 0, 60], degrees=True)
+    rand_rot = R.from_euler("xyz", [30, 40, 80], degrees=True)
+    rotations = [target_rot, min_rot, mlh_rot, sym_rot, rand_rot]
+    labels = ["target", "min", "MLH", "sym", "rand"]
+
+    rotation_errors = []
+    chamfer_distances = []
+    for i in range(len(rotations)):
+        rot = rotations[i]
+        lbl = labels[i]
+        obj = target_obj.rotated(rot)
+        axes[0, i].scatter(
+            obj.x,
+            obj.y,
+            obj.z,
+            color=obj.rgba,
+            alpha=0.5,
+            s=1,
+        )
+        draw_basis_vectors(axes[1, i], rot)
+        axes[1, i].set_title(lbl)
+        rotation_errors.append(get_pose_error(target_rot.as_quat(), rot.as_quat()))
+        chamfer_distances.append(get_chamfer_distance(target_obj, obj))
+
+    for ax in axes.flatten():
+        ax.set_proj_type("persp", focal_length=1)
+        axes3d_clean(ax)
+        axes3d_set_aspect_equal(ax)
+        ax.axis("off")
+    plt.show()
+
+    fig.savefig(out_dir / "symmetry_diagram.png")
+    fig.savefig(out_dir / "symmetry_diagram.svg")
+
+    rotation_errors = np.rad2deg(np.array(rotation_errors))[1:]
+    chamfer_distances = np.array(chamfer_distances)[1:]
+    labels = labels[1:]
+
+    fig, ax1 = plt.subplots(figsize=(3.4, 2.5))
+    ax2 = ax1.twinx()
+    xticks = np.arange(len(labels))
+    width = 0.4
+    gap = 0.02
+    left_positions = xticks - width / 2 - gap / 2
+    right_positions = xticks + width / 2 + gap / 2
+    ax1.bar(left_positions, rotation_errors, width, color=TBP_COLORS["blue"])
+    ax2.bar(right_positions, chamfer_distances, width, color=TBP_COLORS["purple"])
+    ax1.set_ylabel("Rotation Error (deg)")
+
+    ax1.set_xticks(xticks)
+    ax1.set_xticklabels(labels)
+    ax1.set_ylim(0, 180)
+    ax1.set_yticks([0, 45, 90, 135, 180])
+    ax1.spines["right"].set_visible(True)
+
+    ax2.set_ylabel("Chamfer Distance (m)")
+    ax2.set_ylim(0, 0.04)
+    ax2.set_yticks([0, 0.01, 0.02, 0.03, 0.04])
+    ax2.spines["right"].set_visible(True)
+    fig.tight_layout()
+    plt.show()
+    fig.savefig(out_dir / "symmetry_diagram_error.png")
+    fig.savefig(out_dir / "symmetry_diagram_error.svg")
+
+
 # plot_dendrogram_and_confusion_matrix("dist")
-plot_dendrogram_and_confusion_matrix("surf")
+# plot_dendrogram_and_confusion_matrix("surf")
 # plot_similar_object_models("dist")
 # plot_similar_object_models("surf")
-# plot_symmetry_stats()
+plot_symmetry_stats()
 # plot_symmetry_objects()
