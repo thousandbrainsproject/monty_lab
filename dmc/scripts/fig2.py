@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from data_utils import (
     DMC_ANALYSIS_DIR,
+    VISUALIZATION_RESULTS_DIR,
     load_object_model,
 )
 from matplotlib.colors import to_rgba
@@ -326,10 +327,10 @@ def remove_svg_groups(
     tree.write(output_svg, encoding="utf-8", xml_declaration=True, method="xml")
 
 
-def plot_pretraining_epochs():
+def plot_dist_agent_pretraining_epochs():
     out_dir = OUT_DIR / "pretraining_epochs"
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 7, figsize=(15, 5), subplot_kw={"projection": "3d"})
+    fig, axes = plt.subplots(2, 7, figsize=(10, 5), subplot_kw={"projection": "3d"})
 
     axes = axes.flatten()
     for i, ax in enumerate(axes.flatten()):
@@ -347,17 +348,47 @@ def plot_pretraining_epochs():
         ax.set_ylim(-0.055, 0.055)
         ax.set_zlim(-0.055, 0.055)
     fig.tight_layout()
-    fig.savefig(out_dir / "pretraining_epochs.png", bbox_inches="tight", dpi=300)
-    fig.savefig(out_dir / "pretraining_epochs.svg", bbox_inches="tight", pad_inches=0)
+    fig.savefig(out_dir / "distant_agent.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "distant_agent.svg", bbox_inches="tight", pad_inches=0)
     plt.show()
 
-    input_file = out_dir / "pretraining_epochs.svg"
-    output_file = out_dir / "pretraining_epochs.svg"
-    remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
+    input_file = out_dir / "distant_agent.svg"
+    output_file = out_dir / "distant_agent.svg"
+    # remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
+
+
+def plot_surf_agent_pretraining_epochs():
+    out_dir = OUT_DIR / "pretraining_epochs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(2, 7, figsize=(10, 5), subplot_kw={"projection": "3d"})
+
+    axes = axes.flatten()
+    for i, ax in enumerate(axes.flatten()):
+        p = VISUALIZATION_RESULTS_DIR / "fig2_surf_agent_1lm_checkpoints"
+        obj = load_object_model(p, "potted_meat_can", checkpoint=i + 1)
+        obj -= np.array([0.0, 1.5, 0.0])
+        # color = TBP_COLORS["blue"]
+        ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, s=5, alpha=0.5, edgecolors="none")
+        ax.set_proj_type("persp", focal_length=1)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(115, -50, 40)
+        ax.set_xlim(-0.055, 0.055)
+        ax.set_ylim(-0.055, 0.055)
+        ax.set_zlim(-0.055, 0.055)
+    fig.tight_layout()
+    fig.savefig(out_dir / "surface_agent.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "surface_agent.svg", bbox_inches="tight", pad_inches=0)
+    plt.show()
+
+    input_file = out_dir / "surface_agent.svg"
+    output_file = out_dir / "surface_agent.svg"
+    # remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
 
 
 # plot_agent_models_mug()
 # plot_agent_models_potted_meat_can()
 # plot_object_views("potted_meat_can", background="gradient")
 # plot_object_views("mug", background="white")
-plot_pretraining_epochs()
+plot_dist_agent_pretraining_epochs()
+plot_surf_agent_pretraining_epochs()
