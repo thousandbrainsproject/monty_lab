@@ -73,7 +73,6 @@ fig2_pretrain_surf_agent_1lm_checkpoints.update(
             output_dir=str(VISUALIZATION_RESULTS_DIR),
             run_name="fig2_surf_agent_1lm_checkpoints",
         ),
-        train_dataloader_class=ED.InformedEnvironmentDataLoader,
         train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=["potted_meat_can"],
             object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
