@@ -207,7 +207,7 @@ def add_solid_background(
     color: str,
 ) -> np.ndarray:
     """
-    Returns a solid background image of the given color.
+    Add a solid background to an RGBA image.
     """
     width, height = image.shape[0], image.shape[1]
     c = np.array(to_rgba(color))
@@ -217,14 +217,11 @@ def add_solid_background(
 
 
 def add_gradient_background(
-    image: np.ndarray, vmin: float = 0.7, vmax: float = 0.9
+    image: np.ndarray,
+    vmin: float = 0.7,
+    vmax: float = 0.9,
 ) -> np.ndarray:
-    """
-    Puts an image on a random (grayscale) gradient background.
-
-    Args:
-        image: The image to put on the background.
-    """
+    """Add a grayscale gradient background to an RGBA image."""
 
     width, height = image.shape[0], image.shape[1]
 
@@ -284,49 +281,6 @@ def blend_rgba_images(background: np.ndarray, foreground: np.ndarray) -> np.ndar
     return np.dstack((rgb_out, alpha_out))
 
 
-def remove_svg_groups(
-    input_svg: os.PathLike,
-    output_svg: Optional[os.PathLike] = None,
-    group_prefix: str = "axis3d",
-):
-    """Removes <g> elements with an id starting with `group_prefix`."""
-    import xml.etree.ElementTree as ET
-
-    ET.register_namespace("", "http://www.w3.org/2000/svg")
-    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-    ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
-    ET.register_namespace("cc", "http://creativecommons.org/ns#")
-    ET.register_namespace("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-    # Parse the SVG file
-    tree = ET.parse(input_svg)
-    root = tree.getroot()
-
-    # Define the SVG namespace
-    ns = {"svg": "http://www.w3.org/2000/svg"}
-
-    # Store elements to remove (to avoid modifying the tree while iterating)
-    to_remove = []
-
-    for parent in root.findall(".//svg:g/..", namespaces=ns):
-        for g in parent.findall("svg:g", namespaces=ns):
-            group_id = g.get("id", "")
-
-            # Ensure <defs> elements are NOT removed
-            if g.tag.endswith("defs"):
-                continue  # Skip <defs> elements
-
-            # Remove only groups that start with the given prefix
-            if group_id.startswith(group_prefix):
-                to_remove.append((parent, g))
-
-    # Safely remove elements
-    for parent, g in to_remove:
-        parent.remove(g)
-
-    # Write the modified SVG while preserving formatting
-    tree.write(output_svg, encoding="utf-8", xml_declaration=True, method="xml")
-
-
 def plot_dist_agent_pretraining_epochs():
     out_dir = OUT_DIR / "pretraining_epochs"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -351,10 +305,6 @@ def plot_dist_agent_pretraining_epochs():
     fig.savefig(out_dir / "distant_agent.png", bbox_inches="tight", dpi=300)
     fig.savefig(out_dir / "distant_agent.svg", bbox_inches="tight", pad_inches=0)
     plt.show()
-
-    input_file = out_dir / "distant_agent.svg"
-    output_file = out_dir / "distant_agent.svg"
-    # remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
 
 
 def plot_surf_agent_pretraining_epochs():
@@ -381,14 +331,10 @@ def plot_surf_agent_pretraining_epochs():
     fig.savefig(out_dir / "surface_agent.svg", bbox_inches="tight", pad_inches=0)
     plt.show()
 
-    input_file = out_dir / "surface_agent.svg"
-    output_file = out_dir / "surface_agent.svg"
-    # remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
-
 
 # plot_agent_models_mug()
 # plot_agent_models_potted_meat_can()
 # plot_object_views("potted_meat_can", background="gradient")
 # plot_object_views("mug", background="white")
-plot_dist_agent_pretraining_epochs()
-plot_surf_agent_pretraining_epochs()
+# plot_dist_agent_pretraining_epochs()
+# plot_surf_agent_pretraining_epochs()
