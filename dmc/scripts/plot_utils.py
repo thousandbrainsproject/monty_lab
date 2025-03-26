@@ -16,6 +16,7 @@ from numbers import Number
 from typing import (
     Any,
     Container,
+    Dict,
     List,
     Mapping,
     Optional,
@@ -27,6 +28,7 @@ import matplotlib as mpl
 import matplotlib.legend
 import matplotlib.pyplot as plt
 import numpy as np
+import skimage
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
@@ -67,7 +69,7 @@ def init_matplotlib_style():
     mpl.rcParams.update(style)
 
 
-def extract_style(dct: Mapping, prefix: str, strip: bool = True) -> Mapping:
+def extract_style(dct: Dict[str, Any], prefix: str, strip: bool = True) -> Mapping:
     """Extract a subset of a dictionary with keys that start with a given prefix."""
     prefix = prefix + "." if not prefix.endswith(".") else prefix
     if strip:
@@ -79,9 +81,9 @@ def extract_style(dct: Mapping, prefix: str, strip: bool = True) -> Mapping:
 
 
 def update_style(
-    base: Optional[Mapping],
-    new: Optional[Mapping],
-) -> Mapping:
+    base: Optional[Dict[str, Any]],
+    new: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
     """Join two dictionaries of style properties.
 
     If a key is present in both dictionaries, the value from the new dictionary is used.
@@ -320,16 +322,17 @@ def violinplot(
 
 class SensorModuleData:
     _default_style = {
+        # for "plot_raw_observation"
         "raw_observation.contour.color": "black",
         "raw_observation.contour.alpha": 1,
         "raw_observation.contour.linewidth": 1,
         "raw_observation.contour.zorder": 20,
-        "raw_observation.scatter.color": "rgba",
+        "raw_observation.scatter.color": "rgba",  # 'rgba' mean use patch color
         "raw_observation.scatter.alpha": 1,
         "raw_observation.scatter.edgecolor": "none",
         "raw_observation.scatter.s": 1,
         "raw_observation.scatter.zorder": 10,
-        # sensor path
+        # for "plot_sensor_path"
         "sensor_path.start.color": "black",
         "sensor_path.start.alpha": 1,
         "sensor_path.start.marker": "x",
