@@ -34,11 +34,14 @@ from data_utils import (
     load_eval_stats,
 )
 from matplotlib.lines import Line2D
-from plot_utils import TBP_COLORS, axes3d_set_aspect_equal, violinplot
+from plot_utils import (
+    TBP_COLORS,
+    axes3d_set_aspect_equal,
+    init_matplotlib_style,
+    violinplot,
+)
 
-plt.rcParams["font.size"] = 8
-plt.rcParams["font.family"] = "Arial"
-plt.rcParams["svg.fonttype"] = "none"
+init_matplotlib_style()
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig5"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
