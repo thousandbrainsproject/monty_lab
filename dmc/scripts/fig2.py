@@ -10,41 +10,39 @@
 """
 This module defines functions used to generate images for figure 2.
 
-- `plot_potted_meat_can_object_models`: Plots the potted meat can (i.e., Spam)
-object models for the distant and touch agents.
-- `plot_potted_meat_can_views`: Plots the view finder images of the potted meat can
-at 14 training rotations.
-
-
 
 """
 
 import json
 import os
-from pathlib import Path
 from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from data_utils import (
     DMC_ANALYSIS_DIR,
+    VISUALIZATION_RESULTS_DIR,
     load_object_model,
 )
+from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
-from plot_utils import TBP_COLORS, axes3d_clean, axes3d_set_aspect_equal
+from plot_utils import (
+    TBP_COLORS,
+    axes3d_clean,
+    axes3d_set_aspect_equal,
+    init_matplotlib_style,
+)
 from render_view_finder_images import VIEW_FINDER_DIR
+from scipy.spatial.transform import Rotation as R
 
-plt.rcParams["font.size"] = 8
-plt.rcParams["font.family"] = "Arial"
-plt.rcParams["svg.fonttype"] = "none"
-
+init_matplotlib_style()
 
 OUT_DIR = DMC_ANALYSIS_DIR / "fig2"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def plot_agent_models_mug():
-    out_dir = OUT_DIR
+    out_dir = OUT_DIR / "agent_models"
     out_dir.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(6, 4), subplot_kw={"projection": "3d"})
 
@@ -58,6 +56,7 @@ def plot_agent_models_mug():
     obj = dist_mug
     color = obj.rgba
     ax.scatter(obj.x, obj.y, obj.z, c=color, s=15, alpha=0.5, linewidths=0)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax, grid=False)
     axes3d_set_aspect_equal(ax)
     ax.axis("off")
@@ -74,6 +73,7 @@ def plot_agent_models_mug():
     cmap = plt.cm.gray
     color = cmap(norm(values) * 0.33 + 0.33)
     ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax, grid=False)
     axes3d_set_aspect_equal(ax)
     ax.axis("off")
@@ -83,8 +83,8 @@ def plot_agent_models_mug():
     ax.set_zlim(-0.055, 0.055)
 
     fig.tight_layout()
-    fig.savefig(out_dir / "agent_models.png", bbox_inches="tight", dpi=300)
-    fig.savefig(out_dir / "agent_models.svg", bbox_inches="tight", pad_inches=0)
+    fig.savefig(out_dir / "mug.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "mug.svg", bbox_inches="tight", pad_inches=0)
     plt.show()
 
 
@@ -93,19 +93,22 @@ def plot_agent_models_potted_meat_can():
 
     Plots 2 object models for the potted meat can -- one with color as learned
     by the distant agent, and one without color as learned by the touch agent.
+
+    TODO: Delete me, probably.
     """
 
-    out_dir = OUT_DIR / "object_models"
+    out_dir = OUT_DIR / "agent_models"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Plot the distant agent's object model using stored colors.
-    obj = load_object_model("dist_agent_1lm_10distinctobj", "potted_meat_can")
+    obj = load_object_model("dist_agent_1lm", "potted_meat_can")
     obj -= np.array([0.0, 1.5, 0.0])
-    obj = obj.rotated(90, 260, 0)
+    obj = obj.rotated(R.from_euler("xyz", [90, 260, 0], degrees=True))
 
     fig = plt.figure(figsize=(2, 2))
     ax = fig.add_subplot(projection="3d")
     ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, marker="o", s=10, alpha=1)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax)
     ax.view_init(elev=10, azim=10, roll=0)
     fig.tight_layout()
@@ -118,7 +121,7 @@ def plot_agent_models_potted_meat_can():
     # Plot the touch agent's object model. Generate colors.
     obj = load_object_model("touch_agent_1lm", "potted_meat_can")
     obj -= np.array([0.0, 1.5, 0.0])
-    obj = obj.rotated(90, 260, 0)
+    obj = obj.rotated(R.from_euler("xyz", [90, 260, 0], degrees=True))
 
     fig = plt.figure(figsize=(2, 2))
     ax = fig.add_subplot(projection="3d")
@@ -129,6 +132,7 @@ def plot_agent_models_potted_meat_can():
     cmap = plt.cm.magma
     rgba = cmap(norm(values) * 0.33 + 0.33)
     ax.scatter(obj.x, obj.y, obj.z, c=rgba, marker="o", s=10, alpha=1)
+    ax.set_proj_type("persp", focal_length=1)
     axes3d_clean(ax)
     ax.view_init(elev=10, azim=10, roll=0)
     fig.tight_layout()
@@ -139,14 +143,19 @@ def plot_agent_models_potted_meat_can():
     fig.savefig(out_dir / "potted_meat_can_touch_agent.svg", pad_inches=0)
 
 
-def plot_object_views(object_name: str, **kw) -> None:
+def plot_object_views(
+    object_name: str,
+    background: str = "gradient",
+    vmin: float = 0.6,
+    vmax: float = 0.8,
+) -> None:
     """
     Loads view finder images of the potted meat can at 14 training rotations,
     and saves them as individual PNG and SVG files.
     """
 
     # Initialize input and output paths.
-    data_dir = VIEW_FINDER_DIR / "view_finder_base/view_finder_rgbd"
+    data_dir = VIEW_FINDER_DIR / "view_finder_base_highres/view_finder_rgbd"
     png_dir = OUT_DIR / f"object_views/{object_name}/png"
     svg_dir = OUT_DIR / f"object_views/{object_name}/svg"
     png_dir.mkdir(parents=True, exist_ok=True)
@@ -165,13 +174,12 @@ def plot_object_views(object_name: str, **kw) -> None:
             episodes.append((episode_num, object_name, rotation))
 
     # Plot each image as its own figure.
-    out = []
     for i, episode in enumerate(episodes):
         episode_number = episode[0]
 
         # Load the rgbd image, and alpha mask out any pixels that have a depth
-        # greater than 0.9. We do this because we want to place the objects over
-        # a neater (gray) background to match other plots in the figure.
+        # greater than 0.9. We do this because we want to replace the black
+        # background with something more visually appealing.
         rgbd = np.load(os.path.join(data_dir, f"arrays/{episode_number}.npy"))
         depth = rgbd[:, :, 3]
         rgba = rgbd.copy()
@@ -179,30 +187,41 @@ def plot_object_views(object_name: str, **kw) -> None:
         masked = np.argwhere(depth > 0.9)
         rgba[masked[:, 0], masked[:, 1], 3] = 0
 
-        # Put the image on the gray background, and plot it.
-        fn_kw = {key: kw[key] for key in kw if key in ["vmin", "vmax"]}
-        image = put_image_on_gray_gradient(rgba, **fn_kw)
-        # image = rgba
-        # fig, ax = plt.subplots(figsize=(1, 1))
+        # Put the image on a background.
+        if background == "gradient":
+            image = add_gradient_background(rgba, vmin=vmin, vmax=vmax)
+        else:
+            image = add_solid_background(rgba, background)
+
         fig = Figure(figsize=(1, 1))
         ax = fig.add_subplot(1, 1, 1)
         ax.imshow(image)
         ax.axis("off")
         fig.tight_layout(pad=0)
-        # fig.savefig(png_dir / f"{i}.png", dpi=300, pad_inches=0)
-        fig.savefig(png_dir / f"{i}.png", dpi=300)
+        fig.savefig(png_dir / f"{i}.png")
         fig.savefig(svg_dir / f"{i}.svg", bbox_inches="tight", pad_inches=0)
 
 
-def put_image_on_gray_gradient(
-    image: np.ndarray, vmin: float = 0.2, vmax: float = 0.5
+def add_solid_background(
+    image: np.ndarray,
+    color: str,
 ) -> np.ndarray:
     """
-    Puts an image on a random (grayscale) gradient background.
-
-    Args:
-        image: The image to put on the background.
+    Add a solid background to an RGBA image.
     """
+    width, height = image.shape[0], image.shape[1]
+    c = np.array(to_rgba(color))
+    bg = np.zeros([width, height, 4])
+    bg[:, :] = c
+    return blend_rgba_images(bg, image)
+
+
+def add_gradient_background(
+    image: np.ndarray,
+    vmin: float = 0.7,
+    vmax: float = 0.9,
+) -> np.ndarray:
+    """Add a grayscale gradient background to an RGBA image."""
 
     width, height = image.shape[0], image.shape[1]
 
@@ -222,9 +241,7 @@ def put_image_on_gray_gradient(
     bg = np.dstack((bg, bg, bg, np.ones((width, height))))
 
     # - Finally, blend the image with the background.
-    blended = blend_rgba_images(bg, image)
-
-    return blended
+    return blend_rgba_images(bg, image)
 
 
 def blend_rgba_images(background: np.ndarray, foreground: np.ndarray) -> np.ndarray:
@@ -264,53 +281,10 @@ def blend_rgba_images(background: np.ndarray, foreground: np.ndarray) -> np.ndar
     return np.dstack((rgb_out, alpha_out))
 
 
-def remove_svg_groups(
-    input_svg: os.PathLike,
-    output_svg: Optional[os.PathLike] = None,
-    group_prefix: str = "axis3d",
-):
-    """Removes <g> elements with an id starting with `group_prefix`."""
-    import xml.etree.ElementTree as ET
-
-    ET.register_namespace("", "http://www.w3.org/2000/svg")
-    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
-    ET.register_namespace("dc", "http://purl.org/dc/elements/1.1/")
-    ET.register_namespace("cc", "http://creativecommons.org/ns#")
-    ET.register_namespace("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-    # Parse the SVG file
-    tree = ET.parse(input_svg)
-    root = tree.getroot()
-
-    # Define the SVG namespace
-    ns = {"svg": "http://www.w3.org/2000/svg"}
-
-    # Store elements to remove (to avoid modifying the tree while iterating)
-    to_remove = []
-
-    for parent in root.findall(".//svg:g/..", namespaces=ns):
-        for g in parent.findall("svg:g", namespaces=ns):
-            group_id = g.get("id", "")
-
-            # Ensure <defs> elements are NOT removed
-            if g.tag.endswith("defs"):
-                continue  # Skip <defs> elements
-
-            # Remove only groups that start with the given prefix
-            if group_id.startswith(group_prefix):
-                to_remove.append((parent, g))
-
-    # Safely remove elements
-    for parent, g in to_remove:
-        parent.remove(g)
-
-    # Write the modified SVG while preserving formatting
-    tree.write(output_svg, encoding="utf-8", xml_declaration=True, method="xml")
-
-
-def plot_pretraining_epochs():
+def plot_dist_agent_pretraining_epochs():
     out_dir = OUT_DIR / "pretraining_epochs"
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(2, 7, figsize=(15, 5), subplot_kw={"projection": "3d"})
+    fig, axes = plt.subplots(2, 7, figsize=(10, 5), subplot_kw={"projection": "3d"})
 
     axes = axes.flatten()
     for i, ax in enumerate(axes.flatten()):
@@ -318,20 +292,49 @@ def plot_pretraining_epochs():
             "dist_agent_1lm_checkpoints", "potted_meat_can", checkpoint=i + 1
         )
         obj -= np.array([0.0, 1.5, 0.0])
-        color = TBP_COLORS["blue"]
-        ax.scatter(obj.x, obj.y, obj.z, c=color, s=5, alpha=0.5)
+        # color = TBP_COLORS["blue"]
+        ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, s=5, alpha=0.5, edgecolors="none")
+        ax.set_proj_type("persp", focal_length=1)
         axes3d_clean(ax, grid=False)
         axes3d_set_aspect_equal(ax)
-        ax.view_init(120, -45, 40)
+        ax.view_init(115, -50, 40)
         ax.set_xlim(-0.055, 0.055)
         ax.set_ylim(-0.055, 0.055)
         ax.set_zlim(-0.055, 0.055)
     fig.tight_layout()
-    fig.savefig(out_dir / "pretraining_epochs.png", bbox_inches="tight", dpi=300)
-    fig.savefig(out_dir / "pretraining_epochs.svg", bbox_inches="tight", pad_inches=0)
+    fig.savefig(out_dir / "distant_agent.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "distant_agent.svg", bbox_inches="tight", pad_inches=0)
     plt.show()
 
-    input_file = out_dir / "pretraining_epochs.svg"
-    output_file = out_dir / "pretraining_epochs.svg"
-    remove_svg_groups(input_file, output_file, group_prefix="axis3d_")
 
+def plot_surf_agent_pretraining_epochs():
+    out_dir = OUT_DIR / "pretraining_epochs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fig, axes = plt.subplots(2, 7, figsize=(10, 5), subplot_kw={"projection": "3d"})
+
+    axes = axes.flatten()
+    for i, ax in enumerate(axes.flatten()):
+        p = VISUALIZATION_RESULTS_DIR / "fig2_surf_agent_1lm_checkpoints"
+        obj = load_object_model(p, "potted_meat_can", checkpoint=i + 1)
+        obj -= np.array([0.0, 1.5, 0.0])
+        # color = TBP_COLORS["blue"]
+        ax.scatter(obj.x, obj.y, obj.z, c=obj.rgba, s=5, alpha=0.5, edgecolors="none")
+        ax.set_proj_type("persp", focal_length=1)
+        axes3d_clean(ax, grid=False)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(115, -50, 40)
+        ax.set_xlim(-0.055, 0.055)
+        ax.set_ylim(-0.055, 0.055)
+        ax.set_zlim(-0.055, 0.055)
+    fig.tight_layout()
+    fig.savefig(out_dir / "surface_agent.png", bbox_inches="tight", dpi=300)
+    fig.savefig(out_dir / "surface_agent.svg", bbox_inches="tight", pad_inches=0)
+    plt.show()
+
+
+# plot_agent_models_mug()
+# plot_agent_models_potted_meat_can()
+# plot_object_views("potted_meat_can", background="gradient")
+# plot_object_views("mug", background="white")
+# plot_dist_agent_pretraining_epochs()
+# plot_surf_agent_pretraining_epochs()

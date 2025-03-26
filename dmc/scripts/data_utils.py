@@ -334,38 +334,6 @@ def get_percent_correct(df: pd.DataFrame) -> float:
     return 100 * n_correct / len(df)
 
 
-def describe_dict(data: Mapping, level: int = 0):
-    """
-    Recursively describe the contents of a nested dictionary. For visualizing the
-    structure of detailed JSON stats. Can be removed when out of data exploration phase.
-
-    Args:
-        data (dict): The dictionary to describe.
-        level (int): Current depth level in the nested dictionary.
-    """
-    if not isinstance(data, dict):
-        print(f"{'  ' * level}- Not a dictionary: {type(data).__name__}")
-        return
-
-    for key in sorted(data.keys()):
-        obj = data[key]
-        type_ = type(obj).__name__
-
-        if isinstance(obj, dict):
-            print(f"{'  ' * level}'{key}': {type_} (len: {len(obj)})")
-            # Recursively describe nested dictionaries
-            describe_dict(obj, level + 1)
-
-        elif isinstance(obj, (tuple, list)):
-            if len(obj) > 0 and isinstance(obj[0], dict):
-                print(f"{'  ' * level}'{key}': {type_} of dict (len: {len(obj)})")
-                describe_dict(obj[0], level + 1)
-            else:
-                print(f"{'  ' * level}'{key}': {type_} (len: {len(obj)})")
-        else:
-            print(f"{'  ' * level}'{key}': {type_}")
-
-
 class DetailedJSONStatsInterface:
     """Convenience interface to detailed JSON stats.
 
@@ -432,51 +400,36 @@ class ObjectModel:
     """Mutable wrapper for object models.
 
     Args:
-        points (ArrayLike): The points of the object model as a sequence of points
+        pos (ArrayLike): The points of the object model as a sequence of points
           (i.e., has shape (n_points, 3)).
         features (Optional[Mapping]): The features of the object model. For
           convenience, the features become attributes of the ObjectModel instance.
     """
+
     def __init__(
         self,
-        points: ArrayLike,
+        pos: ArrayLike,
         features: Optional[Mapping[str, ArrayLike]] = None,
     ):
-        self.points = np.asarray(points, dtype=float)
+        self.pos = np.asarray(pos, dtype=float)
         if features:
             for key, value in features.items():
                 setattr(self, key, np.asarray(value))
 
     @property
     def x(self) -> np.ndarray:
-        return self.points[:, 0]
+        return self.pos[:, 0]
 
     @property
     def y(self) -> np.ndarray:
-        return self.points[:, 1]
+        return self.pos[:, 1]
 
     @property
     def z(self) -> np.ndarray:
-        return self.points[:, 2]
-
-    @property
-    def pos(self) -> np.ndarray:
-        """Alias for `points` for compatibility with `GraphObjectModel` objects."""
-        return self.points
-
-    @pos.setter
-    def pos(self, arr: ArrayLike):
-        assert arr.shape == self.points.shape
-        self.points = np.asarray(arr)
+        return self.pos[:, 2]
 
     def copy(self, deep: bool = True) -> "ObjectModel":
         return deepcopy(self) if deep else self
-
-    def centered(self, method: str = "bbox") -> "ObjectModel":
-        return self - self.get_center(method)
-
-    def get_center(self, method: str = "bbox"):
-        return get_center(self.points, method)
 
     def rotated(
         self,
@@ -507,16 +460,16 @@ class ObjectModel:
             else:
                 raise ValueError(f"Invalid rotation argument: {rotation}")
 
-        points = rot.apply(self.points)
+        pos = rot.apply(self.pos)
         out = self.copy()
-        out.points = points
+        out.pos = pos
 
         return out
 
     def __add__(self, translation: ArrayLike) -> "ObjectModel":
         translation = np.asarray(translation)
         out = deepcopy(self)
-        out.points += translation
+        out.pos += translation
         return out
 
     def __sub__(self, translation: ArrayLike) -> "ObjectModel":
@@ -524,22 +477,6 @@ class ObjectModel:
         return self + (-translation)
 
 
-def get_center(points: ArrayLike, method: str = "bbox") -> np.ndarray:
-    """Get the center of a set of points.
-
-    Args:
-        points (ArrayLike): The points to get the center of.
-        method (str): The method to use to get the center. One of
-            - "mean": The mean of the points.
-            - "bbox": The center of the bounding box of the points.
-    """
-    points = np.asarray(points)
-    if method == "mean":
-        return np.mean(points, axis=0)
-    elif method == "bbox":
-        return (np.min(points, axis=0) + np.max(points, axis=0)) / 2
-    else:
-        raise ValueError(f"Invalid method: {method}")
 
 
 def load_object_model(
