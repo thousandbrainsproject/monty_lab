@@ -21,6 +21,9 @@ images at 224x224 resolution:
 - view_finder_randrot: 5 pre-defined "random" rotations
 - view_finder_32: 32 training rotations for rapid learning experiments
 
+This file also defines a config used for figure visualizations only:
+- view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
+
 One experiment config saves view-finder images at a higher resolution solely for
 visualization purposes:
 - view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
