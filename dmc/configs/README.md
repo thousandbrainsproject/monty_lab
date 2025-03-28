@@ -15,6 +15,7 @@ This figure presents results from four inference experiments testing Monty's rob
 
 Here we are showing the performance of the "standard" version of Monty, using:
 - 77 objects
+- 14 rotations
 - Goal-state-driven/hypothesis-testing policy active
 - A single LM (no voting)
 
@@ -33,11 +34,11 @@ This captures core model performance in a realistic setting.
 ## Figure 4: Structured Object Representations
 
 Consists of 1 experiment:
-- `dist_agent_1lm_randrot_noise_10simobj`
+- `surf_agent_1lm_randrot_noise_10simobj`
 
 This means performance is evaluated with:
 - 10 morphologically similar objects
-- Random rotations
+- 5 random rotations
 - Sensor noise
 - Hypothesis-testing policy active
 - No voting
@@ -71,7 +72,7 @@ Performance is evaluated on:
 - 77 objects
 - Goal-state-driven/hypothesis-testing policy active
 - Sensor noise and 5 random rotations
-- Voting over 1, 2, 4, 8, or 16 LMs
+- Voting over 2, 4, 8, or 16 LMs
 
 The main output measure is accuracy and rotation error as a function of number of LMs. The two variations show that accuracy and convergence speed can be traded off against each other.
 
@@ -153,19 +154,60 @@ This performance is evaluated with:
 
 The main output measure is accuracy and FLOPs as a function of `x_percent threshold` and whether hypothesis testing was used or not.
 
-## Supplemental Figure 9: Multi-Modal Transfer
+## Pretraining Experiments
+`pretraining_experiments.py` defined pretraining experiments that generate models
+used throughout this repository. They are required for running eval experiments,
+visualization experiments, and for many of the figures generated in the `scripts`
+directory. The following is a list of pretraining experiments and the models they produce:
+ - `pretrain_dist_agent_1lm` -> `dist_agent_1lm`
+ - `pretrain_surf_agent_1lm` -> `surf_agent_1lm`
+ - `pretrain_dist_agent_2lm` -> `dist_agent_2lm`
+ - `pretrain_dist_agent_4lm` -> `dist_agent_4lm`
+ - `pretrain_dist_agent_8lm` -> `dist_agent_8lm`
+ - `pretrain_dist_agent_16lm` -> `dist_agent_16lm`
 
-Consists of 4 experiments:
-- `dist_agent_1lm_randrot_noise_10distinctobj` - "Standard" Monty ("dist_on_dist")
-- `touch_agent_1lm_randrot_noise_10distinctobj` - "touch_on_touch" baseline
-- `dist_on_touch_1lm_randrot_noise_10distinctobj` - "dist_on_touch"
-- `touch_on_dist_1lm_randrot_noise_10distinctobj` - "touch_on_dist"
+All of these models are trained on 77 YCB objects with 14 rotations each (cube face
+and corners).
 
-This means performance is evaluated with:
-- 10 distinct objects
-- 5 random rotations
-- Sensor noise
-- Hypothesis-testing policy active
-- No voting
+## Visualization Experiments
 
-The main output measure is accuracy and rotation error for within/across modality inference.
+`visualizations.py` contains configs defined solely for making visualizations that go into
+paper figures. The configs defined are:
+- `fig2_pretrain_surf_agent_1lm_checkpoints`: A pretraining experiment that saves
+  checkpoints for the 14 training rotations. The output is read and plotted by
+  functions in `scripts/fig2.py`.
+- `fig3_evidence_run`: A one-episode distant agent experiment used to collect evidence
+   and sensor data for every step. The output is read and plotted by functions in
+    `scripts/fig3.py`.
+- `fig4_symmetry_run`: Runs `dist_agent_1lm_randrot_noise` with storage of
+   evidence and symmetry including symmetry data for the MLH object only, and only
+   for the terminal step of each episode. The output is read and plotted by
+   functions in `scripts/fig4.py`.
+- `fig5_visualize_8lm_patches`: An one-episode, one-step experiment that is used to
+  collect one set of observations for the 8-LM model. The output is read and plotted
+  by functions in `scripts/fig5.py` to show how the sensors patches fall on the object.
+- `fig6_curvature_guided_policy`: A one-episode surface agent experiment with
+  no hypothesis-testing policy active. The output is read and plotted by
+  functions in `scripts/fig6.py`.
+- `fig6_hypothesis_driven_policy`: A one-episode surface agent experiment with
+  hypothesis-testing policy active. The output is read and plotted by
+  functions in `scripts/fig6.py`.
+
+All of these experiments should be run in serial due to the memory needs of
+detailed logging (or checkpoint-saving in the case of
+`fig2_pretrain_surf_agent_1lm_checkpoints`).
+
+All experiments save their results to subdirectories of `DMC_ROOT` / `visualizations`.
+
+## Other Experiments
+`view_finder_experiments.py` defines four experiments that store data used as input
+to a ViT-based model and one experiment that produces higher resolution object images
+used in figures.
+- view_finder_base: 14 standard training rotations
+- view_finder_randrot_all: 14 randomly generated rotations
+- view_finder_randrot: 5 pre-defined "random" rotations
+- view_finder_32: 32 training rotations for rapid learning experiments
+- view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
+  
+Only `view_finder_base_highres` needs to be run to reproduce figures. Stored images
+can be rendered by `scripts/render_view_finder_images.py`.

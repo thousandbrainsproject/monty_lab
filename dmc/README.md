@@ -10,10 +10,11 @@ The results of DMC experiments are stored under `DMC_ROOT_DIR`. By default, this
 DMC_ROOT_DIR/
     pretrained_models/
     results/
-    view_finder_images/        
+    view_finder_images/
+    visualizations/
 ```
 
-The `pretrained_models` directory contains the pre-trained models for Monty experiments. The `results` directory contains the results of evaluation experiments. The `view_finder_images` directory contains the images used for the view finder experiments.
+The `pretrained_models` directory contains the pre-trained models for Monty experiments. The `results` directory contains the results of evaluation experiments. The `view_finder_images` directory contains the images used for input to ViT-based models as well as for some figure visualizations.
 
 Figures and tables are stored under `DMC_ANALYSIS_DIR`. By default, this is `~/tbp/results/dmc_analysis`, but you can change this by setting the `DMC_ANALYSIS_DIR` environment variable.
 
