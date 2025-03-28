@@ -44,11 +44,8 @@ import numpy as np
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     EvalExperimentArgs,
-    ExperimentArgs,
     PredefinedObjectInitializer,
 )
-from tbp.monty.frameworks.environments import embodied_data as ED
-from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
 
 from .common import (

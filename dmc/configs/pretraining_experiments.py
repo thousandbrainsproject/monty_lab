@@ -39,7 +39,6 @@ avoid accidental conflicts:
 
 from copy import deepcopy
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict
 
 import numpy as np

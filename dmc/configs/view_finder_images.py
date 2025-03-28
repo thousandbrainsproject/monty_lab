@@ -24,10 +24,6 @@ images at 224x224 resolution:
 This file also defines a config used for figure visualizations only:
 - view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
 
-One experiment config saves view-finder images at a higher resolution solely for
-visualization purposes:
-- view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
-
 All use 77 objects.
 
 To visualize the images, run the script
