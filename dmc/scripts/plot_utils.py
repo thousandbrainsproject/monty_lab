@@ -198,6 +198,7 @@ def violinplot(
     percentile_style: Optional[Mapping] = None,
     median_style: Optional[Mapping] = None,
     ax: Optional[plt.Axes] = None,
+    **kw,
 ) -> plt.Axes:
     """Create a violin plot with customizable styling.
 
@@ -270,6 +271,7 @@ def violinplot(
         showmeans=showmeans,
         showmedians=False,
         widths=width,
+        **kw,
     )
 
     for i, body in enumerate(vp["bodies"]):

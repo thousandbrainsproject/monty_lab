@@ -59,9 +59,9 @@ Style utilities. Can be hard-coded later when we decide on colors, etc.
 
 # Plotting styles.
 HYPOTHESIS_COLORS = [
-    TBP_COLORS["blue"],
-    TBP_COLORS["green"],
     TBP_COLORS["purple"],
+    TBP_COLORS["green"],
+    TBP_COLORS["blue"],
     TBP_COLORS["pink"],
     TBP_COLORS["yellow"],
 ]
@@ -394,7 +394,7 @@ def plot_curvature_guided_policy_patches():
     sm = SensorModuleData(stats["SM_0"])
     for step in range(14):
         sm.plot_raw_observation(ax, step, scatter=True, contour=True)
-
+    sm.plot_sensor_path(ax, steps=14, start=False, scatter=False)
     ax.set_proj_type("persp", focal_length=0.5)
     axes3d_clean(ax)
     axes3d_set_aspect_equal(ax)
@@ -420,7 +420,7 @@ def plot_performance():
     ]
     xticks = np.arange(len(experiments))
     xticklabels = [
-        "None",
+        "Random Walk",
         "Model-Free",
         "Model-Based",
     ]
@@ -442,9 +442,9 @@ def plot_performance():
         xticks, accuracies_mlh, bottom=accuracies, width=0.8, color=TBP_COLORS["yellow"]
     )
 
-    ax.set_title("Accuracy")
     ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, rotation=45)
+    ax.set_xticklabels(xticklabels, rotation=45, ha="center")
+    ax.set_xlabel("Motor Policy")
     ax.set_ylabel("% Correct")
     ax.set_ylim(0, 100)
     ax.legend(["Correct", "Correct MLH"], loc="lower right", framealpha=1)
@@ -460,16 +460,18 @@ def plot_performance():
         color=TBP_COLORS["blue"],
         showmedians=True,
         median_style=dict(color="lightgray"),
+        bw_method=0.1,
         ax=ax,
     )
-    ax.set_title("Steps")
+
     ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, rotation=45)
-    ax.set_ylabel("Count")
+    ax.set_xticklabels(xticklabels, rotation=45, ha="center")
+    ax.set_xlabel("Motor Policy")
+    ax.set_ylabel("Steps")
     ax.set_ylim(0, 500)
     fig.tight_layout()
     plt.show()
-    fig.savefig(OUT_DIR / "performance.png", dpi=300, bbox_inches="tight")
+    fig.savefig(OUT_DIR / "performance.png", bbox_inches="tight")
     fig.savefig(OUT_DIR / "performance.svg", bbox_inches="tight")
 
 
@@ -832,13 +834,15 @@ def plot_hypotheses(
 def finalize_axes(
     ax: plt.Axes,
     jump_step: Optional[int] = None,
+    xlim: Optional[Tuple[Number, Number]] = None,
     **kw,
 ):
     # Set axes properties.
     for key, val in kw.items():
         getattr(ax, f"set_{key}")(val)
 
-    sns.despine(ax=ax)
+    if xlim is not None:
+        ax.set_xlim(*xlim)
 
     # Add a triangle indicating where the jump was. Has to be done last.
     if jump_step is not None:
@@ -924,6 +928,8 @@ def plot_evidence_over_time_objects(
     n_top_hypotheses: int = 4,
     n_bottom_hypotheses: Optional[Number] = np.inf,
     indicate_jump_step: bool = True,
+    xlim: Optional[Tuple[Number, Number]] = None,
+    **kw,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot evidence over time for each object hypothesis.
 
@@ -965,14 +971,15 @@ def plot_evidence_over_time_objects(
         jump_step = order_step
     else:
         jump_step = None
+    if xlim is None:
+        xlim = (0, n_steps)
     finalize_axes(
         ax,
         jump_step=jump_step,
-        xlim=(0, n_steps),
-        ylim=(0, 40),
-        yticks=[0, 10, 20, 30, 40],
+        xlim=xlim,
         xlabel="Step",
         ylabel="Evidence",
+        **kw,
     )
     plt.show()
     return fig, ax
@@ -986,6 +993,8 @@ def plot_evidence_over_time_rotations(
     n_top_hypotheses: int = 4,
     n_bottom_hypotheses: Optional[Number] = np.inf,
     indicate_jump_step: bool = True,
+    xlim: Optional[Tuple[Number, Number]] = None,
+    **kw,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot evidence over time for each object hypothesis.
 
@@ -1028,15 +1037,15 @@ def plot_evidence_over_time_rotations(
         jump_step = order_step
     else:
         jump_step = None
-
+    if xlim is None:
+        xlim = (0, n_steps)
     finalize_axes(
         ax,
         jump_step=jump_step,
-        xlim=(0, n_steps),
-        ylim=(0, 40),
-        yticks=[0, 10, 20, 30, 40],
         xlabel="Step",
         ylabel="Evidence",
+        xlim=xlim,
+        **kw,
     )
     plt.show()
     return fig, ax
@@ -1052,37 +1061,50 @@ def plot_evidence_over_time_all():
 
     episode = 0
     object_name = "spoon"
-    fig, ax = plot_evidence_over_time_objects(detailed_stats[episode])
+    fig, ax = plot_evidence_over_time_objects(
+        detailed_stats[episode],
+        xlim=(0, 15),
+        ylim=(0, 30),
+        xticks=[0, 5, 10, 15],
+        yticks=[0, 10, 20, 30],
+    )
     fig.savefig(
         out_dir / f"objects_episode_{episode}.png", dpi=300, bbox_inches="tight"
     )
     fig.savefig(out_dir / f"objects_episode_{episode}.svg", bbox_inches="tight")
-    fig, ax = plot_evidence_over_time_rotations(
-        detailed_stats[episode],
-        object_name,
-        indicate_jump_step=False,
-    )
-    fig.savefig(
-        out_dir / f"rotations_episode_{episode}_{object_name}.png",
-        dpi=300,
-        bbox_inches="tight",
-    )
-    fig.savefig(
-        out_dir / f"rotations_episode_{episode}_{object_name}.svg", bbox_inches="tight"
-    )
+
+    # fig, ax = plot_evidence_over_time_rotations(
+    #     detailed_stats[episode],
+    #     object_name,
+    #     indicate_jump_step=False,
+    # )
+    # fig.savefig(
+    #     out_dir / f"rotations_episode_{episode}_{object_name}.png",
+    #     dpi=300,
+    #     bbox_inches="tight",
+    # )
+    # fig.savefig(
+    #     out_dir / f"rotations_episode_{episode}_{object_name}.svg", bbox_inches="tight"
+    # )
 
     episode = 1
     object_name = "mug"
-    fig, ax = plot_evidence_over_time_objects(
-        detailed_stats[episode], indicate_jump_step=False
-    )
-    fig.savefig(
-        out_dir / f"objects_episode_{episode}.png", dpi=300, bbox_inches="tight"
-    )
-    fig.savefig(out_dir / f"objects_episode_{episode}.svg", bbox_inches="tight")
+    # fig, ax = plot_evidence_over_time_objects(
+    #     detailed_stats[episode],
+    #     indicate_jump_step=False,
+    # )
+    # fig.savefig(
+    #     out_dir / f"objects_episode_{episode}.png", dpi=300, bbox_inches="tight"
+    # )
+    # fig.savefig(out_dir / f"objects_episode_{episode}.svg", bbox_inches="tight")
+
     fig, ax = plot_evidence_over_time_rotations(
         detailed_stats[episode],
         object_name,
+        xlim=(0, 20),
+        xticks=[0, 5, 10, 15, 20],
+        ylim=(0, 30),
+        yticks=[0, 10, 20, 30],
     )
 
     fig.savefig(
