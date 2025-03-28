@@ -9,8 +9,7 @@
 
 """Configs for Figure 4: Structured Object Representations
 
-This module defines the following experiments:
- - `dist_agent_1lm_randrot_noise_10simobj`
+This module defines the following experiment:
  - `surf_agent_1lm_randrot_noise_10simobj`
 
  Experiments use:
@@ -19,8 +18,8 @@ This module defines the following experiments:
  - Sensor noise
  - Hypothesis-testing policy active
  - No voting
- - SELECTIVE evidence logging
- - Run in serial due to memory needed for detailed logging
+
+This experiment should be run in serial due to the memory needs of detailed logging.
 """
 
 from copy import deepcopy
@@ -34,18 +33,13 @@ from .common import (
     SelectiveEvidenceHandler,
     SelectiveEvidenceLoggingConfig,
 )
-from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
 from .fig6_rapid_inference_with_model_based_policies import (
     surf_agent_1lm_randrot_noise,
 )
 
 
 class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
-    """Logging handler that only saves terminal evidence data for the MLH object.
-
-    A lean logger handler for the symmetry experiment.
-
-    """
+    """Logging handler that only saves terminal evidence data for the MLH object."""
 
     def report_episode(
         self,
@@ -71,20 +65,6 @@ class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
         }
         self.save(episode_total, output_data, output_dir)
 
-# TODO: Delete this? Not used in the most recent figures.
-dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
-dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
-    SelectiveEvidenceLoggingConfig(
-        run_name="dist_agent_1lm_randrot_noise_10simobj",
-        monty_handlers=[
-            BasicCSVStatsHandler,
-            LastMaxEvidenceHandler,
-        ],
-    )
-)
-dist_agent_1lm_randrot_noise_10simobj[
-    "eval_dataloader_args"
-].object_names = SIMILAR_OBJECTS
 
 surf_agent_1lm_randrot_noise_10simobj = deepcopy(surf_agent_1lm_randrot_noise)
 surf_agent_1lm_randrot_noise_10simobj["logging_config"] = (
@@ -101,6 +81,5 @@ surf_agent_1lm_randrot_noise_10simobj[
 ].object_names = SIMILAR_OBJECTS
 
 CONFIGS = {
-    "dist_agent_1lm_randrot_noise_10simobj": dist_agent_1lm_randrot_noise_10simobj,
     "surf_agent_1lm_randrot_noise_10simobj": surf_agent_1lm_randrot_noise_10simobj,
 }
