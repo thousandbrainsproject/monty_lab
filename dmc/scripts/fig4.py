@@ -38,7 +38,7 @@ from plot_utils import (
     init_matplotlib_style,
 )
 from scipy.cluster.hierarchy import dendrogram, linkage, set_link_color_palette
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
 from tbp.monty.frameworks.utils.logging_utils import get_pose_error
 
@@ -121,7 +121,7 @@ def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
             SimpleNamespace(
                 id=i,
                 hypothesis_id=hypothesis_ids[i],
-                rot=R.from_matrix(symmetric_rotations[i]).inv(),
+                rot=Rotation.from_matrix(symmetric_rotations[i]).inv(),
                 location=symmetric_locations[i],
                 evidence=symmetric_evidences[i],
             )
@@ -218,13 +218,17 @@ def get_symmetry_stats() -> Mapping:
 
         # - Load the target rotation.
         target = SimpleNamespace(
-            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True),
+            rot=Rotation.from_euler(
+                "xyz", row.primary_target_rotation_euler, degrees=True
+            ),
             location=row.primary_target_position,
         )
 
         # - Create a random rotation.
         rand = SimpleNamespace(
-            rot=R.from_euler("xyz", np.random.randint(0, 360, size=(3,)), degrees=True),
+            rot=Rotation.from_euler(
+                "xyz", np.random.randint(0, 360, size=(3,)), degrees=True
+            ),
             location=np.array([0, 1.5, 0]),
         )
 
@@ -336,7 +340,9 @@ def plot_symmetry_objects():
         row = eval_stats.iloc[episode]
         primary_target_object = row.primary_target_object
         target = SimpleNamespace(
-            rot=R.from_euler("xyz", row.primary_target_rotation_euler, degrees=True)
+            rot=Rotation.from_euler(
+                "xyz", row.primary_target_rotation_euler, degrees=True
+            )
         )
 
         # Load rotations, compute rotation error for each, and sort them by error.
@@ -358,7 +364,9 @@ def plot_symmetry_objects():
         random_euler = params.get(
             "random_rotation", np.random.randint(0, 360, size=(3,))
         )
-        random = SimpleNamespace(rot=R.from_euler("xyz", random_euler, degrees=True))
+        random = SimpleNamespace(
+            rot=Rotation.from_euler("xyz", random_euler, degrees=True)
+        )
         theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
         random.theta = theta
         random.axis = axis
@@ -595,7 +603,7 @@ def plot_similar_object_models(modality: str):
     for i, ax in enumerate(axes.flatten()):
         object_name = all_objects[i]
         model = load_object_model(f"{modality}_agent_1lm", object_name)
-        model = model.rotated(R.from_euler("xyz", [90, 0, 0], degrees=True))
+        model = model.rotated(Rotation.from_euler("xyz", [90, 0, 0], degrees=True))
         ax.scatter(
             model.x,
             model.y,
@@ -641,15 +649,15 @@ def plot_symmetry_diagram():
 
     base_obj = load_object_model("dist_agent_1lm", "bowl")
     base_obj = base_obj - [0, 1.5, 0]
-    base_obj = base_obj.rotated(R.from_euler("xyz", [90, 0, 0], degrees=True))
-    base_obj = base_obj.rotated(R.from_euler("xyz", [0, 0, 180], degrees=True))
-    target_rot = R.from_euler("xyz", [0, 0, 270], degrees=True)
+    base_obj = base_obj.rotated(Rotation.from_euler("xyz", [90, 0, 0], degrees=True))
+    base_obj = base_obj.rotated(Rotation.from_euler("xyz", [0, 0, 180], degrees=True))
+    target_rot = Rotation.from_euler("xyz", [0, 0, 270], degrees=True)
     target_obj = base_obj.rotated(target_rot)
 
-    min_rot = R.from_euler("xyz", [0, 0, 280], degrees=True)
-    mlh_rot = R.from_euler("xyz", [0, 0, 180], degrees=True)
-    sym_rot = R.from_euler("xyz", [0, 0, 60], degrees=True)
-    rand_rot = R.from_euler("xyz", [30, 40, 80], degrees=True)
+    min_rot = Rotation.from_euler("xyz", [0, 0, 280], degrees=True)
+    mlh_rot = Rotation.from_euler("xyz", [0, 0, 180], degrees=True)
+    sym_rot = Rotation.from_euler("xyz", [0, 0, 60], degrees=True)
+    rand_rot = Rotation.from_euler("xyz", [30, 40, 80], degrees=True)
     rotations = [target_rot, min_rot, mlh_rot, sym_rot, rand_rot]
     labels = ["target", "min", "MLH", "sym", "rand"]
 
@@ -713,9 +721,311 @@ def plot_symmetry_diagram():
     fig.savefig(out_dir / "symmetry_diagram_error.svg")
 
 
-# plot_dendrogram_and_confusion_matrix("dist")
-# plot_dendrogram_and_confusion_matrix("surf")
-# plot_similar_object_models("dist")
-# plot_similar_object_models("surf")
-plot_symmetry_stats()
-# plot_symmetry_objects()
+def draw_basis_vectors(ax: plt.Axes, rot: Rotation):
+    mat = rot.as_matrix()
+    origin = np.array([0, 0, 0])
+    colors = ["red", "green", "blue"]
+    axis_names = ["x", "y", "z"]
+    for i in range(3):
+        ax.quiver(
+            *origin,
+            *mat[:, i],
+            color=colors[i],
+            length=1,
+            arrow_length_ratio=0.2,
+            normalize=True,
+        )
+        getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+    ax.axis("off")
+
+
+def plot_all_symmetry_episodes():
+    out_dir = OUT_DIR / "symmetry_episodes"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    png_dir = out_dir / "png"
+    png_dir.mkdir(parents=True, exist_ok=True)
+    svg_dir = out_dir / "svg"
+    svg_dir.mkdir(parents=True, exist_ok=True)
+
+    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_symmetry_run"
+    detailed_stats = DetailedJSONStatsInterface(
+        experiment_dir / "detailed_run_stats.json"
+    )
+    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+    # Preload models that we'll be rotating.
+    models = {
+        name: load_object_model("dist_agent_1lm", name)
+        for name in eval_stats.primary_target_object.unique()
+    }
+    view_init = dict(elev=90, azim=-80, roll=40)
+    for episode, stats in enumerate(detailed_stats):
+        # Check valid symmetry rotations.
+        # - Must be correct performance
+        row = eval_stats.iloc[episode]
+        if not row.primary_performance.startswith("correct"):
+            continue
+        # - Must have at least two symmetry rotations.
+        sym_rots = stats["LM_0"]["symmetric_rotations"]
+        if sym_rots is None or len(sym_rots) < 2:
+            continue
+
+        # - Load the target rotation.
+        target = SimpleNamespace(
+            rot=Rotation.from_euler(
+                "xyz", row.primary_target_rotation_euler, degrees=True
+            ),
+            location=row.primary_target_position,
+        )
+
+        # - Create a random rotation.
+        rand = SimpleNamespace(
+            rot=Rotation.from_euler(
+                "xyz", np.random.randint(0, 360, size=(3,)), degrees=True
+            ),
+            location=np.array([0, 1.5, 0]),
+        )
+
+        # - Load symmetry rotations, and computed pose error.
+        sym_rotations = load_symmetry_rotations(stats)
+        for r in sym_rotations + [target, rand]:
+            r.pose_error = np.degrees(
+                get_pose_error(r.rot.as_quat(), target.rot.as_quat())
+            )
+
+        # - Find mlh, best, and some other symmetric.
+        sym_rotations = sorted(sym_rotations, key=lambda x: x.pose_error)
+        min_ = sym_rotations[0]
+        sym_id = np.random.randint(1, len(sym_rotations))
+        sym = sym_rotations[sym_id]
+        mlh = sorted(sym_rotations, key=lambda x: x.evidence)[-1]
+
+        # - Compute chamfer distances, and store the stats.
+        rotations = dict(target=target, min=min_, MLH=mlh, sym=sym, rand=rand)
+        model = models[row.primary_target_object] - [0, 1.5, 0]
+        target_obj = model.rotated(target.rot)
+        rotation_errors = []
+        chamfer_distances = []
+        for name, r in rotations.items():
+            r.obj = model.rotated(r.rot)
+            r.chamfer_distance = get_chamfer_distance(r.obj, target_obj)
+            rotation_errors.append(r.pose_error)
+            chamfer_distances.append(r.chamfer_distance)
+
+        # Create figure with gridspec
+        fig = plt.figure(figsize=(6, 6), constrained_layout=True)
+        gs = fig.add_gridspec(nrows=3, ncols=5)
+        object_axes = []
+        pose_axes = []
+        labels = ["target", "min", "MLH", "sym", "rand"]
+        # plot objects and poses
+        for i, lbl in enumerate(labels):
+            r = rotations[lbl]
+            ax = fig.add_subplot(gs[0, i], projection="3d")
+            object_axes.append(ax)
+            ax.scatter(
+                r.obj.x,
+                r.obj.y,
+                r.obj.z,
+                color=r.obj.rgba,
+                alpha=0.5,
+            )
+            axes3d_set_aspect_equal(ax)
+            ax.grid(False)
+            ax.axis("off")
+            ax.view_init(**view_init)
+            ax = fig.add_subplot(gs[1, i], projection="3d")
+            pose_axes.append(ax)
+            draw_basis_vectors(ax, r.rot)
+            axes3d_set_aspect_equal(ax)
+            ax.view_init(**view_init)
+
+        ax1 = fig.add_subplot(gs[2, :2])
+        ax2 = ax1.twinx()
+        labels = ["min", "MLH", "sym", "rand"]
+        xticks = np.arange(len(labels))
+        width = 0.4
+        gap = 0.02
+        left_positions = xticks - width / 2 - gap / 2
+        right_positions = xticks + width / 2 + gap / 2
+        rotation_errors, chamfer_distances = [], []
+        for lbl in labels:
+            r = rotations[lbl]
+            rotation_errors.append(r.pose_error)
+            chamfer_distances.append(r.chamfer_distance)
+        ax1.bar(left_positions, rotation_errors, width, color=TBP_COLORS["blue"])
+        ax2.bar(right_positions, chamfer_distances, width, color=TBP_COLORS["purple"])
+        ax1.set_ylabel("Rotation Error (deg)")
+
+        ax1.set_xticks(xticks)
+        ax1.set_xticklabels(labels)
+        ax1.set_ylim(0, 180)
+        ax1.set_yticks([0, 45, 90, 135, 180])
+        ax1.spines["right"].set_visible(True)
+
+        ax2.set_ylabel("Chamfer Distance (m)")
+        ax2.set_ylim(0, 0.04)
+        ax2.set_yticks([0, 0.01, 0.02, 0.03, 0.04])
+        ax2.spines["right"].set_visible(True)
+
+        title = f"Episode {episode} - {row.primary_target_object}"
+        fig.suptitle(title)
+
+        fig.tight_layout()
+        plt.show()
+        fig.savefig(png_dir / f"{episode}_{row.primary_target_object}.png")
+        fig.savefig(svg_dir / f"{episode}_{row.primary_target_object}.svg")
+
+
+out_dir = OUT_DIR / "symmetry_episodes"
+out_dir.mkdir(parents=True, exist_ok=True)
+png_dir = out_dir / "png"
+png_dir.mkdir(parents=True, exist_ok=True)
+svg_dir = out_dir / "svg"
+svg_dir.mkdir(parents=True, exist_ok=True)
+
+experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_symmetry_run"
+detailed_stats = DetailedJSONStatsInterface(experiment_dir / "detailed_run_stats.json")
+eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
+
+# Preload models that we'll be rotating.
+models = {
+    name: load_object_model("dist_agent_1lm", name)
+    for name in eval_stats.primary_target_object.unique()
+}
+
+_episodes = [4, 10]
+_episodes = [4]
+# 105
+overrides = {
+    4: dict(sym_id=105, randrot=(10, 20, 70)),
+}
+# Best: episode 4, sym_id 119
+
+view_init = dict(elev=40, azim=-90, roll=0)
+for episode in _episodes:
+    stats = detailed_stats[episode]
+    # for episode, stats in enumerate(detailed_stats):
+    # print(f"Episode {episode}/{len(detailed_stats)}")
+    # Check valid symmetry rotations.
+    # - Must be correct performance
+
+    row = eval_stats.iloc[episode]
+    if not row.primary_performance.startswith("correct"):
+        continue
+    # - Must have at least two symmetry rotations.
+    sym_rots = stats["LM_0"]["symmetric_rotations"]
+    if sym_rots is None or len(sym_rots) < 2:
+        continue
+
+    odct = overrides.get(episode, dict())
+
+    # - Load the target rotation.
+    target = SimpleNamespace(
+        rot=Rotation.from_euler("xyz", row.primary_target_rotation_euler, degrees=True),
+        location=row.primary_target_position,
+    )
+
+    # - Create a random rotation.
+    if "randrot" in odct:
+        randrot = Rotation.from_euler("xyz", odct["randrot"], degrees=True)
+    else:
+        randrot = Rotation.from_euler(
+            "xyz", np.random.randint(0, 360, size=(3,)), degrees=True
+        )
+    rand = SimpleNamespace(
+        rot=randrot,
+        location=np.array([0, 1.5, 0]),
+    )
+
+    # - Load symmetry rotations, and computed pose error.
+    sym_rotations = load_symmetry_rotations(stats)
+    for r in sym_rotations + [target, rand]:
+        r.pose_error = np.degrees(get_pose_error(r.rot.as_quat(), target.rot.as_quat()))
+
+    # - Find mlh, best, and some other symmetric.
+    sym_rotations = sorted(sym_rotations, key=lambda x: x.pose_error)
+    min_ = sym_rotations[0]
+    if "sym_id" in odct:
+        sym_id = odct["sym_id"]
+    else:
+        sym_id = np.random.randint(1, len(sym_rotations))
+    sym = sym_rotations[sym_id]
+    mlh = sorted(sym_rotations, key=lambda x: x.evidence)[-1]
+
+    # - Compute chamfer distances, and store the stats.
+    rotations = dict(target=target, min=min_, MLH=mlh, sym=sym, rand=rand)
+    model = models[row.primary_target_object] - [0, 1.5, 0]
+    target_obj = model.rotated(target.rot)
+    rotation_errors = []
+    chamfer_distances = []
+    for name, r in rotations.items():
+        r.obj = model.rotated(r.rot)
+        r.chamfer_distance = get_chamfer_distance(r.obj, target_obj)
+        rotation_errors.append(r.pose_error)
+        chamfer_distances.append(r.chamfer_distance)
+
+    # Create figure with gridspec
+    fig = plt.figure(figsize=(6, 6), constrained_layout=True)
+    gs = fig.add_gridspec(nrows=3, ncols=5)
+    object_axes = []
+    pose_axes = []
+    labels = ["target", "min", "MLH", "sym", "rand"]
+    # plot objects and poses
+    for i, lbl in enumerate(labels):
+        r = rotations[lbl]
+        ax = fig.add_subplot(gs[0, i], projection="3d")
+        object_axes.append(ax)
+        ax.scatter(
+            r.obj.x,
+            r.obj.y,
+            r.obj.z,
+            color=r.obj.rgba,
+            alpha=0.5,
+            s=1,
+        )
+        axes3d_set_aspect_equal(ax)
+        ax.grid(False)
+        ax.axis("off")
+        ax.view_init(**view_init)
+        ax = fig.add_subplot(gs[1, i], projection="3d")
+        pose_axes.append(ax)
+        draw_basis_vectors(ax, r.rot)
+        axes3d_set_aspect_equal(ax)
+        ax.view_init(**view_init)
+
+    ax1 = fig.add_subplot(gs[2, :2])
+    ax2 = ax1.twinx()
+    labels = ["min", "MLH", "sym", "rand"]
+    xticks = np.arange(len(labels))
+    width = 0.4
+    gap = 0.02
+    left_positions = xticks - width / 2 - gap / 2
+    right_positions = xticks + width / 2 + gap / 2
+    rotation_errors, chamfer_distances = [], []
+    for lbl in labels:
+        r = rotations[lbl]
+        rotation_errors.append(r.pose_error)
+        chamfer_distances.append(r.chamfer_distance)
+    ax1.bar(left_positions, rotation_errors, width, color=TBP_COLORS["blue"])
+    ax2.bar(right_positions, chamfer_distances, width, color=TBP_COLORS["purple"])
+    ax1.set_ylabel("Rotation Error (deg)")
+
+    ax1.set_xticks(xticks)
+    ax1.set_xticklabels(labels)
+    ax1.set_ylim(0, 180)
+    ax1.set_yticks([0, 45, 90, 135, 180])
+    ax1.spines["right"].set_visible(True)
+
+    ax2.set_ylabel("Chamfer Distance (m)")
+    ax2.set_ylim(0, 0.04)
+    ax2.set_yticks([0, 0.01, 0.02, 0.03, 0.04])
+    ax2.spines["right"].set_visible(True)
+
+    title = f"Episode {episode} - {row.primary_target_object} - {sym_id}"
+    fig.suptitle(title)
+
+    fig.tight_layout()
+    plt.show()
+    fig.savefig(png_dir / f"{episode}_{row.primary_target_object}.png")
+    fig.savefig(svg_dir / f"{episode}_{row.primary_target_object}.svg")
