@@ -10,8 +10,10 @@
 
 This file contains configs defined solely for making visualizations that go into
 paper figures. The configs defined are:
-
-- `fig3_evidence_run`: A one-episode experiment used to collect evidence
+- `fig2_pretrain_surf_agent_1lm_checkpoints`: A pretraining experiment that saves
+  checkpoints for the 14 training rotations. The output is read and plotted by
+  functions in `scripts/fig2.py`.
+- `fig3_evidence_run`: A one-episode distant agent experiment used to collect evidence
    and sensor data for every step. The output is read and plotted by functions in
     `scripts/fig3.py`.
 - `fig4_symmetry_run`: Runs `dist_agent_1lm_randrot_noise` with storage of
@@ -21,6 +23,16 @@ paper figures. The configs defined are:
 - `fig5_visualize_8lm_patches`: An one-episode, one-step experiment that is used to
   collect one set of observations for the 8-LM model. The output is read and plotted
   by functions in `scripts/fig5.py` to show how the sensors patches fall on the object.
+- `fig6_curvature_guided_policy`: A one-episode surface agent experiment with
+  no hypothesis-testing policy active. The output is read and plotted by
+  functions in `scripts/fig6.py`.
+- `fig6_hypothesis_driven_policy`: A one-episode surface agent experiment with
+  hypothesis-testing policy active. The output is read and plotted by
+  functions in `scripts/fig6.py`.
+
+All of these experiments should be run in serial due to the memory needs of
+detailed logging (or checkpoint-saving in the case of
+`fig2_pretrain_surf_agent_1lm_checkpoints`).
 
 All experiments save their results to subdirectories of `DMC_ROOT` / `visualizations`.
 
@@ -92,9 +104,7 @@ fig3_evidence_run = deepcopy(dist_agent_1lm)
 fig3_evidence_run.update(
     dict(
         experiment_args=EvalExperimentArgs(
-            model_name_or_path=str(
-                DMC_PRETRAIN_DIR / "dist_agent_1lm_10distinctobj/pretrained"
-            ),
+            model_name_or_path=str(DMC_PRETRAIN_DIR / "dist_agent_1lm/pretrained"),
             n_eval_epochs=1,
             max_total_steps=100,
             max_eval_steps=100,
@@ -223,6 +233,10 @@ dataset_args.__post_init__()
 Figure 6
 -------------------------------------------------------------------------------
 """
+
+# `fig6_curvature_guided_policy`: A one-episode surface agent experiment with
+# no hypothesis-testing policy active. The output is read and plotted by
+# functions in `scripts/fig6.py`. Run in serial.
 fig6_curvature_guided_policy = deepcopy(surf_agent_1lm)
 fig6_curvature_guided_policy["experiment_args"].n_eval_epochs = 1
 fig6_curvature_guided_policy["logging_config"] = SelectiveEvidenceLoggingConfig(
