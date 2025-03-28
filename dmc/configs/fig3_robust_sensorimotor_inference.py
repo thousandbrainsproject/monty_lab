@@ -19,11 +19,11 @@ This module defines the following experiments:
  - 77 objects
  - 14 rotations
  - Goal-state-driven/hypothesis-testing policy active
- - A single LM
+ - A single LM (no voting)
 
 NOTE: random rotation variants use the random object initializer and 14 rotations.
 `dist_agent_1lm_randrot_noise` which uses the 5 predefined "random" rotations
-is defined in `fig4_rapid_inference_with_voting.py`.
+is defined in `fig5_rapid_inference_with_voting.py`.
 """
 
 from copy import deepcopy

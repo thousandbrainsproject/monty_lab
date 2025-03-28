@@ -8,14 +8,14 @@
 # https://opensource.org/licenses/MIT.
 """Supervised pretraining experiments.
 
-This module defines a suite of supervised pretraining experiments. The core models
-that experiments produce are:
- - `dist_agent_1lm`
- - `surf_agent_1lm`
- - `dist_agent_2lm`
- - `dist_agent_4lm`
- - `dist_agent_8lm`
- - `dist_agent_16lm`
+This module defines a suite of supervised pretraining experiments. The following is
+a list of pretraining experiments and the models they produce:
+ - `pretrain_dist_agent_1lm` -> `dist_agent_1lm`
+ - `pretrain_surf_agent_1lm` -> `surf_agent_1lm`
+ - `pretrain_dist_agent_2lm` -> `dist_agent_2lm`
+ - `pretrain_dist_agent_4lm` -> `dist_agent_4lm`
+ - `pretrain_dist_agent_8lm` -> `dist_agent_8lm`
+ - `pretrain_dist_agent_16lm` -> `dist_agent_16lm`
 
 All of these models are trained on 77 YCB objects with 14 rotations each (cube face
 and corners).

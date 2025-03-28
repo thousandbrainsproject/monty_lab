@@ -31,7 +31,7 @@ All of these experiments use:
  - 77 objects
  - Goal-state-driven/hypothesis-testing policy active
  - Sensor noise and 5 (predefined) random rotations
- - Voting over 1, 2, 4, 8, or 16 LMs
+ - Voting over 2, 4, 8, or 16 LMs
 
 """
 
