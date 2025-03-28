@@ -16,18 +16,9 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
     EvalEvidenceLMLoggingConfig,
-    MontyArgs,
-    MontyFeatureGraphArgs,
     MotorSystemConfigCurInformedSurfaceGoalStateDriven,
-    MotorSystemConfigCurvatureInformedSurface,
     MotorSystemConfigInformedGoalStateDriven,
-    MotorSystemConfigNaiveScanSpiral,
     ParallelEvidenceLMLoggingConfig,
-    PatchAndViewMontyConfig,
-    PretrainLoggingConfig,
-    SurfaceAndViewMontyConfig,
-    get_cube_face_and_corner_views_rotations,
-    make_multi_lm_monty_config,
 )
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     PredefinedObjectInitializer,
@@ -37,14 +28,11 @@ from tbp.monty.frameworks.loggers.monty_handlers import (
     DetailedJSONHandler,
 )
 from tbp.monty.frameworks.models.buffer import BufferEncoder
-from tbp.monty.frameworks.models.displacement_matching import DisplacementGraphLM
 from tbp.monty.frameworks.models.evidence_matching import EvidenceGraphLM
 from tbp.monty.frameworks.models.goal_state_generation import EvidenceGoalStateGenerator
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     FeatureChangeSM,
-    HabitatDistantPatchSM,
-    HabitatSurfacePatchSM,
 )
 from tbp.monty.frameworks.utils.logging_utils import maybe_rename_existing_file
 
@@ -198,7 +186,8 @@ def get_view_finder_config() -> Dict[str, Any]:
     """Create a sensor module config for a view-finder.
 
     A view finder is used to initalize the agent's position at the beginning of an
-    episode. It is also used to log observations for post-hoc visualization.
+    episode. It is also used to log observations for post-hoc visualization. The
+    returned config is suitable for both pretraining and evaluation experiments.
 
     Returns:
         A dictionary with two items:
@@ -396,12 +385,8 @@ class SelectiveEvidenceHandler(DetailedJSONHandler):
     ```
     then all sensor module data for `SM_0` and `SM_1` will be omitted.
 
-    NOTE: Though not otherwise used (to my knowledge), Monty does have a mechanism for
-    passing arguments to a handler's `__init__` function. If the parent `LoggingConfig`
-    has an attribute whose name matches a parameter in a handler's `__init__`, then
-    that attribute will be supplied to the handler's `__init__`. To do so, use the
-    `SelectiveEvidenceLoggingConfig` class and set the `selective_handler_args`
-    attribute.
+    NOTE: `selective_handler_args` can only be supplied if this class is used in
+    conjunction with `SelectiveEvidenceLoggingConfig`.
 
     """
 
