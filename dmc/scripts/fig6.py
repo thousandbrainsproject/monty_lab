@@ -30,22 +30,17 @@ Running the above functions requires that the following experiments have been ru
  - `surf_agent_1lm_randrot_noise`
 """
 
-import copy
 from numbers import Number
-from pprint import pprint
 from typing import (
     Iterable,
     List,
     Mapping,
     Optional,
     Tuple,
-    Union,
 )
 
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
-import skimage
 from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
