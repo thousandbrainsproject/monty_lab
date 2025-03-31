@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -7,13 +6,27 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-"""Get overview plots for DMC experiments.
+"""This module defines functions used to generate images for figure 3.
 
-This script generates basic figures for each set of experiments displaying number
-of monty matching steps, accuracy, and rotation error. If functions are called with
-`save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
+Panel A: Sensor Path
+ - `plot_sensor_path()`
+
+ Panel B: Performance
+ - `plot_performance()`
+ - `draw_icons()`
+
+ Panel C: Known Objects
+ - `plot_known_objects()`
+
+ Panel D: Evidence Graphs and Patches
+ - `plot_evidence_graphs_and_patches()`
+
+Running the above functions requires that the following experiments have been run:
+ - `fig3_evidence_run`: For plotting the sensor path and evidence graphs + patches.
+ - `dist_agent_1lm`, `dist_agent_1lm_noise`, `dist_agent_1lm_randrot_all`, and
+   `dist_agent_1lm_randrot_all_noise`: For plotting the performance metrics.
+ - `pretrain_dist_agent_1lm`: For plotting the known objects.
 """
-
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +34,6 @@ from data_utils import (
     DMC_ANALYSIS_DIR,
     VISUALIZATION_RESULTS_DIR,
     DetailedJSONStatsInterface,
-    get_frequency,
     load_eval_stats,
     load_object_model,
 )
@@ -33,7 +45,6 @@ from plot_utils import (
     init_matplotlib_style,
     violinplot,
 )
-from scipy.spatial.transform import Rotation as R
 
 init_matplotlib_style()
 
@@ -44,13 +55,23 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 """
 --------------------------------------------------------------------------------
-Panel A: Sensor path and known objects
+Panel A: Sensor Path
 --------------------------------------------------------------------------------
 """
 
 
 def plot_sensor_path():
-    """Plot the sensor path for panel A."""
+    """Plot the sensor path for panel A.
+
+    Requires the experiment `fig3_evidence_run` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig3/sensor_path/`.
+    """
+    # Initialize output paths.
+    out_dir = OUT_DIR / "sensor_path"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load the stats.
     experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
     detailed_stats = DetailedJSONStatsInterface(
         experiment_dir / "detailed_run_stats.json"
@@ -76,15 +97,201 @@ def plot_sensor_path():
     ax.view_init(115, -90, 0)
     axes3d_clean(ax)
     axes3d_set_aspect_equal(ax)
-    plt.show()
-    out_dir = OUT_DIR / "sensor_path"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / "sensor_path.png", dpi=300)
+    fig.savefig(out_dir / "sensor_path.png")
     fig.savefig(out_dir / "sensor_path.svg")
+    plt.show()
+
+
+"""
+--------------------------------------------------------------------------------
+Panel B: Performance
+--------------------------------------------------------------------------------
+"""
+
+
+def plot_performance() -> None:
+    """Plot core performance metrics.
+
+    Requires the experiments `dist_agent_1lm`, `dist_agent_1lm_noise`,
+    `dist_agent_1lm_randrot_all`, and `dist_agent_1lm_randrot_all_noise` have been
+    run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig3/performance/`.
+    """
+    # Initialize output paths.
+    out_dir = OUT_DIR / "performance"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load the stats.
+    dataframes = [
+        load_eval_stats("dist_agent_1lm"),
+        load_eval_stats("dist_agent_1lm_noise"),
+        load_eval_stats("dist_agent_1lm_randrot_all"),
+        load_eval_stats("dist_agent_1lm_randrot_all_noise"),
+    ]
+    accuracy, rotation_error = [], []
+    for i, df in enumerate(dataframes):
+        sub_df = df[df.primary_performance.isin(["correct", "correct_mlh"])]
+        accuracy.append(100 * len(sub_df) / len(df))
+        rotation_error.append(np.degrees(sub_df.rotation_error))
+
+    # Initialize the plot.
+    fig, ax1 = plt.subplots(1, 1, figsize=(3.5, 3))
+    ax2 = ax1.twinx()
+
+    # Params
+    bar_width = 0.4
+    violin_width = 0.4
+    gap = 0.02
+    xticks = np.arange(4) * 1.3
+    bar_positions = xticks - bar_width / 2 - gap / 2
+    violin_positions = xticks + violin_width / 2 + gap / 2
+    median_style = dict(color="lightgray", lw=1, ls="-")
+
+    # Plot accuracy bars
+    ax1.bar(
+        bar_positions,
+        accuracy,
+        color=TBP_COLORS["blue"],
+        width=bar_width,
+    )
+    ax1.set_ylim(0, 100)
+    ax1.set_ylabel("% Correct")
+
+    # Plot rotation error violins
+    violinplot(
+        rotation_error,
+        violin_positions,
+        width=violin_width,
+        color=TBP_COLORS["purple"],
+        showextrema=False,
+        showmedians=True,
+        median_style=median_style,
+        ax=ax2,
+    )
+
+    ax2.set_yticks([0, 45, 90, 135, 180])
+    ax2.set_ylim(0, 180)
+    ax2.set_ylabel("Rotation Error (deg)")
+
+    ax1.set_xticks(xticks)
+    xticklabels = ["base", "noise", "RR", "noise + RR"]
+    ax1.set_xticklabels(xticklabels, rotation=0, ha="center")
+
+    ax1.spines["right"].set_visible(True)
+    ax2.spines["right"].set_visible(True)
+
+    fig.tight_layout()
+    fig.savefig(out_dir / "performance.png")
+    fig.savefig(out_dir / "performance.svg")
+    plt.show()
+
+
+def draw_icons():
+    """Draw the object models under the x-axis for panel B.
+
+    Requires the experiment `pretrain_dist_agent_1lm` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig3/icons`.
+    """
+    # Initialize output paths.
+    out_dir = OUT_DIR / "icons"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load the model.
+    model = load_object_model("dist_agent_1lm", "mug")
+    model = model - [0, 1.5, 0]
+    fig, axes = plt.subplots(1, 4, figsize=(8, 4), subplot_kw={"projection": "3d"})
+
+    # Params
+    params = {
+        "alpha": 0.45,
+        "edgecolors": "none",
+        "s": 2,
+    }
+    loc_std = 0.002  # same parameter as in configs
+
+    # Use bluementa as base color.
+    hex = TBP_COLORS["blue"].lstrip("#")
+    rgba = np.array([int(hex[i : i + 2], 16) / 255 for i in (0, 2, 4)] + [1.0])
+    rgba = np.tile(rgba, (len(model.x), 1))
+
+    # Make noisy color.
+    rgba_noise = rgba.copy()
+    rgba_noise = rgba_noise + 0.3 * np.random.randn(len(rgba_noise), 4)
+    rgba_noise = np.clip(rgba_noise, 0, 1)
+    rgba_noise[:, 3] = 1
+    loc_noise = loc_std * np.random.randn(*model.pos.shape)
+
+    # - draw base model
+    ax = axes[0]
+    ax.scatter(model.x, model.y, model.z, color=rgba, **params)
+
+    # - draw noise
+    ax = axes[1]
+    noise_model = model.copy()
+    noise_model.pos += loc_noise
+    ax.scatter(
+        noise_model.x,
+        noise_model.y,
+        noise_model.z,
+        color=rgba_noise,
+        **params,
+    )
+
+    # - draw random rotation
+    ax = axes[2]
+    randrot_model = model.rotated([45, 10, 30], degrees=True)
+    ax.scatter(
+        randrot_model.x,
+        randrot_model.y,
+        randrot_model.z,
+        color=rgba,
+        **params,
+    )
+
+    # - draw radom rotation + noise
+    ax = axes[3]
+    randrot_noise_model = model.rotated([25, 30, -135], degrees=True)
+    randrot_noise_model.pos += loc_noise
+    ax.scatter(
+        randrot_noise_model.x,
+        randrot_noise_model.y,
+        randrot_noise_model.z,
+        color=rgba_noise,
+        **params,
+    )
+
+    # Clean up
+    for ax in axes:
+        axes3d_set_aspect_equal(ax)
+        ax.axis("off")
+        ax.view_init(90, -90)
+        ax.axis("off")
+
+    fig.savefig(out_dir / "icons.png")
+    fig.savefig(out_dir / "icons.svg")
+    plt.show()
+
+
+"""
+--------------------------------------------------------------------------------
+Panel C: Known Objects
+--------------------------------------------------------------------------------
+"""
 
 
 def plot_known_objects():
-    """Plot the "known objects" for panel A."""
+    """Plot the "known objects" for panel A.
+
+    Requires the experiment `dist_agent_1lm` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig3/known_objects/`.
+    """
+    # Initialize output paths.
+    out_dir = OUT_DIR / "known_objects"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     fig, axes = plt.subplots(1, 3, figsize=(5, 4), subplot_kw={"projection": "3d"})
     mug = load_object_model("dist_agent_1lm", "mug")
     bowl = load_object_model("dist_agent_1lm", "bowl")
@@ -109,19 +316,30 @@ def plot_known_objects():
         axes3d_set_aspect_equal(ax)
         ax.view_init(115, -90, 0)
 
-    fig.savefig(OUT_DIR / "known_objects.png", dpi=300)
-    fig.savefig(OUT_DIR / "known_objects.svg")
+    fig.savefig(out_dir / "known_objects.png")
+    fig.savefig(out_dir / "known_objects.svg")
     plt.show()
 
 
 """
 --------------------------------------------------------------------------------
-Panel B: Evidence graphs
+Panel D: Evidence Graphs and Patches
 --------------------------------------------------------------------------------
 """
 
 
 def plot_evidence_graphs_and_patches():
+    """Plot the evidence graphs and patches for panel D.
+
+    Requires the experiment `fig3_evidence_run` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig3/evidence_graphs_and_patches/`.
+    """
+    # Initialize output paths.
+    main_out_dir = OUT_DIR / "evidence_graphs_and_patches"
+    main_out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load the stats.
     experiment_dir = VISUALIZATION_RESULTS_DIR / "fig3_evidence_run"
     detailed_stats = DetailedJSONStatsInterface(
         experiment_dir / "detailed_run_stats.json"
@@ -160,7 +378,7 @@ def plot_evidence_graphs_and_patches():
         obj.rotation = np.array(all_possible_rotations[0][name])
 
     # Plot evidence graphs for each object and step individually.
-    out_dir = OUT_DIR / "evidence_graphs"
+    out_dir = main_out_dir / "evidence_graphs"
     out_dir.mkdir(parents=True, exist_ok=True)
     png_dir = out_dir / "png"
     png_dir.mkdir(parents=True, exist_ok=True)
@@ -258,9 +476,8 @@ def plot_evidence_graphs_and_patches():
             ax.set_ylim(1.5 - 0.119, 1.5 + 0.119)
             ax.set_zlim(-0.119, 0.119)
         fig.subplots_adjust(left=0.05, right=0.95, bottom=0.1, top=0.9, wspace=0.2)
-        fig.savefig(png_dir / f"evidence_graphs_{step}.png", dpi=300)
+        fig.savefig(png_dir / f"evidence_graphs_{step}.png")
         fig.savefig(svg_dir / f"evidence_graphs_{step}.svg")
-        plt.show()
         plt.close(fig)
 
     # Plot the colorbar.
@@ -270,8 +487,9 @@ def plot_evidence_graphs_and_patches():
     cbar.set_ticks([])
     cbar.set_label("")
     fig.tight_layout()
-    fig.savefig(out_dir / "colorbar.png", dpi=300)
+    fig.savefig(out_dir / "colorbar.png")
     fig.savefig(out_dir / "colorbar.svg")
+    plt.close(fig)
 
     # Extract RGBA patches for sensor module 0.
     rgba_patches = []
@@ -280,7 +498,8 @@ def plot_evidence_graphs_and_patches():
     rgba_patches = np.array(rgba_patches)
 
     # Save the RGBA patches.
-    out_dir = OUT_DIR / "patches"
+    out_dir = main_out_dir / "patches"
+    out_dir.mkdir(parents=True, exist_ok=True)
     png_dir = out_dir / "png"
     png_dir.mkdir(parents=True, exist_ok=True)
     svg_dir = out_dir / "svg"
@@ -291,216 +510,14 @@ def plot_evidence_graphs_and_patches():
         ax.imshow(patch)
         ax.axis("off")
         fig.tight_layout(pad=0.0)
-        fig.savefig(png_dir / f"patch_step_{step}.png", dpi=300)
+        fig.savefig(png_dir / f"patch_step_{step}.png")
         fig.savefig(svg_dir / f"patch_step_{step}.svg")
         plt.close(fig)
 
 
-"""
---------------------------------------------------------------------------------
-Panel C: ?
---------------------------------------------------------------------------------
-"""
-
-
-def plot_performance() -> None:
-    out_dir = OUT_DIR / "performance"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    dataframes = [
-        load_eval_stats("dist_agent_1lm"),
-        load_eval_stats("dist_agent_1lm_noise"),
-        load_eval_stats("dist_agent_1lm_randrot_all"),
-        load_eval_stats("dist_agent_1lm_randrot_all_noise"),
-    ]
-    percent_correct = np.zeros(len(dataframes))
-    rotation_errors = np.zeros(len(dataframes), dtype=object)
-    for i, df in enumerate(dataframes):
-        sub_df = df[df.primary_performance.isin(["correct", "correct_mlh"])]
-        percent_correct[i] = 100 * len(sub_df) / len(df)
-        rotation_errors[i] = np.degrees(sub_df.rotation_error)
-
-    fig, ax1 = plt.subplots(1, 1, figsize=(3, 2))
-
-    # Plot accuracy bars
-    ax1.bar(
-        [0, 2, 4, 6],
-        percent_correct,
-        color=TBP_COLORS["blue"],
-        width=0.8,
-    )
-    ax1.set_ylim(0, 100)
-    ax1.set_ylabel("% Correct")
-
-    # Plot rotation error violins
-    ax2 = ax1.twinx()
-    vp = ax2.violinplot(
-        rotation_errors,
-        positions=[1, 3, 5, 7],
-        showextrema=False,
-        showmedians=True,
-    )
-    for body in vp["bodies"]:
-        body.set_facecolor(TBP_COLORS["purple"])
-        body.set_alpha(1.0)
-    vp["cmedians"].set_color("black")
-    ax2.set_yticks([0, 45, 90, 135, 180])
-    ax2.set_ylim(0, 180)
-    ax2.set_ylabel("Rotation Error (deg)")
-
-    ax1.set_xticks([0.5, 2.5, 4.5, 6.5])
-    xticklabels = ["base", "noise", "RR", "noise + RR"]
-    ax1.set_xticklabels(xticklabels, rotation=0, ha="center")
-
-    ax1.spines["top"].set_visible(False)
-    ax2.spines["top"].set_visible(False)
-    fig.tight_layout()
-    fig.savefig(out_dir / "performance.png", dpi=300)
-    fig.savefig(out_dir / "performance.svg")
-    plt.show()
-
-
-def draw_randrot_noise_icons():
-    model = load_object_model("dist_agent_1lm", "mug")
-    model = model - [0, 1.5, 0]
-    fig, axes = plt.subplots(1, 4, figsize=(8, 4), subplot_kw={"projection": "3d"})
-
-    # Params
-    params = {
-        "alpha": 0.45,
-        "edgecolors": "none",
-        "s": 2,
-    }
-    loc_std = 0.002  # same parameter as in configs
-
-    # Use bluementa as base color.
-    hex = TBP_COLORS["blue"].lstrip("#")
-    rgba = np.array([int(hex[i : i + 2], 16) / 255 for i in (0, 2, 4)] + [1.0])
-    rgba = np.tile(rgba, (len(model.x), 1))
-
-    # Make noisy color.
-    rgba_noise = rgba.copy()
-    rgba_noise = rgba_noise + 0.3 * np.random.randn(len(rgba_noise), 4)
-    rgba_noise = np.clip(rgba_noise, 0, 1)
-    rgba_noise[:, 3] = 1
-    loc_noise = loc_std * np.random.randn(*model.pos.shape)
-
-    # - draw base model
-    ax = axes[0]
-    ax.scatter(model.x, model.y, model.z, color=rgba, **params)
-
-    # - draw noise
-    ax = axes[1]
-    noise_model = model.copy()
-    noise_model.pos += loc_noise
-    ax.scatter(
-        noise_model.x,
-        noise_model.y,
-        noise_model.z,
-        color=rgba_noise,
-        **params,
-    )
-
-    # - draw random rotation
-    ax = axes[2]
-    randrot_model = model.rotated([45, 10, 30], degrees=True)
-    ax.scatter(
-        randrot_model.x,
-        randrot_model.y,
-        randrot_model.z,
-        color=rgba,
-        **params,
-    )
-
-    # - draw radom rotation + noise
-    ax = axes[3]
-    randrot_noise_model = model.rotated([25, 30, -135], degrees=True)
-    randrot_noise_model.pos += loc_noise
-    ax.scatter(
-        randrot_noise_model.x,
-        randrot_noise_model.y,
-        randrot_noise_model.z,
-        color=rgba_noise,
-        **params,
-    )
-
-    # Clean up
-    for ax in axes:
-        axes3d_set_aspect_equal(ax)
-        ax.axis("off")
-        ax.view_init(90, -90)
-        ax.axis("off")
-
-    plt.show()
-    fig.savefig(OUT_DIR / "randrot_noise_icons.png")
-    fig.savefig(OUT_DIR / "randrot_noise_icons.svg")
-
-
-# plot_performance()
-# plot_evidence_graphs_and_patches()
-# plot_known_objects()
-# plot_sensor_path()
-# draw_randrot_noise_icons()
-
-out_dir = OUT_DIR / "performance"
-out_dir.mkdir(parents=True, exist_ok=True)
-dataframes = [
-    load_eval_stats("dist_agent_1lm"),
-    load_eval_stats("dist_agent_1lm_noise"),
-    load_eval_stats("dist_agent_1lm_randrot_all"),
-    load_eval_stats("dist_agent_1lm_randrot_all_noise"),
-]
-accuracy, rotation_error = [], []
-for i, df in enumerate(dataframes):
-    sub_df = df[df.primary_performance.isin(["correct", "correct_mlh"])]
-    accuracy.append(100 * len(sub_df) / len(df))
-    rotation_error.append(np.degrees(sub_df.rotation_error))
-
-fig, ax1 = plt.subplots(1, 1, figsize=(3.5, 3))
-ax2 = ax1.twinx()
-
-bar_width = 0.4
-violin_width = 0.4
-gap = 0.02
-xticks = np.arange(4) * 1.3
-bar_positions = xticks - bar_width / 2 - gap / 2
-violin_positions = xticks + violin_width / 2 + gap / 2
-median_style = dict(color="lightgray", lw=1, ls="-")
-
-# Plot accuracy bars
-ax1.bar(
-    bar_positions,
-    accuracy,
-    color=TBP_COLORS["blue"],
-    width=bar_width,
-)
-ax1.set_ylim(0, 100)
-ax1.set_ylabel("% Correct")
-
-# Plot rotation error violins
-violinplot(
-    rotation_error,
-    violin_positions,
-    width=violin_width,
-    color=TBP_COLORS["purple"],
-    showextrema=False,
-    showmedians=True,
-    median_style=median_style,
-    ax=ax2,
-)
-
-
-ax2.set_yticks([0, 45, 90, 135, 180])
-ax2.set_ylim(0, 180)
-ax2.set_ylabel("Rotation Error (deg)")
-
-ax1.set_xticks(xticks)
-xticklabels = ["base", "noise", "RR", "noise + RR"]
-ax1.set_xticklabels(xticklabels, rotation=0, ha="center")
-
-ax1.spines["right"].set_visible(True)
-ax2.spines["right"].set_visible(True)
-
-fig.tight_layout()
-fig.savefig(out_dir / "performance.png", dpi=300)
-fig.savefig(out_dir / "performance.svg")
-plt.show()
+if __name__ == "__main__":
+    plot_sensor_path()
+    plot_performance()
+    draw_icons()
+    plot_known_objects()
+    plot_evidence_graphs_and_patches()

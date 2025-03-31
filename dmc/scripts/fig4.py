@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -7,11 +6,24 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-"""Get overview plots for DMC experiments.
+"""This module defines functions used to generate images for figure 4.
 
-This script generates basic figures for each set of experiments displaying number
-of monty matching steps, accuracy, and rotation error. If functions are called with
-`save=True`, figures and tables are saved under `DMC_ANALYSIS_DIR / overview`.
+Panel A: Dendrogram and Similar Object Models
+ - `plot_dendrogram()`
+ - `plot_similar_object_models()`
+
+Panel B: Example Symmetry Episode
+ - `plot_icup_symmetry_episode()`
+
+Panels C and D: Rotation Error and Chamfer Distance for All Episodes
+ - `plot_symmetry_stats()`
+
+The functions above require the following experiments to have been run:
+ - `pretrain_surf_agent_1lm`: for plotting object models.
+ - `surf_agent_1lm_randrot_noise_10simobj`: for generating the dendrogram and
+   confusion matrix.
+ - `fig4_symmetry_run`: for plotting symmetry stats.
+
 """
 
 from types import SimpleNamespace
@@ -52,9 +64,28 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 """
 --------------------------------------------------------------------------------
-Symmetrical rotations
+Utilities
 --------------------------------------------------------------------------------
 """
+
+
+def draw_basis_vectors(ax: plt.Axes, rot: Rotation):
+    """Draw the basis vectors of a rotation."""
+    mat = rot.as_matrix()
+    origin = np.array([0, 0, 0])
+    colors = ["red", "green", "blue"]
+    axis_names = ["x", "y", "z"]
+    for i in range(3):
+        ax.quiver(
+            *origin,
+            *mat[:, i],
+            color=colors[i],
+            length=1,
+            arrow_length_ratio=0.2,
+            normalize=True,
+        )
+        getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
+    ax.axis("off")
 
 
 def get_chamfer_distance(
@@ -78,58 +109,6 @@ def get_chamfer_distance(
     return np.mean(dists1) + np.mean(dists2)
 
 
-def load_symmetry_rotations(episode_stats: Mapping) -> List[SimpleNamespace]:
-    """Load symmetric rotations for the MLH.
-
-    Returns:
-        List[SimpleNamespace]: A list of SimpleNamespace objects, each containing
-        the id, rotation, and evidence value.
-    """
-
-    # Get MLH object name -- symmetric rotations are only computed for the MLH object.
-    object_name = episode_stats["LM_0"]["current_mlh"][-1]["graph_id"]
-
-    # Load evidence values and possible locations.
-    evidences = np.array(episode_stats["LM_0"]["evidences_ls"][object_name])
-    # TODO: delete this once confident. It's only used as a sanity check below.
-    possible_rotations = np.array(
-        episode_stats["LM_0"]["possible_rotations_ls"][object_name]
-    )
-
-    # Load symmetric rotations.
-    symmetric_rotations = np.array(episode_stats["LM_0"]["symmetric_rotations"])
-    symmetric_locations = np.array(episode_stats["LM_0"]["symmetric_locations"])
-
-    # To get evidence values for each rotation, we need to find hypothesis IDs for the
-    # symmetric rotations. To do this, we find the evidence threshold that would yield
-    # the number of symmetric rotations given.
-    n_hypotheses = len(symmetric_rotations)
-    sorting_inds = np.argsort(evidences)[::-1]
-    evidences_sorted = evidences[sorting_inds]
-    evidence_threshold = np.mean(evidences_sorted[n_hypotheses - 1 : n_hypotheses + 1])
-    above_threshold = evidences >= evidence_threshold
-    hypothesis_ids = np.arange(len(evidences))[above_threshold]
-    symmetric_evidences = evidences[hypothesis_ids]
-
-    # Sanity checks.
-    assert len(hypothesis_ids) == n_hypotheses
-    assert np.allclose(symmetric_rotations, possible_rotations[hypothesis_ids])
-
-    rotations = []
-    for i in range(n_hypotheses):
-        rotations.append(
-            SimpleNamespace(
-                id=i,
-                hypothesis_id=hypothesis_ids[i],
-                rot=Rotation.from_matrix(symmetric_rotations[i]).inv(),
-                location=symmetric_locations[i],
-                evidence=symmetric_evidences[i],
-            )
-        )
-
-    return rotations
-
-
 def get_relative_rotation(
     rot_a: scipy.spatial.transform.Rotation,
     rot_b: scipy.spatial.transform.Rotation,
@@ -142,7 +121,8 @@ def get_relative_rotation(
         rot_b (scipy.spatial.transform.Rotation): The second rotation.
 
     Returns:
-        Tuple[float, np.ndarray]: The rotational difference and the relative rotation matrix.
+        Tuple[float, np.ndarray]: The rotational difference and the relative rotation
+        matrix.
     """
     # Compute rotation angle
     rel = rot_a * rot_b.inv()
@@ -262,193 +242,23 @@ def get_symmetry_stats() -> Mapping:
     return stat_arrays
 
 
-def plot_symmetry_stats():
-    """Plot the symmetry stats."""
-    stat_arrays = get_symmetry_stats()
-
-    fig, axes = plt.subplots(1, 2, figsize=(5.5, 2.5))
-
-    rotation_types = ["min", "MLH", "sym", "rand"]
-    colors = [TBP_COLORS["blue"]] * len(rotation_types)
-    xticks = list(range(1, len(rotation_types) + 1))
-    xticklabels = ["min", "MLH", "sym", "rand"]
-
-    # Pose Error
-    ax = axes[0]
-    arrays = [stat_arrays["pose_error"][name] for name in rotation_types]
-    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
-    for j, body in enumerate(vp["bodies"]):
-        body.set_facecolor(colors[j])
-        body.set_alpha(1.0)
-    vp["cmedians"].set_color("black")
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels)
-    ax.set_yticks([0, 45, 90, 135, 180])
-    ax.set_ylim(0, 180)
-    ax.set_ylabel("Rotation Error (deg)")
-
-    # Chamfer
-    ax = axes[1]
-    arrays = [stat_arrays["Chamfer"][name] for name in rotation_types]
-    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
-    for j, body in enumerate(vp["bodies"]):
-        body.set_facecolor(colors[j])
-        body.set_alpha(1.0)
-    vp["cmedians"].set_color("black")
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels)
-    ax.set_ylabel("Chamfer Distance (m)")
-    ymax = max(np.percentile(arr, 95) for arr in arrays)
-    ax.set_ylim(0, ymax)
-
-    fig.tight_layout()
-
-    plt.show()
-    out_dir = OUT_DIR / "symmetry"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / "symmetry_stats.png", dpi=300)
-    fig.savefig(out_dir / "symmetry_stats.svg")
-
-
-def plot_symmetry_objects():
-    """Render symmetric objects and their rotations."""
-    experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_symmetry_run"
-    detailed_stats = DetailedJSONStatsInterface(
-        experiment_dir / "detailed_run_stats.json"
-    )
-    eval_stats = load_eval_stats(experiment_dir / "eval_stats.csv")
-
-    episode_params = {
-        # clamp - god. 180 degree rotation.
-        130: {
-            "other_index": 1,
-            "random_rotation": np.array([98, 86, 134]),
-            "elev": 55,
-            "azim": 0,
-        },
-        # bowl - good
-        309: {
-            "other_index": 1,
-            "random_rotation": np.array([172, 68, -25]),
-            "elev": 30,
-            "azim": -90,
-        },
-    }
-    for episode in episode_params.keys():
-        params = episode_params.get(episode, {})
-
-        row = eval_stats.iloc[episode]
-        primary_target_object = row.primary_target_object
-        target = SimpleNamespace(
-            rot=Rotation.from_euler(
-                "xyz", row.primary_target_rotation_euler, degrees=True
-            )
-        )
-
-        # Load rotations, compute rotation error for each, and sort them by error.
-        stats = detailed_stats[episode]
-        rotations = load_symmetry_rotations(stats)
-        for r in rotations:
-            theta, axis = get_relative_rotation(r.rot, target.rot, degrees=True)
-            r.theta = theta
-            r.axis = axis
-        rotations = sorted(rotations, key=lambda x: x.theta)
-
-        # Get rotation with lowest error and any other symmetrical rotation.
-        best = rotations[0]
-        mlh = sorted(rotations, key=lambda x: x.evidence)[-1]
-        other_index = params.get("other_index", np.random.randint(1, len(rotations)))
-        other = rotations[other_index]
-
-        # Get a random rotation, and compute its error.
-        random_euler = params.get(
-            "random_rotation", np.random.randint(0, 360, size=(3,))
-        )
-        random = SimpleNamespace(
-            rot=Rotation.from_euler("xyz", random_euler, degrees=True)
-        )
-        theta, axis = get_relative_rotation(random.rot, target.rot, degrees=True)
-        random.theta = theta
-        random.axis = axis
-
-        base_model = load_object_model("dist_agent_1lm", primary_target_object)
-        base_model = base_model - [0, 1.5, 0]
-
-        poses = dict(target=target, best=best, mlh=mlh, other=other, random=random)
-        for name, obj in poses.items():
-            obj.model = base_model.rotated(obj.rot)
-
-        fig, axes = plt.subplots(2, 5, figsize=(8, 4), subplot_kw={"projection": "3d"})
-        elev, azim = params.get("elev", 30), params.get("azim", -90)
-
-        for i, (name, obj) in enumerate(poses.items()):
-            # Plot object.
-            ax = axes[0, i]
-            model = obj.model
-            ax.scatter(
-                model.x,
-                model.y,
-                model.z,
-                color=model.rgba,
-                alpha=0.5,
-                edgecolors="none",
-                s=10,
-            )
-            axes3d_clean(ax, grid=False)
-            axes3d_set_aspect_equal(ax)
-            ax.view_init(elev, azim)
-
-            # Plot basis vectors.
-            ax = axes[1, i]
-            mat = obj.rot.as_matrix()
-            origin = np.array([0, 0, 0])
-            colors = ["red", "green", "blue"]
-            axis_names = ["x", "y", "z"]
-            for i in range(3):
-                ax.quiver(
-                    *origin,
-                    *mat[:, i],
-                    color=colors[i],
-                    length=1,
-                    arrow_length_ratio=0.2,
-                    normalize=True,
-                )
-                getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
-            ax.set_proj_type("persp", focal_length=1)
-            axes3d_clean(ax)
-            axes3d_set_aspect_equal(ax)
-            ax.view_init(elev, azim)
-            ax.axis("off")
-            ax.set_title(name)
-
-        plt.show()
-        out_dir = OUT_DIR / "symmetry"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_dir / f"{primary_target_object}_{episode}.png", dpi=300)
-        fig.savefig(out_dir / f"{primary_target_object}_{episode}.svg")
-        plt.close()
-
-
-"""
-Dendrogram and confusion matrix.
-"""
-
-
-def get_relative_evidence_matrices(modality: str) -> np.ndarray:
+def get_relative_evidence_matrices() -> np.ndarray:
     """Get relative evidence matrices for a set of objects.
 
+    Used for generating dendrograms and confusion matrices.
+
+    Requires the experiment `surf_agent_1lm_randrot_noise_10simobj` has been run.
+
     Args:
-        objects (Iterable[str]): The objects to get the relative evidence matrices for.
+        modality: The objects to get the relative evidence matrices for.
 
     Returns:
         np.ndarray: A 3D array of shape (n_epochs, n_objects, n_objects), where each
         matrix is the relative evidence matrix for the corresponding epoch.
 
-    TODO: Maybe hard-code `objects` to `SIMILAR_OBJECTS` when done developing.
     """
 
-    assert modality in ["dist", "surf"]
-    exp_dir = DMC_RESULTS_DIR / f"{modality}_agent_1lm_randrot_noise_10simobj"
+    exp_dir = DMC_RESULTS_DIR / "surf_agent_1lm_randrot_noise_10simobj"
     eval_stats = load_eval_stats(exp_dir / "eval_stats.csv")
     detailed_stats = DetailedJSONStatsInterface(exp_dir / "detailed_run_stats.json")
 
@@ -475,17 +285,81 @@ def get_relative_evidence_matrices(modality: str) -> np.ndarray:
     return rel_evidence_matrices
 
 
-def plot_dendrogram_and_confusion_matrix(modality: str):
-    """Plot the dendrogram and confusion matrix."""
-    assert modality in ["dist", "surf"]
-    out_dir = OUT_DIR / "object_similarity"
+def load_symmetry_rotations(stats: Mapping) -> List[SimpleNamespace]:
+    """Load symmetric rotations for the MLH.
+
+    Returns:
+       A list of SimpleNamespace objects, each representing a symmetric rotation.
+
+    """
+
+    # Get MLH object name -- symmetric rotations are only computed for the MLH object.
+    object_name = stats["LM_0"]["current_mlh"][-1]["graph_id"]
+
+    # Load evidence values and possible locations.
+    evidences = np.array(stats["LM_0"]["evidences_ls"][object_name])
+    # TODO: delete this once confident. It's only used as a sanity check below.
+    possible_rotations = np.array(stats["LM_0"]["possible_rotations_ls"][object_name])
+
+    # Load symmetric rotations.
+    symmetric_rotations = np.array(stats["LM_0"]["symmetric_rotations"])
+    symmetric_locations = np.array(stats["LM_0"]["symmetric_locations"])
+
+    # To get evidence values for each rotation, we need to find hypothesis IDs for the
+    # symmetric rotations. To do this, we find the evidence threshold that would yield
+    # the number of symmetric rotations given.
+    n_hypotheses = len(symmetric_rotations)
+    sorting_inds = np.argsort(evidences)[::-1]
+    evidences_sorted = evidences[sorting_inds]
+    evidence_threshold = np.mean(evidences_sorted[n_hypotheses - 1 : n_hypotheses + 1])
+    above_threshold = evidences >= evidence_threshold
+    hypothesis_ids = np.arange(len(evidences))[above_threshold]
+    symmetric_evidences = evidences[hypothesis_ids]
+
+    # Sanity checks.
+    assert len(hypothesis_ids) == n_hypotheses
+    assert np.allclose(symmetric_rotations, possible_rotations[hypothesis_ids])
+
+    rotations = []
+    for i in range(n_hypotheses):
+        rotations.append(
+            SimpleNamespace(
+                id=i,
+                hypothesis_id=hypothesis_ids[i],
+                rot=Rotation.from_matrix(symmetric_rotations[i]).inv(),
+                location=symmetric_locations[i],
+                evidence=symmetric_evidences[i],
+            )
+        )
+
+    return rotations
+
+
+"""
+--------------------------------------------------------------------------------
+Panel A: Dendrogram and Similar Object Models
+--------------------------------------------------------------------------------
+"""
+
+
+def plot_dendrogram():
+    """Plot the dendrogram used in panel A.
+
+    Requires the experiment `surf_agent_1lm_randrot_noise_10simobj` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig4/dendrogram`.
+
+    NOTE: Also plots a confusion matrix, which is not used in the paper.
+    """
+
+    out_dir = OUT_DIR / "dendrogram"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     all_objects = SIMILAR_OBJECTS
     id_to_object = {i: obj for i, obj in enumerate(all_objects)}
     object_to_id = {obj: i for i, obj in id_to_object.items()}
 
-    rel_evidence_matrices = get_relative_evidence_matrices(modality)
+    rel_evidence_matrices = get_relative_evidence_matrices()
     rel_evidence_matrix = rel_evidence_matrices.mean(axis=0)
 
     # Normalize the rows of the evidence matrix.
@@ -501,6 +375,7 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
             rel_evidence_matrix_normed[i, j] = avg_value
             rel_evidence_matrix_normed[j, i] = avg_value
     rel_evidence_matrix_normed = 1 - rel_evidence_matrix_normed
+
     # Plot dendrogram.
     fig, ax = plt.subplots(figsize=(7, 3))
     Z = linkage(rel_evidence_matrix_normed, optimal_ordering=True)
@@ -520,42 +395,27 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
     xticklabels = ax.get_xticklabels()
     ax.set_xticklabels(xticklabels, rotation=0, fontsize=8, ha="center")
     ax.set_ylabel("Cluster Distance", fontsize=10)
-    if modality == "surf":
-        ax.set_yticks([0, 0.05, 0.1, 0.15, 0.2])
+    ax.set_yticks([0, 0.05, 0.1, 0.15, 0.2])
 
     plt.tight_layout()
     plt.show()
-    fig.savefig(out_dir / f"dendrogram_{modality}.png")
-    fig.savefig(out_dir / f"dendrogram_{modality}.svg")
+    fig.savefig(out_dir / "dendrogram.png")
+    fig.savefig(out_dir / "dendrogram.svg")
 
     # Plot confusion matrix.
     fig, ax = plt.subplots(figsize=(3.5, 3))
-    if modality == "dist":
-        permuted_names = [
-            "fork",
-            "knife",
-            "spoon",
-            "cracker_box",
-            "sugar_box",
-            "pudding_box",
-            "mug",
-            "e_cups",
-            "d_cups",
-            "c_cups",
-        ]
-    else:
-        permuted_names = [
-            "knife",
-            "fork",
-            "spoon",
-            "pudding_box",
-            "sugar_box",
-            "cracker_box",
-            "mug",
-            "e_cups",
-            "d_cups",
-            "c_cups",
-        ]
+    permuted_names = [
+        "knife",
+        "fork",
+        "spoon",
+        "pudding_box",
+        "sugar_box",
+        "cracker_box",
+        "mug",
+        "e_cups",
+        "d_cups",
+        "c_cups",
+    ]
     # Rearrange the evidence matrix to match the dendrogram. We want to
     # keep clustered objects close to each other.
     permuted_inds = [object_to_id[obj] for obj in permuted_names]
@@ -577,15 +437,23 @@ def plot_dendrogram_and_confusion_matrix(modality: str):
         labelpad=20,
         fontsize=10,
     )
-    # plt.tight_layout()
+    fig.savefig(out_dir / "confusion_matrix.png")
+    fig.savefig(out_dir / "confusion_matrix.svg")
     plt.show()
-    fig.savefig(out_dir / f"confusion_matrix_{modality}.png", dpi=300)
-    fig.savefig(out_dir / f"confusion_matrix_{modality}.svg")
 
 
-def plot_similar_object_models(modality: str):
-    assert modality in ["dist", "surf"]
-    """Plot the models of similar objects."""
+def plot_similar_object_models():
+    """Plot the object models for the 10 similar objects used in panel A.
+
+    Requires the experiment `pretrain_surf_agent_1lm` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig4/similar_object_models`.
+    """
+    # Initialize output directory.
+    out_dir = OUT_DIR / "similar_object_models"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Plot object models.
     all_objects = SIMILAR_OBJECTS
     fig, axes = plt.subplots(2, 5, figsize=(7.5, 4), subplot_kw={"projection": "3d"})
     plot_params = {
@@ -602,7 +470,7 @@ def plot_similar_object_models(modality: str):
     }
     for i, ax in enumerate(axes.flatten()):
         object_name = all_objects[i]
-        model = load_object_model(f"{modality}_agent_1lm", object_name)
+        model = load_object_model("surf_agent_1lm", object_name)
         model = model.rotated(Rotation.from_euler("xyz", [90, 0, 0], degrees=True))
         ax.scatter(
             model.x,
@@ -619,30 +487,31 @@ def plot_similar_object_models(modality: str):
         params = plot_params[object_name]
         ax.set_title(object_name)
         ax.view_init(elev=params["elev"], azim=params["azim"], roll=params["roll"])
+
+    fig.savefig(out_dir / "similar_object_models.png")
+    fig.savefig(out_dir / "similar_object_models.svg")
     plt.show()
-    fig.savefig(OUT_DIR / f"object_models_{modality}.png", dpi=300)
-    fig.savefig(OUT_DIR / f"object_models_{modality}.svg")
 
 
-def draw_basis_vectors(ax: plt.Axes, rot: Rotation):
-    mat = rot.as_matrix()
-    origin = np.array([0, 0, 0])
-    colors = ["red", "green", "blue"]
-    axis_names = ["x", "y", "z"]
-    for i in range(3):
-        ax.quiver(
-            *origin,
-            *mat[:, i],
-            color=colors[i],
-            length=1,
-            arrow_length_ratio=0.2,
-            normalize=True,
-        )
-        getattr(ax, f"set_{axis_names[i]}lim")([-1, 1])
-    ax.axis("off")
+"""
+--------------------------------------------------------------------------------
+Panel B: Example Symmetry Episode
+--------------------------------------------------------------------------------
+"""
 
 
 def plot_all_symmetry_episodes():
+    """Plot object models, rotations, and stats for individual episodes.
+
+    This function was used to find an example for panel B. The example, along with
+    hardcoded parameters for reproducibility, can be generated with
+    `plot_icup_symmetry_episode()`.
+
+    Requires the experiment `fig4_symmetry_run` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig4/symmetry_episodes`.
+    """
+    # Initialize output directory.
     out_dir = OUT_DIR / "symmetry_episodes"
     out_dir.mkdir(parents=True, exist_ok=True)
     png_dir = out_dir / "png"
@@ -781,12 +650,14 @@ def plot_all_symmetry_episodes():
 
 
 def plot_icup_symmetry_episode():
-    out_dir = OUT_DIR / "symmetry_episodes"
+    """Plot the icup object models, rotations, and stats used in panel B.
+
+    Requires the experiment `fig4_symmetry_run` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig4/icup_symmetry_episode`.
+    """
+    out_dir = OUT_DIR / "icup_symmetry_episode"
     out_dir.mkdir(parents=True, exist_ok=True)
-    png_dir = out_dir / "png"
-    png_dir.mkdir(parents=True, exist_ok=True)
-    svg_dir = out_dir / "svg"
-    svg_dir.mkdir(parents=True, exist_ok=True)
 
     experiment_dir = VISUALIZATION_RESULTS_DIR / "fig4_symmetry_run"
     detailed_stats = DetailedJSONStatsInterface(
@@ -815,7 +686,10 @@ def plot_icup_symmetry_episode():
     )
 
     # - Load a random rotation.
-    rand = Rotation.from_euler("xyz", randrot_euler, degrees=True)
+    rand = SimpleNamespace(
+        rot=Rotation.from_euler("xyz", randrot_euler, degrees=True),
+        location=np.array([0, 1.5, 0]),
+    )
 
     # - Load symmetry rotations, and computed pose error.
     sym_rotations = load_symmetry_rotations(stats)
@@ -901,6 +775,75 @@ def plot_icup_symmetry_episode():
     fig.suptitle(title)
 
     fig.tight_layout()
+    fig.savefig(out_dir / "icup_symmetry_episode.png")
+    fig.savefig(out_dir / "icup_symmetry_episode.svg")
     plt.show()
-    fig.savefig(png_dir / f"{episode}_{row.primary_target_object}.png")
-    fig.savefig(svg_dir / f"{episode}_{row.primary_target_object}.svg")
+
+
+"""
+--------------------------------------------------------------------------------
+Panels C and D: Symmetry Stats
+--------------------------------------------------------------------------------
+"""
+
+
+def plot_symmetry_stats():
+    """Plot the symmetry stats.
+
+    Requires the experiment `fig4_symmetry_run` has been run.
+
+    Output is saved to `DMC_ANALYSIS_DIR/fig4/symmetry_stats`.
+    """
+    # Initialize output directory.
+    out_dir = OUT_DIR / "symmetry_stats"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load stats.
+    stat_arrays = get_symmetry_stats()
+
+    # Create figure.
+    fig, axes = plt.subplots(1, 2, figsize=(5.5, 2.5))
+    rotation_types = ["min", "MLH", "sym", "rand"]
+    colors = [TBP_COLORS["blue"]] * len(rotation_types)
+    xticks = list(range(1, len(rotation_types) + 1))
+    xticklabels = ["min", "MLH", "sym", "rand"]
+
+    # Pose Error
+    ax = axes[0]
+    arrays = [stat_arrays["pose_error"][name] for name in rotation_types]
+    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
+    for j, body in enumerate(vp["bodies"]):
+        body.set_facecolor(colors[j])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticks([0, 45, 90, 135, 180])
+    ax.set_ylim(0, 180)
+    ax.set_ylabel("Rotation Error (deg)")
+
+    # Chamfer Distance
+    ax = axes[1]
+    arrays = [stat_arrays["Chamfer"][name] for name in rotation_types]
+    vp = ax.violinplot(arrays, showextrema=False, showmedians=True)
+    for j, body in enumerate(vp["bodies"]):
+        body.set_facecolor(colors[j])
+        body.set_alpha(1.0)
+    vp["cmedians"].set_color("black")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_ylabel("Chamfer Distance (m)")
+    ymax = max(np.percentile(arr, 95) for arr in arrays)
+    ax.set_ylim(0, ymax)
+
+    fig.tight_layout()
+    fig.savefig(out_dir / "symmetry_stats.png")
+    fig.savefig(out_dir / "symmetry_stats.svg")
+    plt.show()
+
+
+if __name__ == "__main__":
+    plot_dendrogram()
+    plot_similar_object_models()
+    plot_icup_symmetry_episode()
+    plot_symmetry_stats()
