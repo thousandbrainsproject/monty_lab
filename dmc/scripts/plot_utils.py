@@ -61,7 +61,6 @@ def init_matplotlib_style():
         "savefig.dpi": 600,
         "font.family": "Arial",
         "font.size": 8,
-        "font.family": "Arial",
         "grid.color": "white",
         "legend.fontsize": 8,
         "legend.framealpha": 1.0,
