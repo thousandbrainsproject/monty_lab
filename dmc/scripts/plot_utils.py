@@ -29,7 +29,6 @@ import skimage
 from matplotlib.colors import to_rgba
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-from scipy.spatial.transform import Rotation
 
 # Color palette for TBP.
 TBP_COLORS = {
