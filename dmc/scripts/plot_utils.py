@@ -106,17 +106,12 @@ def update_style(
 """
 
 
-def axes3d_clean(
-    ax: Axes3D,
-    grid: bool = True,
-    grid_color: Optional[Any] = "white",
-) -> None:
+def axes3d_clean(ax: Axes3D, grid: bool = True) -> None:
     """Remove clutter from 3D axes.
 
     Args:
         ax: The 3D axes to clean.
         grid: Whether to show the background grid. Default is True.
-        grid_color: Color of the grid lines. Default is "white".
     """
 
     # Remove dark spines that outline the plot.
@@ -133,12 +128,6 @@ def axes3d_clean(
         # grid lines).
         for axis in ("x", "y", "z"):
             ax.tick_params(axis=axis, colors=(0, 0, 0, 0))
-
-        # Stylize grid lines.
-        if grid_color is not None:
-            ax.xaxis._axinfo["grid"]["color"] = grid_color
-            ax.yaxis._axinfo["grid"]["color"] = grid_color
-            ax.zaxis._axinfo["grid"]["color"] = grid_color
 
     else:
         # Remove tick marks.
