@@ -200,14 +200,11 @@ detailed logging (or checkpoint-saving in the case of
 All experiments save their results to subdirectories of `DMC_ROOT` / `visualizations`.
 
 ## Other Experiments
-`view_finder_experiments.py` defines four experiments that store data used as input
-to a ViT-based model and one experiment that produces higher resolution object images
-used in figures.
+`view_finder_experiments.py` defines five experiments:
 - view_finder_base: 14 standard training rotations
 - view_finder_randrot_all: 14 randomly generated rotations
 - view_finder_randrot: 5 pre-defined "random" rotations
 - view_finder_32: 32 training rotations for rapid learning experiments
 - view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
   
-Only `view_finder_base_highres` needs to be run to reproduce figures. Stored images
-can be rendered by `scripts/render_view_finder_images.py`.
+These experiments aren't used for object recognition. Rather, they use Monty to capture and store images of objects in the YCB dataset. The first four experiments are used for generating training/testing data for the ViT-based model, and the last experiment (`view_finder_base_highres`) is used to capture higher resolution images used in some figures and illustrations. Arrays stored during these experiments can be rendered by `scripts/render_view_finder_images.py`.
