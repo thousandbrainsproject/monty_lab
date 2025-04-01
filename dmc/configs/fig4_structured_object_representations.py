@@ -39,7 +39,11 @@ from .fig6_rapid_inference_with_model_based_policies import (
 
 
 class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
-    """Logging handler that only saves terminal evidence data for the MLH object."""
+    """Logging handler that stores terminal evidence values for each object's MLH.
+
+    This handler stores the evidence value of the most-likely hypothesis for each
+    object for only the final step of an episode.
+    """
 
     def report_episode(
         self,
