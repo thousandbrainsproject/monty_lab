@@ -105,7 +105,7 @@ def get_pretrain_lm_config(agent_type: str) -> Dict[str, Any]:
 
     This function returns a learning module config that uses default settings for
     pretraining experiments. For experiments with distant agents, use
-    `agent_type="dist"`, and for experiments with surface agents, use `mode="surf"`.
+    `agent_type="dist"`, and for experiments with surface agents, use `agent_type="surf"`.
     Settings are identical between "dist" and "surf" modes except for a
     distance threshold parameter that controls how close points in the learned
     graph can be. For distant agents, this is set to 0.001 meters; for surface
