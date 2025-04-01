@@ -183,7 +183,7 @@ paper figures. The configs defined are:
    evidence and symmetry including symmetry data for the MLH object only, and only
    for the terminal step of each episode. The output is read and plotted by
    functions in `scripts/fig4.py`.
-- `fig5_visualize_8lm_patches`: An one-episode, one-step experiment that is used to
+- `fig5_visualize_8lm_patches`: A one-episode, one-step experiment that is used to
   collect one set of observations for the 8-LM model. The output is read and plotted
   by functions in `scripts/fig5.py` to show how the sensors patches fall on the object.
 - `fig6_curvature_guided_policy`: A one-episode surface agent experiment with

@@ -70,7 +70,7 @@ def get_eval_lm_config(agent_type: str) -> Dict[str, Any]:
 
     This function returns a learning module config that uses default settings for
     evaluation experiments. For experiments with distant agents, use
-    `agent_type="dist"`; for experiments with surface agents, use `mode="surf"`.
+    `agent_type="dist"`; for experiments with surface agents, use `agent_type="surf"`.
 
     Settings are identical between "dist" and "surf" modes except
     `desired_object_distance` -- a parameter of the goal state generator that
