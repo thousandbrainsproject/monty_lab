@@ -185,9 +185,10 @@ def get_eval_patch_config(agent_type: str) -> Dict[str, Any]:
 def get_view_finder_config() -> Dict[str, Any]:
     """Create a sensor module config for a view-finder.
 
-    A view finder is used to initalize the agent's position at the beginning of an
-    episode. It is also used to log observations for post-hoc visualization. The
-    returned config is suitable for both pretraining and evaluation experiments.
+    A view finder is used to move the agent onto the object at the start of an episode,
+    or after a goal-state driven jump. It is also used to log observations for
+    post-hoc visualization. The returned config is suitable for both pretraining and
+    evaluation experiments.
 
     Returns:
         A dictionary with two items:
