@@ -9,8 +9,8 @@
 
 """Configs for Figure 4: Structured Object Representations
 
-This module defines the following experiments:
- - `dist_agent_1lm_randrot_noise_10simobj`
+This module defines the following experiment:
+ - `surf_agent_1lm_randrot_noise_10simobj`
 
  Experiments use:
  - 10 similar objects (but using the 77-object pretrained model)
@@ -18,28 +18,72 @@ This module defines the following experiments:
  - Sensor noise
  - Hypothesis-testing policy active
  - No voting
- - SELECTIVE evidence logging
- - Run in serial due to memory needed for detailed logging
+
+This experiment should be run in serial due to the memory needs of detailed logging.
 """
 
 from copy import deepcopy
+from typing import Mapping
 
+import numpy as np
 from tbp.monty.frameworks.environments.ycb import SIMILAR_OBJECTS
+from tbp.monty.frameworks.loggers.monty_handlers import BasicCSVStatsHandler
 
-from .common import SelectiveEvidenceLoggingConfig
-from .fig5_rapid_inference_with_voting import dist_agent_1lm_randrot_noise
+from .common import (
+    SelectiveEvidenceHandler,
+    SelectiveEvidenceLoggingConfig,
+)
+from .fig6_rapid_inference_with_model_based_policies import (
+    surf_agent_1lm_randrot_noise,
+)
 
-dist_agent_1lm_randrot_noise_10simobj = deepcopy(dist_agent_1lm_randrot_noise)
-dist_agent_1lm_randrot_noise_10simobj["logging_config"] = (
+
+class LastMaxEvidenceHandler(SelectiveEvidenceHandler):
+    """Logging handler that stores terminal evidence values for each object's MLH.
+
+    This handler stores the evidence value of the most-likely hypothesis for each
+    object for only the final step of an episode.
+    """
+
+    def report_episode(
+        self,
+        data: Mapping,
+        output_dir: str,
+        episode: int,
+        mode: str = "train",
+        **kwargs,
+    ) -> None:
+        """Store only maxima of final evidence values."""
+
+        # Initialize output data.
+        episode_total, buffer_data = self.init_buffer_data(
+            data, episode, mode, **kwargs
+        )
+        self.take_last_evidences(buffer_data)
+
+        # Only store maximum of final evidence values.
+        evidences_ls = buffer_data["LM_0"]["evidences_ls"]
+        output_data = {"LM_0": {}}
+        output_data["LM_0"]["max_evidences_ls"] = {
+            obj: np.max(arr) for obj, arr in evidences_ls.items()
+        }
+        self.save(episode_total, output_data, output_dir)
+
+
+surf_agent_1lm_randrot_noise_10simobj = deepcopy(surf_agent_1lm_randrot_noise)
+surf_agent_1lm_randrot_noise_10simobj["logging_config"] = (
     SelectiveEvidenceLoggingConfig(
-        run_name="dist_agent_1lm_randrot_noise_10simobj",
-        selective_handler_args=dict(exclude=["SM_0", "SM_1"], last_evidence=True),
+        run_name="surf_agent_1lm_randrot_noise_10simobj",
+        monty_handlers=[
+            BasicCSVStatsHandler,
+            LastMaxEvidenceHandler,
+        ],
     )
 )
-dist_agent_1lm_randrot_noise_10simobj[
+surf_agent_1lm_randrot_noise_10simobj[
     "eval_dataloader_args"
 ].object_names = SIMILAR_OBJECTS
 
 CONFIGS = {
-    "dist_agent_1lm_randrot_noise_10simobj": dist_agent_1lm_randrot_noise_10simobj,
+    "surf_agent_1lm_randrot_noise_10simobj": surf_agent_1lm_randrot_noise_10simobj,
 }

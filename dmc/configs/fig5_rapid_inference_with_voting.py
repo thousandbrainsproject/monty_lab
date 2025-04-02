@@ -31,7 +31,7 @@ All of these experiments use:
  - 77 objects
  - Goal-state-driven/hypothesis-testing policy active
  - Sensor noise and 5 (predefined) random rotations
- - Voting over 1, 2, 4, 8, or 16 LMs
+ - Voting over 2, 4, 8, or 16 LMs
 
 """
 
@@ -58,18 +58,18 @@ from .common import (
     MIN_EVAL_STEPS,
     RANDOM_ROTATIONS_5,
     DMCEvalLoggingConfig,
-    get_dist_lm_config,
-    get_dist_motor_config,
-    get_dist_patch_config,
+    get_eval_lm_config,
+    get_eval_motor_config,
+    get_eval_patch_config,
     make_randrot_noise_variant,
 )
 from .fig3_robust_sensorimotor_inference import dist_agent_1lm
 
 # - Set up arguments for `make_multi_lm_monty_config`. The following arguments
 # are used for all multi-LM configs.
-mlm_learning_module_config = get_dist_lm_config()
-mlm_sensor_module_config = get_dist_patch_config()
-mlm_motor_system_config = get_dist_motor_config()
+mlm_learning_module_config = get_eval_lm_config("dist")
+mlm_sensor_module_config = get_eval_patch_config("dist")
+mlm_motor_system_config = get_eval_motor_config("dist")
 mlm_monty_config_args = {
     "monty_class": MontyForEvidenceGraphMatching,
     "learning_module_class": mlm_learning_module_config["learning_module_class"],

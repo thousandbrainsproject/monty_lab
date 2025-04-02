@@ -8,59 +8,38 @@
 # https://opensource.org/licenses/MIT.
 """Supervised pretraining experiments.
 
-This module defines a suite of supervised pretraining experiments. The core models
-that experiments produce are:
- - `dist_agent_1lm`
- - `dist_agent_1lm_10distinctobj`
- - `surf_agent_1lm`
- - `surf_agent_1lm_10distinctobj`
- - `touch_agent_1lm`
- - `touch_agent_1lm_10distinctobj`
- - `dist_agent_2lm`
- - `dist_agent_4lm`
- - `dist_agent_8lm`
- - `dist_agent_16lm`
+This module defines a suite of supervised pretraining experiments. The following is
+a list of pretraining experiments and the models they produce:
+ - `pretrain_dist_agent_1lm` -> `dist_agent_1lm`
+ - `pretrain_surf_agent_1lm` -> `surf_agent_1lm`
+ - `pretrain_dist_agent_2lm` -> `dist_agent_2lm`
+ - `pretrain_dist_agent_4lm` -> `dist_agent_4lm`
+ - `pretrain_dist_agent_8lm` -> `dist_agent_8lm`
+ - `pretrain_dist_agent_16lm` -> `dist_agent_16lm`
 
 All of these models are trained on 77 YCB objects with 14 rotations each (cube face
-and corners) except those with the `10distinctobj` suffix which are trained on the
-10-distinct object dataset. The `touch` model is a surface agent without access to
-color information.
-
-This module performs some config finalization which does a few useful things:
- - Adds required (but unused) `eval_dataloader_class` and `eval_dataloader_args`.
- - Sets the logging config's `output_dir` to `PRETRAIN_DIR`.
- - Sets `do_eval` to `False` for all experiments.
- - Checks that no two configs would have the same output directory.
+and corners).
 
 This module also defines a set of function that return default configs for learning
 modules, sensor modules, and motor systems specific to pretraining experiments. They
 may be useful for other modules that define pretraining experiments but should not
-be used for eval experiments. Some functions take an optional `color` argument, where
-setting it to `False` returns a sensor or learning module suitable for touch-only models.
-
-The config 'getter'functions defined here are
- - `get_dist_lm_config`
- - `get_surf_lm_config`
- - `get_dist_patch_config`
- - `get_surf_patch_config`
- - `get_view_finder_config`
- - `get_dist_motor_config`
- - `get_surf_motor_config`
+be used for eval experiments. The config 'getter'functions defined here are
+ - `get_pretrain_lm_config`
+ - `get_pretrain_patch_config`
+ - `get_pretrain_motor_config`
 
 Names and logger args have follow certain rules for consistency and to help
 avoid accidental conflicts:
- - Model names follow the pattern `{SENSOR}_agent_{NUM_LMS}lm`, where `SENSOR` is
-   one of `dist`, `surf`, or `touch`.
+ - Model names follow the pattern `{AGENT_TYPE}_agent_{NUM_LMS}lm`, where `AGENT_TYPE`
+   is  `"dist"` or `"surf"`.
  - The experiment key is `pretrain_{MODEL_NAME}` (e.g., `pretrain_dist_agent_1lm`). By
-    'experiment key', I mean the key used to identify the config in `CONFIGS`.
- - The logging config's `run_name` is the model name.
- - The logging config's `output_dir` is `PRETRAIN_DIR`.
+    'experiment key', we mean the key used to run the experiment.
 
 """
 
 from copy import deepcopy
 from dataclasses import dataclass
-from pathlib import Path
+from typing import Any, Dict
 
 import numpy as np
 from tbp.monty.frameworks.config_utils.config_args import (
@@ -83,14 +62,13 @@ from tbp.monty.frameworks.config_utils.policy_setup_utils import (
     make_naive_scan_policy_config,
 )
 from tbp.monty.frameworks.environments import embodied_data as ED
-from tbp.monty.frameworks.environments.ycb import DISTINCT_OBJECTS, SHUFFLED_YCB_OBJECTS
+from tbp.monty.frameworks.environments.ycb import SHUFFLED_YCB_OBJECTS
 from tbp.monty.frameworks.experiments.pretraining_experiments import (
     MontySupervisedObjectPretrainingExperiment,
 )
 from tbp.monty.frameworks.models.displacement_matching import DisplacementGraphLM
 from tbp.monty.frameworks.models.graph_matching import MontyForGraphMatching
 from tbp.monty.frameworks.models.sensor_modules import (
-    DetailedLoggingSM,
     HabitatDistantPatchSM,
     HabitatSurfacePatchSM,
 )
@@ -100,7 +78,7 @@ from tbp.monty.simulators.habitat.configs import (
     make_multi_sensor_habitat_dataset_args,
 )
 
-from .common import DMC_PRETRAIN_DIR
+from .common import DMC_PRETRAIN_DIR, get_view_finder_config
 
 # Specify default here
 # - Experiment args
@@ -110,11 +88,6 @@ NUM_EXPLORATORY_STEPS_SURF = 1000
 # - Define 14 training rotations. Views from enclosing cube faces plus its corners.
 TRAIN_ROTATIONS = get_cube_face_and_corner_views_rotations()
 
-"""
-Custom Classes
---------------------------------------------------------------------------------
-"""
-
 
 @dataclass
 class DMCPretrainLoggingConfig(PretrainLoggingConfig):
@@ -122,37 +95,49 @@ class DMCPretrainLoggingConfig(PretrainLoggingConfig):
 
 
 """
-Config "getter" functions
---------------------------------------------------------------------------------
+Config "getter" Functions for Pretraining Experiments
+-----------------------------------------------------
 """
 
 
-def get_dist_lm_config(
-    sensor_module_id: str = "patch",
-    color: bool = True,
-) -> dict:
-    """Get configuration for a displacement learning module.
+def get_pretrain_lm_config(agent_type: str) -> Dict[str, Any]:
+    """Get a learning module config for pretraining experiments.
 
-    Convenience function that helps with sensor module IDs (particularly in
-    a multi-sensor/LM configuration) and excluding color from graphs.
+    This function returns a learning module config that uses default settings for
+    pretraining experiments. For experiments with distant agents, use
+    `agent_type="dist"`, and for experiments with surface agents, use `agent_type="surf"`.
+    Settings are identical between "dist" and "surf" modes except for a
+    distance threshold parameter that controls how close points in the learned
+    graph can be. For distant agents, this is set to 0.001 meters; for surface
+    agents, it is set to 0.0001 meters.
 
     Args:
-        sensor_module_id (str): Identifier for the sensor module. Defaults to "patch".
-        color (bool): Whether to include color-related features. Defaults to True.
+        agent_type: The type of agent this LM will be connected to. Must be "dist"
+          or "surf".
 
     Returns:
-        dict: Configuration dictionary for the displacement learning module.
+        A dictionary with two items:
+          - "learning_module_class": The EvidenceGraphLM class.
+          - "learning_module_args": A dictionary of arguments for the EvidenceGraphLM
+            class.
 
     """
-    out = dict(
+    if agent_type == "dist":
+        graph_delta_distance_threshold = 0.001
+    elif agent_type == "surf":
+        graph_delta_distance_threshold = 0.0001
+    else:
+        raise ValueError(f"Invalid agent_type: {agent_type}. Must be 'dist' or 'surf'.")
+
+    return dict(
         learning_module_class=DisplacementGraphLM,
         learning_module_args=dict(
             k=10,
             match_attribute="displacement",
             tolerance=np.ones(3) * 0.0001,
             graph_delta_thresholds={
-                sensor_module_id: dict(
-                    distance=0.001,
+                "patch": dict(
+                    distance=graph_delta_distance_threshold,
                     pose_vectors=[np.pi / 8, np.pi * 2, np.pi * 2],
                     principal_curvatures_log=[1, 1],
                     hsv=[0.1, 1, 1],
@@ -160,54 +145,9 @@ def get_dist_lm_config(
             },
         ),
     )
-    if not color:
-        out["learning_module_args"]["graph_delta_thresholds"][sensor_module_id].pop(
-            "hsv"
-        )
-    return out
 
 
-def get_surf_lm_config(
-    sensor_module_id: str = "patch",
-    color: bool = True,
-) -> dict:
-    """Get configuration for a displacement learning module.
-
-    Convenience function that helps with sensor module IDs (particularly in
-    a multi-sensor/LM configuration) and excluding color from graphs.
-
-    Args:
-        sensor_module_id (str): Identifier for the sensor module. Defaults to "patch".
-        color (bool): Whether to include color-related features. Defaults to True.
-
-    Returns:
-        dict: Configuration dictionary for the displacement learning module.
-
-    """
-    out = dict(
-        learning_module_class=DisplacementGraphLM,
-        learning_module_args=dict(
-            k=5,
-            match_attribute="displacement",
-            tolerance=np.ones(3) * 0.0001,
-            graph_delta_thresholds={
-                sensor_module_id: dict(
-                    distance=0.01,
-                    pose_vectors=[np.pi / 8, np.pi * 2, np.pi * 2],
-                    principal_curvatures_log=[1, 1],
-                    hsv=[0.1, 1, 1],
-                )
-            },
-        ),
-    )
-    if not color:
-        out["learning_module_args"]["graph_delta_thresholds"][sensor_module_id].pop(
-            "hsv"
-        )
-    return out
-
-
-def get_dist_patch_config(sensor_module_id: str = "patch", color: bool = True) -> dict:
+def get_pretrain_patch_config(agent_type: str) -> Dict[str, Any]:
     """Get default distant patch config for pretraining.
 
     Provided as a convenience for handling sensor ID names and excluding
@@ -220,142 +160,81 @@ def get_dist_patch_config(sensor_module_id: str = "patch", color: bool = True) -
     Returns:
         dict: Configuration dictionary for the surface patch sensor module.
     """
-    out = dict(
-        sensor_module_class=HabitatDistantPatchSM,
-        sensor_module_args=dict(
-            sensor_module_id=sensor_module_id,
-            features=[
-                # morphological features (necessarry)
-                "pose_vectors",
-                "pose_fully_defined",
-                "on_object",
-                "principal_curvatures",
-                "principal_curvatures_log",
-                "gaussian_curvature",
-                "mean_curvature",
-                "gaussian_curvature_sc",
-                "mean_curvature_sc",
-                "object_coverage",
-                # non-morphological features (optional)
-                "rgba",
-                "hsv",
-            ],
-            save_raw_obs=True,
-        ),
-    )
-    if not color:
-        out["sensor_module_args"]["features"].remove("rgba")
-        out["sensor_module_args"]["features"].remove("hsv")
-    return out
+
+    if agent_type == "dist":
+        return dict(
+            sensor_module_class=HabitatDistantPatchSM,
+            sensor_module_args=dict(
+                sensor_module_id="patch",
+                features=[
+                    # morphological features
+                    "pose_vectors",
+                    "pose_fully_defined",
+                    "on_object",
+                    "principal_curvatures",
+                    "principal_curvatures_log",
+                    "gaussian_curvature",
+                    "mean_curvature",
+                    "gaussian_curvature_sc",
+                    "mean_curvature_sc",
+                    "object_coverage",
+                    # non-morphological features
+                    "rgba",
+                    "hsv",
+                ],
+                save_raw_obs=False,
+            ),
+        )
+    elif agent_type == "surf":
+        return dict(
+            sensor_module_class=HabitatSurfacePatchSM,
+            sensor_module_args=dict(
+                sensor_module_id="patch",
+                features=[
+                    # morphological features
+                    "pose_vectors",
+                    "pose_fully_defined",
+                    "on_object",
+                    "object_coverage",
+                    "min_depth",
+                    "mean_depth",
+                    "principal_curvatures",
+                    "principal_curvatures_log",
+                    "gaussian_curvature",
+                    "mean_curvature",
+                    "gaussian_curvature_sc",
+                    "mean_curvature_sc",
+                    # non-morphological features
+                    "rgba",
+                    "hsv",
+                ],
+                save_raw_obs=False,
+            ),
+        )
+    else:
+        raise ValueError(f"Invalid agent_type: {agent_type}. Must be 'dist' or 'surf'.")
 
 
-def get_surf_patch_config(sensor_module_id: str = "patch", color: bool = True) -> dict:
-    """Get default surface patch config for pretraining.
-
-    Provided as a convenience for handling sensor ID names and excluding
-    color-related features from the config.
-
-    Args:
-        sensor_module_id (str): Identifier for the sensor module. Defaults to "patch".
-        color (bool): Whether to include color features. Defaults to True.
-
-    Returns:
-        dict: Configuration dictionary for the surface patch sensor module.
-    """
-    out = dict(
-        sensor_module_class=HabitatSurfacePatchSM,
-        sensor_module_args=dict(
-            sensor_module_id=sensor_module_id,
-            features=[
-                # morphological features (necessarry)
-                "pose_vectors",
-                "pose_fully_defined",
-                "on_object",
-                "object_coverage",
-                "min_depth",
-                "mean_depth",
-                "principal_curvatures",
-                "principal_curvatures_log",
-                "gaussian_curvature",
-                "mean_curvature",
-                "gaussian_curvature_sc",
-                "mean_curvature_sc",
-                # non-morphological features (optional)
-                "rgba",
-                "hsv",
-            ],
-            save_raw_obs=True,
-        ),
-    )
-    if not color:
-        out["sensor_module_args"]["features"].remove("rgba")
-        out["sensor_module_args"]["features"].remove("hsv")
-    return out
-
-
-def get_view_finder_config() -> dict:
-    """Get default config for view finder.
-
-    Returns:
-        dict: Configuration dictionary for the view finder sensor module.
-
-    """
-    return dict(
-        sensor_module_class=DetailedLoggingSM,
-        sensor_module_args=dict(
-            sensor_module_id="view_finder",
-            save_raw_obs=False,
-        ),
-    )
-
-
-def get_dist_motor_config(step_size: int = 5) -> MotorSystemConfigNaiveScanSpiral:
+def get_pretrain_motor_config(agent_type: str) -> dataclass:
     """Get default distant motor config for pretraining.
 
     Returns:
-        MotorSystemConfigNaiveScanSpiral: Configuration for the motor system for use
-        with a distant agent.
+        A dataclass with two attributes:
+          - motor_system_class: The MotorSystemConfigNaiveScanSpiral class
+            for distant agents, or the
+            MotorSystemConfigCurvatureInformedSurface class for surface agents.
+          - motor_system_args: A dictionary of arguments for the MotorSystemConfig
+            class.
 
     """
-    return MotorSystemConfigNaiveScanSpiral(
-        motor_system_args=make_naive_scan_policy_config(step_size=step_size)
-    )
-
-
-def get_surf_motor_config() -> MotorSystemConfigCurvatureInformedSurface:
-    """Get default surface motor config for pretraining.
-
-    Returns:
-        MotorSystemConfigCurvatureInformedSurface: Configuration for the motor system
-        for use with a surface agent.
-
-    """
-    return MotorSystemConfigCurvatureInformedSurface()
-
-
-"""
-Functions used for generating experiment variants.
---------------------------------------------------------------------------------
-"""
-
-
-def make_10distinctobj_variant(template: dict) -> dict:
-    """Make a 10-distinct object variant of a config.
-
-    The config returned is a copy of `template` with the following changes:
-    - The `object_names` in the `train_dataloader_args` is set to `DISTINCT_OBJECTS`.
-    - The logging config's `run_name` is appended with "_10distinctobj".
-
-    Returns:
-        dict: Copy of `template` config that trains on DISTINCT_OBJECTS dataset.
-            The logging config's `run_name` is appended with "_10distinctobj".
-
-    """
-    config = deepcopy(template)
-    run_name = f"{config['logging_config'].run_name}_10distinctobj"
-    config["logging_config"].run_name = run_name
-    config["train_dataloader_args"].object_names = DISTINCT_OBJECTS
-    return config
+    if agent_type == "dist":
+        return MotorSystemConfigNaiveScanSpiral(
+            motor_system_args=make_naive_scan_policy_config(step_size=5)
+        )
+    elif agent_type == "surf":
+        return MotorSystemConfigCurvatureInformedSurface()
+    else:
+        raise ValueError(f"Invalid agent_type: {agent_type}. Must be 'dist' or 'surf'.")
 
 
 """
@@ -373,13 +252,13 @@ pretrain_dist_agent_1lm = dict(
     monty_config=PatchAndViewMontyConfig(
         monty_args=MontyArgs(num_exploratory_steps=NUM_EXPLORATORY_STEPS_DIST),
         learning_module_configs=dict(
-            learning_module_0=get_dist_lm_config(),
+            learning_module_0=get_pretrain_lm_config("dist"),
         ),
         sensor_module_configs=dict(
-            sensor_module_0=get_dist_patch_config(),
+            sensor_module_0=get_pretrain_patch_config("dist"),
             sensor_module_1=get_view_finder_config(),
         ),
-        motor_system_config=get_dist_motor_config(),
+        motor_system_config=get_pretrain_motor_config("dist"),
     ),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
@@ -404,13 +283,13 @@ pretrain_surf_agent_1lm = dict(
             num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
         ),
         learning_module_configs=dict(
-            learning_module_0=get_surf_lm_config(),
+            learning_module_0=get_pretrain_lm_config("surf"),
         ),
         sensor_module_configs=dict(
-            sensor_module_0=get_surf_patch_config(),
+            sensor_module_0=get_pretrain_patch_config("surf"),
             sensor_module_1=get_view_finder_config(),
         ),
-        motor_system_config=get_surf_motor_config(),
+        motor_system_config=get_pretrain_motor_config("surf"),
     ),
     # Set up environment and agent.
     dataset_class=ED.EnvironmentDataset,
@@ -421,61 +300,18 @@ pretrain_surf_agent_1lm = dict(
         object_names=SHUFFLED_YCB_OBJECTS,
         object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
     ),
-)
-
-pretrain_touch_agent_1lm = dict(
-    experiment_class=MontySupervisedObjectPretrainingExperiment,
-    experiment_args=ExperimentArgs(
-        n_train_epochs=len(TRAIN_ROTATIONS),
-        do_eval=False,
-    ),
-    logging_config=DMCPretrainLoggingConfig(run_name="touch_agent_1lm"),
-    monty_config=SurfaceAndViewMontyConfig(
-        monty_args=MontyFeatureGraphArgs(
-            num_exploratory_steps=NUM_EXPLORATORY_STEPS_SURF
-        ),
-        learning_module_configs=dict(
-            learning_module_0=get_surf_lm_config(color=False),
-        ),
-        sensor_module_configs=dict(
-            sensor_module_0=get_surf_patch_config(color=False),
-            sensor_module_1=get_view_finder_config(),
-        ),
-        motor_system_config=get_surf_motor_config(),
-    ),
-    # Set up environment and agent.
-    dataset_class=ED.EnvironmentDataset,
-    dataset_args=SurfaceViewFinderMountHabitatDatasetArgs(),
-    # Set up training dataloader.
-    train_dataloader_class=ED.InformedEnvironmentDataLoader,
-    train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
-        object_names=SHUFFLED_YCB_OBJECTS,
-        object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
-    ),
-)
-
-# Make 10distinctobj variants. Used in `supplemental_fig9_multimodal_transfer.py`
-# eval experiments.
-pretrain_dist_agent_1lm_10distinctobj = make_10distinctobj_variant(
-    pretrain_dist_agent_1lm
-)
-pretrain_surf_agent_1lm_10distinctobj = make_10distinctobj_variant(
-    pretrain_surf_agent_1lm
-)
-pretrain_touch_agent_1lm_10distinctobj = make_10distinctobj_variant(
-    pretrain_touch_agent_1lm
 )
 
 """
-Setup for Multi-LM Experiments
+Multi-LM Experiments
 --------------------------------------------------------------------------------
 """
 # - Set up arguments for `make_multi_lm_monty_config`. Use the prefix `mlm_` to indicate
 # that these are arguments for the multi-LM experiments.
 # - The following set of arguments are reused for all multi-LM configs.
-mlm_learning_module_config = get_dist_lm_config()
-mlm_sensor_module_config = get_dist_patch_config()
-mlm_motor_system_config = get_dist_motor_config()
+mlm_learning_module_config = get_pretrain_lm_config("dist")
+mlm_sensor_module_config = get_pretrain_patch_config("dist")
+mlm_motor_system_config = get_pretrain_motor_config("dist")
 mlm_monty_config_args = {
     "monty_class": MontyForGraphMatching,
     "learning_module_class": mlm_learning_module_config["learning_module_class"],
@@ -540,32 +376,15 @@ pretrain_dist_agent_16lm.update(
 
 
 """
-Finalize configs
+Make configs discoverable
 --------------------------------------------------------------------------------
 """
 
 CONFIGS = {
     "pretrain_dist_agent_1lm": pretrain_dist_agent_1lm,
     "pretrain_surf_agent_1lm": pretrain_surf_agent_1lm,
-    "pretrain_touch_agent_1lm": pretrain_touch_agent_1lm,
-    "pretrain_dist_agent_1lm_10distinctobj": pretrain_dist_agent_1lm_10distinctobj,
-    "pretrain_surf_agent_1lm_10distinctobj": pretrain_surf_agent_1lm_10distinctobj,
-    "pretrain_touch_agent_1lm_10distinctobj": pretrain_touch_agent_1lm_10distinctobj,
     "pretrain_dist_agent_2lm": pretrain_dist_agent_2lm,
     "pretrain_dist_agent_4lm": pretrain_dist_agent_4lm,
     "pretrain_dist_agent_8lm": pretrain_dist_agent_8lm,
     "pretrain_dist_agent_16lm": pretrain_dist_agent_16lm,
 }
-
-# TODO: Remove these sanity checks before publishing.
-_output_paths = []
-for exp in CONFIGS.values():
-    # Make sure eval is disabled.
-    assert exp["experiment_args"].do_eval is False
-
-    # CHECK: output path must be unique.
-    _path = Path(exp["logging_config"].output_dir) / exp["logging_config"].run_name
-    assert _path not in _output_paths
-    _output_paths.append(_path)
-
-del _output_paths, _path

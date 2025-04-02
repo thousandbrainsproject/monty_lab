@@ -32,9 +32,6 @@ from copy import deepcopy
 from pathlib import Path
 
 import torch
-from tbp.monty.frameworks.config_utils.config_args import (
-    PretrainLoggingConfig,
-)
 from tbp.monty.frameworks.config_utils.make_dataset_configs import (
     EnvironmentDataloaderPerObjectArgs,
     ExperimentArgs,
@@ -55,7 +52,7 @@ Pretraining Configs
 --------------------------------------------------------------------------------
 """
 
-TRAIN_ROTATIONS = [
+TRAIN_ROTATIONS_32 = [
     # cube faces
     [0, 0, 0],
     [0, 90, 0],
@@ -129,14 +126,16 @@ pretrain_dist_agent_1lm_checkpoints.update(
     dict(
         experiment_class=PretrainingExperimentWithCheckpointing,
         experiment_args=ExperimentArgs(
-            n_train_epochs=len(TRAIN_ROTATIONS),
+            n_train_epochs=len(TRAIN_ROTATIONS_32),
             do_eval=False,
         ),
         logging_config=DMCPretrainLoggingConfig(run_name="dist_agent_1lm_checkpoints"),
         train_dataloader_class=ED.InformedEnvironmentDataLoader,
         train_dataloader_args=EnvironmentDataloaderPerObjectArgs(
             object_names=SHUFFLED_YCB_OBJECTS,
-            object_init_sampler=PredefinedObjectInitializer(rotations=TRAIN_ROTATIONS),
+            object_init_sampler=PredefinedObjectInitializer(
+                rotations=TRAIN_ROTATIONS_32
+            ),
         ),
     )
 )

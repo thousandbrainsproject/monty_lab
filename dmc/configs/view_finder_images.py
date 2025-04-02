@@ -6,7 +6,7 @@
 # Use of this source code is governed by the MIT
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT.
-"""Store images from the view-finder for use with the ViT-based models.
+"""Store images from the view-finder for input to ViT-based models and visualization.
 This module contains configs, a logger, and a motor policy for generating RGBD images
 of objects taken from the viewfinder. The motor policy helps (but doesn't guarantee)
 that the whole object fits within the view-finder's frame. It does this by moving
@@ -14,11 +14,15 @@ forward until the object enters a small buffer region around the viewfinder's fr
 The logger saves the images as .npy files and writes a jsonl file containing metadata
 about the object and pose for each image.
 
-Three configs are defined:
+Four experiment configs generate output used by the ViT-based model, each storing
+images at 224x224 resolution:
 - view_finder_base: 14 standard training rotations
 - view_finder_randrot_all: 14 randomly generated rotations
 - view_finder_randrot: 5 pre-defined "random" rotations
 - view_finder_32: 32 training rotations for rapid learning experiments
+
+This file also defines a config used for figure visualizations only:
+- view_finder_base_highres: 14 standard training rotations at 512x512 resolution.
 
 All use 77 objects.
 
@@ -70,7 +74,7 @@ from tbp.monty.simulators.habitat.configs import (
 )
 
 from .common import DMC_PRETRAIN_DIR, DMC_ROOT_DIR, RANDOM_ROTATIONS_5
-from .fig7_rapid_learning import TRAIN_ROTATIONS as TRAIN_ROTATIONS_32
+from .fig7_rapid_learning import TRAIN_ROTATIONS_32
 
 # All view-finder image experiments will be stored under 'view_finder_images',
 # a directory at the same level as the results directory.
@@ -391,9 +395,22 @@ view_finder_32[
     rotations=TRAIN_ROTATIONS_32,
 )
 
+"""
+Higher-Resolution Images for Visualization
+------------------------------------------
+"""
+view_finder_base_highres = copy.deepcopy(view_finder_base)
+view_finder_base_highres["logging_config"].run_name = "view_finder_base_highres"
+view_finder_base_highres["dataset_args"].env_init_args["agents"][0].agent_args[
+    "resolutions"
+] = [[64, 64], [512, 512]]
+view_finder_base_highres["dataset_args"].__post_init__()
+
+
 CONFIGS = {
     "view_finder_base": view_finder_base,
     "view_finder_randrot_all": view_finder_randrot_all,
     "view_finder_randrot": view_finder_randrot,
     "view_finder_32": view_finder_32,
+    "view_finder_base_highres": view_finder_base_highres,
 }
