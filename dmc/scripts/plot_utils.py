@@ -1,5 +1,4 @@
 # Copyright 2025 Thousand Brains Project
-# Copyright 2023 Numenta Inc.
 #
 # Copyright may exist in Contributors' modifications
 # and/or contributions to the work.
@@ -15,7 +14,6 @@ Plotting utilities for the Monty capabilities analysis.
 from numbers import Number
 from typing import (
     Any,
-    Container,
     Dict,
     List,
     Mapping,
@@ -25,13 +23,14 @@ from typing import (
 )
 
 import matplotlib as mpl
-import matplotlib.legend
 import matplotlib.pyplot as plt
 import numpy as np
 import skimage
+from matplotlib.colors import to_rgba
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
+# Color palette for TBP.
 TBP_COLORS = {
     "black": "#000000",
     "blue": "#00A0DF",
@@ -41,8 +40,14 @@ TBP_COLORS = {
     "yellow": "#FFBE31",
 }
 
+"""
+Style and Formatting Utilities
+-------------------------------------------------------------------------------
+"""
+
+
 def init_matplotlib_style():
-    """Initialize the style for the plots."""
+    """Initialize matplotlib plotting style."""
     style = {
         "axes.labelsize": 10,
         "axes.spines.top": False,
@@ -56,7 +61,6 @@ def init_matplotlib_style():
         "savefig.dpi": 600,
         "font.family": "Arial",
         "font.size": 8,
-        "font.family": "Arial",
         "grid.color": "white",
         "legend.fontsize": 8,
         "legend.framealpha": 1.0,
@@ -95,18 +99,18 @@ def update_style(
     return {**base, **new}
 
 
-def axes3d_clean(
-    ax: Axes3D,
-    grid: bool = True,
-    grid_color: Optional[Any] = "white",
-) -> None:
+"""
+3D Plotting Utilities
+-------------------------------------------------------------------------------
+"""
+
+
+def axes3d_clean(ax: Axes3D, grid: bool = True) -> None:
     """Remove clutter from 3D axes.
 
     Args:
-        grid (bool): Whether to show the background grid. Default is True.
-        ticks (bool): Whether to show the ticks that stick out the side of the
-            axes. Setting this to `False` does not remove grid lines. Default is False.
-        label_axes (bool): Whether to show the x, y, z axis labels. Default is False.
+        ax: The 3D axes to clean.
+        grid: Whether to show the background grid. Default is True.
     """
 
     # Remove dark spines that outline the plot.
@@ -123,12 +127,6 @@ def axes3d_clean(
         # grid lines).
         for axis in ("x", "y", "z"):
             ax.tick_params(axis=axis, colors=(0, 0, 0, 0))
-
-        # Stylize grid lines.
-        if grid_color is not None:
-            ax.xaxis._axinfo["grid"]["color"] = grid_color
-            ax.yaxis._axinfo["grid"]["color"] = grid_color
-            ax.zaxis._axinfo["grid"]["color"] = grid_color
 
     else:
         # Remove tick marks.
@@ -164,22 +162,94 @@ def axes3d_set_aspect_equal(ax: Axes3D) -> None:
     ax.set_box_aspect([1, 1, 1])
 
 
-def add_legend(
-    ax: plt.Axes,
-    colors: Container[str],
-    labels: Container[str],
-    loc: Optional[str] = None,
-    lw: int = 4,
-    fontsize: int = 8,
-) -> matplotlib.legend.Legend:
-    # Create custom legend handles (axes.legend() doesn't work when multiple
-    # violin plots are on the same axes.
-    legend_handles = []
-    for i in range(len(colors)):
-        handle = Line2D([0], [0], color=colors[i], lw=lw, label=labels[i])
-        legend_handles.append(handle)
+"""
+Image Utilities
+-------------------------------------------------------------------------------
+"""
 
-    return ax.legend(handles=legend_handles, loc=loc, fontsize=fontsize)
+
+def add_solid_background(
+    image: np.ndarray,
+    color: str,
+) -> np.ndarray:
+    """
+    Add a solid background to an RGBA image.
+    """
+    width, height = image.shape[0], image.shape[1]
+    c = np.array(to_rgba(color))
+    bg = np.zeros([width, height, 4])
+    bg[:, :] = c
+    return blend_rgba_images(bg, image)
+
+
+def add_gradient_background(
+    image: np.ndarray,
+    vmin: float = 0.7,
+    vmax: float = 0.9,
+) -> np.ndarray:
+    """Add a grayscale gradient background to an RGBA image."""
+
+    width, height = image.shape[0], image.shape[1]
+
+    # First, create the gradient background.
+    # - Make pixel coordinates.
+    x = np.linspace(0, width - 1, width)
+    y = np.linspace(0, height - 1, height)
+    X, Y = np.meshgrid(x, y)
+
+    # - Compute the randomly oriented gradient.
+    theta = np.random.uniform(0, 2 * np.pi)
+    gradient = (X * np.cos(theta) + Y * np.sin(theta)) / np.sqrt(width**2 + height**2)
+
+    # Scale gradient to desired range, and put in an RGBA array.
+    gradient = vmin + (vmax - vmin) * gradient[..., np.newaxis]
+    bg = np.clip(gradient, vmin, vmax)
+    bg = np.dstack((bg, bg, bg, np.ones((width, height))))
+
+    # - Finally, blend the image with the background.
+    return blend_rgba_images(bg, image)
+
+
+def blend_rgba_images(background: np.ndarray, foreground: np.ndarray) -> np.ndarray:
+    """Blends two RGBA image arrays using alpha compositing.
+
+    Args:
+        background: An RGBA array.
+        foreground: An RGBA array.
+
+    Returns:
+    - Blended image as an RGBA NumPy array.
+    """
+    assert background.shape == foreground.shape, "Images must have the same shape"
+    assert background.shape[2] == 4, "Images must be RGBA (H, W, 4)"
+    image_1, image_2 = foreground, background
+
+    # Ensure 0-1 floats.
+    if image_1.max() > 1:
+        image_1 = image_1 / 255.0
+    if image_2.max() > 1:
+        image_2 = image_2 / 255.0
+
+    # Extract RGB and Alpha channels
+    rgb_1, alpha_1 = image_1[..., :3], image_1[..., 3:]
+    rgb_2, alpha_2 = image_2[..., :3], image_2[..., 3:]
+
+    # Compute blended alpha
+    alpha_out = alpha_1 + alpha_2 * (1 - alpha_1)
+
+    # Compute blended RGB
+    rgb_out = (rgb_1 * alpha_1 + rgb_2 * alpha_2 * (1 - alpha_1)) / np.maximum(
+        alpha_out, 1e-8
+    )
+
+    # Stack RGB and alpha back together
+    return np.dstack((rgb_out, alpha_out))
+
+
+"""
+Plotting Utilities
+-------------------------------------------------------------------------------
+"""
 
 
 def violinplot(
@@ -198,6 +268,7 @@ def violinplot(
     percentile_style: Optional[Mapping] = None,
     median_style: Optional[Mapping] = None,
     ax: Optional[plt.Axes] = None,
+    **kw,
 ) -> plt.Axes:
     """Create a violin plot with customizable styling.
 
@@ -223,7 +294,8 @@ def violinplot(
           Defaults to None.
         ax (Optional[plt.Axes], optional): Axes to plot on. If None, creates new figure.
           Defaults to None.
-
+        **kw: Additional keyword arguments to pass to the matplotlib's violinplot
+          function.
     Raises:
         ValueError: If side is not one of "both", "left", or "right"
 
@@ -270,6 +342,7 @@ def violinplot(
         showmeans=showmeans,
         showmedians=False,
         widths=width,
+        **kw,
     )
 
     for i, body in enumerate(vp["bodies"]):
@@ -321,6 +394,15 @@ def violinplot(
 
 
 class SensorModuleData:
+    """Class for plotting sensor module data on 3D axes.
+
+    Args:
+        sm_dict (Mapping): Dictionary containing sensor module data. Comes from
+          detailed JSON stats dictionary.
+        style (Optional[Mapping], optional): Style dictionary in the same format as
+          `_default_style`. Key/Value pairs will override the default style.
+
+    """
     _default_style = {
         # for "plot_raw_observation"
         "raw_observation.contour.color": "black",
@@ -336,7 +418,7 @@ class SensorModuleData:
         "sensor_path.start.color": "black",
         "sensor_path.start.alpha": 1,
         "sensor_path.start.marker": "x",
-        "sensor_path.start.s": 10,
+        "sensor_path.start.s": 15,
         "sensor_path.start.zorder": 10,
         "sensor_path.scatter.color": "black",
         "sensor_path.scatter.alpha": 1,
@@ -344,7 +426,7 @@ class SensorModuleData:
         "sensor_path.scatter.s": 10,
         "sensor_path.scatter.zorder": 10,
         "sensor_path.scatter.edgecolor": "none",
-        "sensor_path.line.color": "black",
+        "sensor_path.line.color": TBP_COLORS["blue"],
         "sensor_path.line.alpha": 1,
         "sensor_path.line.linewidth": 1,
         "sensor_path.line.zorder": 10,
@@ -395,7 +477,7 @@ class SensorModuleData:
         contour: bool = True,
         style: Optional[Mapping] = None,
     ):
-        """Plot the raw observation.
+        """Plot the raw observation (i.e, an RGBA patch).
 
         Args:
             ax (plt.Axes): The axes to plot on.
