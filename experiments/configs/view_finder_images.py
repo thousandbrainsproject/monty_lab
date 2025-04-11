@@ -20,7 +20,6 @@ import os
 import shutil
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 from tbp.monty.frameworks.actions.action_samplers import ConstantSampler
 from tbp.monty.frameworks.actions.actions import (
@@ -51,6 +50,7 @@ from tbp.monty.frameworks.models.motor_policies import (
     InformedPolicy,
     get_perc_on_obj_semantic,
 )
+from tbp.monty.frameworks.models.motor_system import MotorSystem
 from tbp.monty.simulators.habitat.configs import PatchViewFinderMountHabitatDatasetArgs
 
 
@@ -246,15 +246,18 @@ Configs
 """
 
 motor_system_config = MotorSystemConfigInformedNoTransStepS20(
-    motor_system_class=FramedObjectPolicy,
-    motor_system_args=make_informed_policy_config(
-        action_space_type="distant_agent_no_translation",
-        action_sampler_class=ConstantSampler,
-        rotation_degrees=5.0,
-        use_goal_state_driven_actions=False,
-        switch_frequency=1.0,
-        good_view_percentage=0.5,  # Make sure we define the required
-        desired_object_distance=0.2,
+    motor_system_class=MotorSystem,
+    motor_system_args=dict(
+        policy_class=FramedObjectPolicy,
+        policy_args=make_informed_policy_config(
+            action_space_type="distant_agent_no_translation",
+            action_sampler_class=ConstantSampler,
+            rotation_degrees=5.0,
+            use_goal_state_driven_actions=False,
+            switch_frequency=1.0,
+            good_view_percentage=0.5,  # Make sure we define the required
+            desired_object_distance=0.2,
+        ),
     ),
 )
 
