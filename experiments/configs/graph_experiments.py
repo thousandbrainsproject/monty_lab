@@ -17,6 +17,7 @@ from typing import Callable, Dict, Union
 import numpy as np
 from tbp.monty.frameworks.actions.action_samplers import ConstantSampler
 from tbp.monty.frameworks.config_utils.config_args import (
+    Dataclass,
     FiveLMMontyConfig,
     InformedPolicy,
     LoggingConfig,
@@ -54,6 +55,7 @@ from tbp.monty.frameworks.models.evidence_matching import (
     MontyForEvidenceGraphMatching,
 )
 from tbp.monty.frameworks.models.feature_location_matching import FeatureGraphLM
+from tbp.monty.frameworks.models.motor_system import MotorSystem
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     HabitatDistantPatchSM,
@@ -694,13 +696,16 @@ two_lm_surface_heterarchy_all_objects.update(
 class MotorSystemConfigFixed:
     """A motor system with a fixed action sequence that gets repeated."""
 
-    motor_system_class: Callable = field(default=InformedPolicy)
-    motor_system_args: Union[Dict, dataclass] = field(
-        default_factory=lambda: make_informed_policy_config(
-            action_space_type="distant_agent_no_translation",
-            action_sampler_class=ConstantSampler,
-            rotation_degrees=5.0,
-            file_name=Path(__file__).parent / "resources/fixed_test_actions.jsonl",
+    motor_system_class: MotorSystem = MotorSystem
+    motor_system_args: Union[Dict, Dataclass] = field(
+        default_factory=lambda: dict(
+            policy_class=InformedPolicy,
+            policy_args=make_informed_policy_config(
+                action_space_type="distant_agent_no_translation",
+                action_sampler_class=ConstantSampler,
+                rotation_degrees=5.0,
+                file_name=Path(__file__).parent / "resources/fixed_test_actions.jsonl",
+            ),
         )
     )
 
