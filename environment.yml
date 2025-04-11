@@ -25,4 +25,4 @@ channels:
   - thousandbrainsproject
 
 dependencies:
-  - thousandbrainsproject::tbp.monty
+  - thousandbrainsproject::tbp.monty>=0.3.0

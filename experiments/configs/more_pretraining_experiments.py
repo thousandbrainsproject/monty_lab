@@ -47,6 +47,7 @@ from tbp.monty.frameworks.experiments import (
     MontySupervisedObjectPretrainingExperiment,
 )
 from tbp.monty.frameworks.models.displacement_matching import DisplacementGraphLM
+from tbp.monty.frameworks.models.motor_policies import NaiveScanPolicy
 from tbp.monty.frameworks.models.sensor_modules import (
     DetailedLoggingSM,
     HabitatDistantPatchSM,
@@ -126,7 +127,10 @@ supervised_pre_training_base = dict(
             )
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=5)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=5),
+            )
         ),  # use spiral policy for more even object coverage during learning
     ),
     dataset_class=ED.EnvironmentDataset,
@@ -159,7 +163,10 @@ supervised_pre_training_storeall.update(
             )
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=5)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=5),
+            )
         ),  # use spiral policy for more even object coverage during learning
     ),
 )
@@ -179,7 +186,10 @@ supervised_pre_training_stepsize3.update(
             )
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=3)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=3),
+            )
         ),
     ),
 )
@@ -202,7 +212,10 @@ supervised_pre_training_stepsize3_storeall.update(
             )
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=3)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=3),
+            )
         ),
     ),
 )
@@ -222,7 +235,10 @@ supervised_pre_training_stepsize6.update(
             )
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=6)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=6),
+            )
         ),
     ),
 )
@@ -245,7 +261,10 @@ supervised_pre_training_stepsize6_storeall.update(
             )
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=6)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=6),
+            )
         ),
     ),
 )
@@ -262,7 +281,10 @@ supervised_pre_training_feature_change_s3.update(
     monty_config=PatchAndViewFeatureChangeConfig(
         monty_args=MontyArgs(num_exploratory_steps=1000),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=3)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=3),
+            )
         ),
     ),
 )
@@ -372,7 +394,10 @@ supervised_pre_training_location_noise002.update(
             sensor_module_1=view_finder_config,
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=5)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=5),
+            )
         ),  # use spiral policy for more even object coverage during learning
     ),
 )
@@ -406,7 +431,10 @@ supervised_pre_training_location_noise005.update(
             sensor_module_1=view_finder_config,
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=5)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=5),
+            )
         ),  # use spiral policy for more even object coverage during learning
     ),
 )
@@ -440,7 +468,10 @@ supervised_pre_training_location_noise001.update(
             sensor_module_1=view_finder_config,
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=5)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=5),
+            )
         ),  # use spiral policy for more even object coverage during learning
     ),
 )
@@ -657,7 +688,10 @@ supervised_pre_training_2lms.update(
             ),
         ),
         motor_system_config=MotorSystemConfigNaiveScanSpiral(
-            motor_system_args=make_naive_scan_policy_config(step_size=5)
+            motor_system_args=dict(
+                policy_class=NaiveScanPolicy,
+                policy_args=make_naive_scan_policy_config(step_size=5),
+            )
         ),
     ),
     dataset_args=MultiLMMountHabitatDatasetArgs(),
