@@ -19,6 +19,8 @@ To test on an already created dataset of real-world images, simply run experimen
 
 To run the App, open the project in this folder in xCode and run it on your device. The app is currently not in the App store.
 
+Note: You will have to log in with your Apple account, set the DEVELOPMENT_TEAM parameter to your account, and connect your device to XCode if you haven't done this already.
+
 saveImage, uploadRGBData and uploadDepthData were added by us
 to the original project from the Apple Developer website
 https://developer.apple.com/documentation/avfoundation/additional_data_capture/streaming_depth_data_from_the_truedepth_camera
@@ -27,9 +29,12 @@ https://developer.apple.com/documentation/avfoundation/additional_data_capture/s
 
 To receive the camera images from the iOS device, you need to run a local server. To do that run
 
-`python src/tbp/monty/frameworks/dataset_utils/server.py`
+`python src/tbp/monty/frameworks/environment_utils/server.py`
 
-(there won't be any output until you take a picture in the iOS App). For streaming to work you need to go to the system settings of your app and change the URL to your local wifi IP address.
+(there won't be any output until you take a picture in the iOS App). 
+
+For streaming to work you need to go to the system settings of your app and change the URL to your local wifi IP address. To set this, you can go to the system settings on your device (like on the iPad) and search for `MontyMeetsWorld`. This should take you to the app settings which should have a `Monty URL` field. You can find your WIFI IP address in your wifi settings on your laptop. Enter `http://your.wifi.ip.address:8080` into the app settings field on the iPad. Make sure to set the same IP address in the `tbp.monty/frameworks/environment_utils/server.py` script on line 62 (`ip_address`). Also, make sure that both your laptop and your device are on the same WIFI.
+
 
 ## 3. Processing Data in Monty
 
