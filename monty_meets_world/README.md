@@ -33,7 +33,8 @@ To receive the camera images from the iOS device, you need to run a local server
 
 There won't be any output until you take a picture in the iOS App. 
 
-For streaming to work you need to go to the system settings of your app and change the URL to your local Wi-Fi IP address. To set this, you can go to the system settings on your device (like on the iPad) and search for `MontyMeetsWorld`. This should take you to the app settings which should have a `Monty URL` field. You can find your Wi-Fi IP address in your Wi-Fi settings on your laptop. Enter `http://your.wifi.ip.address:8080` into the app settings field on the iPad. Make sure to set the same IP address in the `tbp.monty/frameworks/environment_utils/server.py` script on line 62 (`ip_address`). Also, make sure that both your laptop and your device are on the same Wi-Fi.
+For streaming to work you need to go to the system settings of your app and change the URL to your local Wi-Fi IP address. To set this, you can go to the system settings on your device (like on the iPad) and search for `MontyMeetsWorld`. This should take you to the app settings which should have a `Monty URL` field. You can find your Wi-Fi IP address in your Wi-Fi settings on your laptop. Enter `http://your.wifi.ip.address:8080` into the app settings field on the iPad. 
+Make sure to set the same IP address in the `tbp.monty/frameworks/environment_utils/server.py` script by setting the `MONTY_SERVER_IP_ADDRESS` environment variable (run `export MONTY_SERVER_IP_ADDRESS=<your_wifi_ip_address>`. Also, make sure that both your laptop and your device are on the same Wi-Fi.
 
 
 ## 3. Processing Data in Monty
