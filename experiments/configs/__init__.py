@@ -19,6 +19,7 @@ from .graph_experiments import CONFIGS as GRAPHS
 from .policy_experiments import CONFIGS as POLICYEVAL
 from .profiled_runs import CONFIGS as PROFILED_RUNS
 from .robustness_experiments import CONFIGS as ROBUSTNESSEVAL
+from .tbp_robot_lab import CONFIGS as TBP_ROBOT_LAB
 from .view_finder_images import CONFIGS as VIEW_FINDER_IMAGES
 
 CONFIGS = dict()
@@ -33,3 +34,4 @@ CONFIGS.update(POLICYEVAL)
 CONFIGS.update(ROBUSTNESSEVAL)
 CONFIGS.update(FOLLOW_UPS)
 CONFIGS.update(VIEW_FINDER_IMAGES)
+CONFIGS.update(TBP_ROBOT_LAB)
