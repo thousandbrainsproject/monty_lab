@@ -1,0 +1,3 @@
+﻿Experiment,Correct (%),Used MLH (%),Num Match Steps,Rotation Error (degrees),Run Time (mins),Episode Run Time (s)
+randrot_noise_dist_sim_on_scan_tbp_robot_lab_obj,92,74,339,52.7,17,133
+randrot_noise_surf_sim_on_scan_tbp_robot_lab_obj,98,1,32,17.76,5,29
