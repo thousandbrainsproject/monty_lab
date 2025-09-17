@@ -44,6 +44,9 @@ The main purpose of this dataset is to test object recognition in the real world
 
 The corresponding configs can be found in `./experiments/configs/tbp_robot_lab.py` and you can run the experiments using the following command to replicate the results below: `python ./experiments/run_parallel.py -e randrot_noise_surf_sim_on_scan_tbp_robot_lab` (replace the experiment name with the experiment you want to run). The results reported below were obtained by running the experiments in parallel on 16 CPUs on AWS.
 
+> [!NOTE]
+> If you want to rerun these benchmarks on TBP infrastructure, you'll need to create a new `tbp.monty` fork (`tbp.robot_lab`) and move these benchmarks into that fork. Reach out to @vkakerbeck or @tristanls
+
 |Experiment                                      |Correct (%)|Used MLH (%)|Num Match Steps|Rotation Error (degrees)|Run Time (mins)|Episode Run Time (s)|
 |------------------------------------------------|-----------|------------|---------------|------------------------|---------------|--------------------|
 |randrot_noise_dist_sim_on_scan_tbp_robot_lab|92         |74          |339            |52.7                    |17             |133                 |
