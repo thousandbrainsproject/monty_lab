@@ -15,7 +15,6 @@ from copy import deepcopy
 import numpy as np
 import torch
 import torchvision.transforms as T
-from tbp.monty.frameworks.utils.transform_utils import find_transform_instance
 from supervised_config_args import OnlineOptimizationExpArguments
 from torch.utils.data import DataLoader
 from transforms import RandomRigidBody, RandomRotate, RandomTranslation
@@ -260,3 +259,33 @@ class OnlineRandomRigidBodyExperiment(OnlineOptimizationExperiment):
             params=self.best_params,
             label=label
         )
+
+
+def find_transform_instance(composed_transform, transform_type):
+    """Find the first instance of transform_type.
+
+    Loop over a composition of transforms and return the first instance of
+    transform_type.
+
+    Args:
+        composed_transform: Output of T.Compose([args]), T being torchvision or
+            torch_geometric transforms
+        transform_type: The class you are looking for an instance of
+
+    Returns:
+        The first instance of transform_type or None if not found
+    """
+    # if compsoed transform is not a composition but already transform type, just return
+    if isinstance(composed_transform, transform_type):
+        return composed_transform
+
+    instance = None
+    for transform in composed_transform.transforms:
+        if isinstance(transform, transform_type):
+            instance = transform
+
+    if not instance:
+        print(f"Warning, no {transform_type} instance found")
+
+    return instance
+
